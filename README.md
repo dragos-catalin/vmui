@@ -101,6 +101,11 @@ src/
 
 Implement `CloudProvider` from `src/lib/providers/types.ts` and register it in `src/lib/providers/registry.ts`. The dashboard, status badges, and connect dialog are provider-agnostic.
 
+## Dev fleet (VMs + physical machines)
+
+See [docs/fleet.md](docs/fleet.md): every machine on the tailnet, how to reach it and what it
+is for, including the physical ASUS laptop `dragos-vivobook` used for real-OS desktop tests.
+
 ## Local KVM (macOS in WSL2)
 
 See [docs/local-kvm-macos.md](docs/local-kvm-macos.md) for architecture, the
