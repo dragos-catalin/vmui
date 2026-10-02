@@ -30,8 +30,10 @@ Romanian source IP (first client: MarcAI ingest, PLAN.md D29 in `E:\gh\marcai`).
 pwsh -File scripts\pi-egress-proxy.ps1          # sync cfg + passwd, docker compose up -d
 ```
 
-3proxy `monitor`s `3proxy.cfg` and `passwd`, so edits reload within a minute
-without a restart. Does not touch vmui (that is `pi-deploy.ps1`).
+3proxy `monitor`s `3proxy.cfg` and `passwd`, but a NEW user in `passwd` was
+still refused with 407 a minute after the deploy (2026-10-02, adding `brivio`);
+`docker compose restart egress-proxy` fixed it at once. After `-NewApp`,
+restart. Does not touch vmui (that is `pi-deploy.ps1`).
 
 ## Add an app
 
@@ -55,6 +57,7 @@ without a restart. Does not touch vmui (that is `pi-deploy.ps1`).
 | user     | hosts (443, CONNECT only)                                                                                                                                                                                  |
 | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `marcai` | `api.efortuna.ro` (S08), `api.casapariurilor.ro` (S09), `superbet.ro` + `*.superbet.ro`, `production-superbet-offer-ro.freetls.fastly.net` (S07), `eu-offering-api.kambicdn.com` (S10 Unibet/Kambi), `sportsbook-sm-distribution-api.nsoft.com` (S12 Stanleybet) |
+| `brivio` | `gov.ro`, `www.gov.ro` (news ingest RSS; gov.ro times out from GCP default egress, Cloud NAT and Cloudflare Workers — measured 2026-10-02). Client: Brivio worker on Cloud Run, tailnet tag `tag:brivio-egress`, `connlim 4`. |
 
 ## Tailscale ACL (owner action)
 
