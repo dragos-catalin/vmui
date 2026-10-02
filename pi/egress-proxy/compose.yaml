@@ -1,0 +1,25 @@
+# homepi egress proxy: /srv/homepi/egress-proxy/compose.yaml (scripts/pi-egress-proxy.ps1).
+# Separate from pi/compose.yaml (the house stack): this one serves other apps.
+# Host networking so 3proxy can bind the Tailscale address itself; the config
+# listens on 127.0.0.1 and 100.82.141.110 only.
+services:
+  egress-proxy:
+    # 3proxy 0.9.x official image, multi-arch index digest (arm64 used on the Pi)
+    image: 3proxy/3proxy@sha256:b7098c1b2e92078575d2f0baec9ba8a77b53e984c02dcec63019f5586264124a
+    container_name: egress-proxy
+    restart: unless-stopped
+    network_mode: host
+    mem_limit: 64m
+    pids_limit: 512
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [SETUID, SETGID]
+    security_opt: [no-new-privileges:true]
+    volumes:
+      - ./3proxy.cfg:/etc/3proxy/3proxy.cfg:ro
+      - ./passwd:/etc/3proxy/passwd:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
