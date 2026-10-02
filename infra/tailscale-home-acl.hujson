@@ -15,6 +15,14 @@
 		// See the note in tailscale-acl.hujson: a tag owned by a user group or
 		// autogroup:admin is refused for OAuth-minted keys.
 		"tag:appliance": ["tag:appliance"],
+		// MarcAI ingest Cloud Run job (ephemeral nodes): may reach ONLY the RO egress
+		// proxy on homepi:3128 (marcai D29). Self-owned for OAuth-minted keys.
+		"tag:marcai-ingest": ["tag:marcai-ingest"],
+	},
+
+	"hosts": {
+		// Untagged Raspberry Pi running the egress proxy (pi/egress-proxy).
+		"homepi": "100.82.141.110",
 	},
 
 	// No "nodeAttrs" with "funnel" on purpose. Tailscale Serve (HTTPS inside
@@ -35,6 +43,9 @@
 		// via the Companion local endpoint, and Chromecast/DLNA discovery
 		// for devices that also carry a Tailscale client.
 		{"src": ["tag:appliance"], "dst": ["autogroup:member"], "ip": ["*"]},
+
+		// MarcAI ingest -> RO egress proxy only. Nothing else in the house.
+		{"src": ["tag:marcai-ingest"], "dst": ["homepi"], "ip": ["tcp:3128"]},
 	],
 
 	"ssh": [
@@ -50,6 +61,11 @@
 		{
 			"src":    "vladulescu.catalin@gmail.com",
 			"accept": ["tag:appliance:8123", "tag:appliance:443"],
+		},
+		{
+			"src":    "tag:marcai-ingest",
+			"accept": ["homepi:3128"],
+			"deny":   ["homepi:22", "homepi:3737", "homepi:8123", "tag:appliance:8123"],
 		},
 	],
 }
