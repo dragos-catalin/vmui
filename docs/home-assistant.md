@@ -73,6 +73,18 @@ with Fast Startup on, a "shut down" PC is hibernating and ignores magic
 packets. The wake short-circuits when port 22 already answers. Magic packet
 verified leaving eth0 with tcpdump (`UDP 192.168.100.255.9, length 102`).
 
+**Stream lighting** (`pi/ha-packages/vmui_stream.yaml`, installed by
+pi-deploy; then `homeassistant.reload_all`): `script.stream_scene_<id>` for
+every `STREAM_SCENES` entry (mode: restart, `duration_sec` variable),
+`script.stream_scene_default` (stop + restore) and `script.stream_flash`
+(`color`, `count` 1-5, `duration_ms`; repeats `notify_flash`). The first
+effect snapshots `light.moodlight` + `light.ambience_light` into
+`scene.stream_before` while `input_boolean.stream_effect_active` is off;
+later effects keep that snapshot, and `stream_end` restores it. Strips get the
+look via HyperHDR priority 30 with a `duration`, so they recover even if the
+restore never runs. vmui calls them with `script.turn_on` (non-blocking) from
+the MCP tools `scene_set` / `flash_color`.
+
 **Turzx on the Pi**: new `pi` view (CPU / temp / RAM arcs, MHz, load,
 throttle flags from `vcgencmd get_throttled`, containers, disk, net rate),
 sampled by `_pi_worker` in `turzx.py` on Linux only. Activity view was blank

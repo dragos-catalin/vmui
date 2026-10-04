@@ -155,6 +155,7 @@ exposes the house and this PC as named, zod-validated, audit-logged tools:
 `scripts\pc-action.ps1`: lock, sleep, display_off, volume, mute, restart
 tunnel / VS Code ext host / ambilight / turzx / vmui), `vm_list`, `vm_action`.
 Destructive tools carry `destructiveHint` so the client asks first.
+Stream lighting: `scene_list`, `scene_set`, `flash_color` (see below).
 
 - Auth: `Authorization: Bearer vmui_…` with the **operator** role. Mint one
   with `node scripts/mint-api-key.mjs "codai phone" operator` (printed once).
@@ -167,6 +168,36 @@ Destructive tools carry `destructiveHint` so the client asks first.
   plain HTTP); `ha-configure.ps1 -PublishDomain` provides the certificate.
 - The cloud codai gateway never calls this: its `http_fetch` blocks private
   IPs by design. Callers are the devices themselves.
+
+#### Stream lighting (TikSee)
+
+A TikTok LIVE companion (TikSee sidecar) drives room lighting with a key
+minted on the **`stream`** preset — `home_devices`, `home_state`,
+`scene_list`, `scene_set`, `flash_color`, `notify_flash`, `ambilight_mode`,
+`lights_set` limited to `light.moodlight`, `light.ambience_light`,
+`light.led_argb`, `light.hyperhdr`:
+
+```powershell
+node scripts/mint-api-key.mjs tiksee operator --preset stream --rate 120
+```
+
+Calls are plain JSON-RPC (`POST /api/mcp`, `Authorization: Bearer vmui_…`,
+`Content-Type: application/json`):
+
+```json
+{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"scene_set","arguments":{"scene":"gift_gold","durationSec":10,"idempotencyKey":"gift-7421"}}}
+{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"flash_color","arguments":{"color":"pink","count":2,"durationMs":400}}}
+```
+
+The text content of the result is JSON: `{"ok":true,"scene":"gift_gold","durationSec":10}`
+on success, `{"ok":true,"limited":true,"retryAfterMs":7300,"queued":true}` when
+the per-key cooldown is active (flash 1.5 s, scene 10 s — the latest limited call
+still plays when the window ends, so do not retry it), `"duplicate":true` when
+the same `idempotencyKey` came within 60 s. `scene_set {"scene":"default"}`
+stops any scene and restores the lights immediately (never limited). Scenes
+restore the bulbs to how they were before the first effect; the strips expire on
+their own in HyperHDR. TikSee should still apply its own per-viewer limits
+(e.g. one `!red` per viewer per minute) before calling.
 
 ## Security notes
 

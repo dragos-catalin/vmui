@@ -9,6 +9,9 @@ const config = [
       "vmui.db*",
       "next-env.d.ts",
       "scripts/**",
+      ".copilot-tmp/**",
+      "**/dist/**",
+      "**/src-tauri/target/**",
     ],
   },
   {
