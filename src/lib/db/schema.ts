@@ -617,6 +617,8 @@ export const apiKeys = sqliteTable("api_keys", {
   rateLimitPerMinute: integer("rate_limit_per_minute").notNull().default(60),
   /** JSON `ApiKeyScopes` (src/lib/api-key-scopes.ts); null = unrestricted. */
   scopes: text("scopes"),
+  /** `apiKeyLookupId(plaintext)` (src/lib/api-auth.ts); null on keys minted before it existed until first use. */
+  lookupId: text("lookup_id"),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .default(sql`(unixepoch())`),

@@ -4,7 +4,8 @@ import { parseApiKeyScopes, type ApiKeyScopes } from "@/lib/api-key-scopes";
 import { hashPassword, verifyPassword } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { apiKeys, type ApiKeyRow } from "@/lib/db/schema";
-import { eq, isNull } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
+import { createHash } from "node:crypto";
 
 export type ApiAuthResult =
   | { ok: true; keyId: string; role: ApiKeyRow["role"]; rateLimitPerMinute: number; scopes: ApiKeyScopes | null }
@@ -34,12 +35,39 @@ function consume(keyId: string, limit: number): boolean {
   return true;
 }
 
-/** Issue a fresh plaintext key. Returns the key (shown once) and the storable hash. */
-export async function generateApiKey(): Promise<{ plaintext: string; hash: string }> {
+/**
+ * Indexed lookup handle for a token: the first 16 hex chars of its SHA-256. Derivable from
+ * any token (old keys too), so a request finds its row without running scrypt against every
+ * key; scrypt still verifies the match. 64 bits of a hash of a 256-bit random secret reveal
+ * nothing usable. scripts/mint-api-key.mjs computes the same value.
+ */
+export function apiKeyLookupId(token: string): string {
+  return createHash("sha256").update(token).digest("hex").slice(0, 16);
+}
+
+/** Issue a fresh plaintext key. Returns the key (shown once), the storable hash and its lookup id. */
+export async function generateApiKey(): Promise<{ plaintext: string; hash: string; lookupId: string }> {
   const random = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("base64url");
   const plaintext = `vmui_${random}`;
   const hash = await hashPassword(plaintext);
-  return { plaintext, hash };
+  return { plaintext, hash, lookupId: apiKeyLookupId(plaintext) };
+}
+
+async function findKey(token: string): Promise<ApiKeyRow | null> {
+  const lookupId = apiKeyLookupId(token);
+  const indexed = await db.select().from(apiKeys).where(and(eq(apiKeys.lookupId, lookupId), isNull(apiKeys.revokedAt)));
+  for (const row of indexed) {
+    if (await verifyPassword(token, row.hash)) return row;
+  }
+  // Keys minted before lookup ids existed: scan only those, and backfill the one that matches.
+  const legacy = await db.select().from(apiKeys).where(and(isNull(apiKeys.lookupId), isNull(apiKeys.revokedAt)));
+  for (const row of legacy) {
+    if (await verifyPassword(token, row.hash)) {
+      await db.update(apiKeys).set({ lookupId }).where(eq(apiKeys.id, row.id));
+      return row;
+    }
+  }
+  return null;
 }
 
 export async function validateApiKey(req: Request): Promise<ApiAuthResult> {
@@ -49,23 +77,19 @@ export async function validateApiKey(req: Request): Promise<ApiAuthResult> {
   const token = m[1]!.trim();
   if (!token) return { ok: false, status: 401, error: "Empty bearer token" };
 
-  const rows = await db.select().from(apiKeys).where(isNull(apiKeys.revokedAt));
-  for (const row of rows) {
-    if (await verifyPassword(token, row.hash)) {
-      if (!consume(row.id, row.rateLimitPerMinute)) {
-        return { ok: false, status: 429, error: "Rate limit exceeded" };
-      }
-      await db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, row.id));
-      return {
-        ok: true,
-        keyId: row.id,
-        role: row.role,
-        rateLimitPerMinute: row.rateLimitPerMinute,
-        scopes: parseApiKeyScopes(row.scopes),
-      };
-    }
+  const row = await findKey(token);
+  if (!row) return { ok: false, status: 401, error: "Invalid token" };
+  if (!consume(row.id, row.rateLimitPerMinute)) {
+    return { ok: false, status: 429, error: "Rate limit exceeded" };
   }
-  return { ok: false, status: 401, error: "Invalid token" };
+  await db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, row.id));
+  return {
+    ok: true,
+    keyId: row.id,
+    role: row.role,
+    rateLimitPerMinute: row.rateLimitPerMinute,
+    scopes: parseApiKeyScopes(row.scopes),
+  };
 }
 
 export function requireApiRole(

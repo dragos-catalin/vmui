@@ -72,11 +72,12 @@ export async function createApiKeyAction(
   const normalized = await normalizeScopes(parsed.data.role === "operator" ? parsed.data.scopes : undefined);
   if (!normalized.ok) return normalized;
   const id = nanoid();
-  const { plaintext, hash } = await generateApiKey();
+  const { plaintext, hash, lookupId } = await generateApiKey();
   await db.insert(apiKeys).values({
     id,
     name: parsed.data.name,
     hash,
+    lookupId,
     role: parsed.data.role,
     rateLimitPerMinute: parsed.data.rateLimitPerMinute,
     scopes: normalized.scopes ? JSON.stringify(normalized.scopes) : null,

@@ -494,6 +494,8 @@ const addColumnIfMissing = (table: string, name: string, def: string) => {
   }
 };
 addColumnIfMissing("api_keys", "scopes", "scopes TEXT");
+addColumnIfMissing("api_keys", "lookup_id", "lookup_id TEXT");
+sqlite.exec(`CREATE INDEX IF NOT EXISTS idx_api_keys_lookup ON api_keys(lookup_id)`);
 
 sqlite.exec(`CREATE TABLE IF NOT EXISTS notifications (
   id TEXT PRIMARY KEY,
