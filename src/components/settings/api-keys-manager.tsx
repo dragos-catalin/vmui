@@ -5,7 +5,7 @@ import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAction } from "@/hooks/use-action";
 import { ok, type ActionResult } from "@/lib/action-result";
-import { isUnrestricted, presetTools, SCOPE_PRESETS, type ApiKeyScopes, type ScopedToolInfo, type ScopePreset } from "@/lib/api-key-scopes";
+import { isUnrestricted, presetScopes, SCOPE_PRESETS, type ApiKeyScopes, type ScopedToolInfo, type ScopePreset } from "@/lib/api-key-scopes";
 import { createApiKeyAction, revokeApiKeyAction } from "@/server/actions/api-keys";
 import { Check, Copy, Key, Plus, Trash2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
@@ -85,9 +85,10 @@ export function ApiKeysManager({ keys, catalog }: { keys: ApiKeyView[]; catalog:
 
   function buildScopes(): ApiKeyScopes | undefined {
     if (role !== "operator") return undefined;
-    const toolList = preset === "custom" ? [...tools] : presetTools(preset, catalog.tools);
-    const entityList = [...new Set([...entities, ...splitIds(entityText)])];
-    const scriptList = splitIds(scriptText);
+    const base = preset === "custom" ? { tools: [...tools] } : presetScopes(preset, catalog.tools);
+    const toolList = base?.tools;
+    const entityList = [...new Set([...(base?.entities ?? []), ...entities, ...splitIds(entityText)])];
+    const scriptList = [...new Set([...(base?.scripts ?? []), ...splitIds(scriptText)])];
     const scopes: ApiKeyScopes = {
       ...(toolList ? { tools: toolList } : {}),
       ...(vmIds.size ? { vmIds: [...vmIds] } : {}),
@@ -268,6 +269,8 @@ export function ApiKeysManager({ keys, catalog }: { keys: ApiKeyView[]; catalog:
               <Field label={t("scopes")} hint={t("scopesHint")}>
                 <ToggleGroup value={preset} onValueChange={setPreset} options={presetOptions} size="sm" aria-label={t("scopes")} />
               </Field>
+
+              {preset === "stream" && <p className="text-xs text-fg-muted">{t("presetHints.stream")}</p>}
 
               {preset === "custom" && (
                 <Subsection title={t("scopeTools")} collapsible>

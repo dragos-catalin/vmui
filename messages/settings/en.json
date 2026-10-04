@@ -280,7 +280,11 @@
         "all": "All tools",
         "readOnly": "Read-only",
         "nonDestructive": "Non-destructive",
+        "stream": "Live stream",
         "custom": "Custom"
+      },
+      "presetHints": {
+        "stream": "For TikSee and stream agents: scenes, colour flashes, ambilight mode and the RGB room lights only (moodlight, ambience, MELK strip, ambilight). Effects are rate-limited per key."
       },
       "scopeTools": "Tools",
       "scopeVms": "VMs",

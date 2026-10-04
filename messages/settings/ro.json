@@ -277,7 +277,11 @@
         "all": "Toate uneltele",
         "readOnly": "Doar citire",
         "nonDestructive": "Nedistructive",
+        "stream": "Live stream",
         "custom": "Personalizat"
+      },
+      "presetHints": {
+        "stream": "Pentru TikSee și agenții de stream: scene, flash-uri colorate, modul ambilight și doar luminile RGB din cameră (moodlight, ambience, banda MELK, ambilight). Efectele sunt limitate per cheie."
       },
       "scopeTools": "Unelte",
       "scopeVms": "Mașini virtuale",

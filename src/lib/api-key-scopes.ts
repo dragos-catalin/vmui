@@ -1,4 +1,5 @@
 import { z } from "zod";
+import streamPreset from "@/lib/mcp/stream-preset.json";
 
 /**
  * Per-key restrictions for `vmui_*` operator keys used by /api/mcp.
@@ -24,7 +25,7 @@ export const apiKeyScopesSchema = z.object({
 
 export type ApiKeyScopes = z.infer<typeof apiKeyScopesSchema>;
 
-export const SCOPE_PRESETS = ["all", "readOnly", "nonDestructive"] as const;
+export const SCOPE_PRESETS = ["all", "readOnly", "nonDestructive", "stream"] as const;
 export type ScopePreset = (typeof SCOPE_PRESETS)[number];
 
 export type ScopeKeyKind = "vm" | "entity" | "pc" | "script";
@@ -32,11 +33,27 @@ export type ScopeKey = { kind: ScopeKeyKind; id: string };
 
 export type ScopedToolInfo = { name: string; destructive?: boolean; readOnly?: boolean };
 
+/**
+ * `stream`: what a live-stream companion (TikSee) needs to drive room lighting effects —
+ * scenes, flashes, ambilight mode and the RGB room lights, nothing else. Shared with
+ * scripts/mint-api-key.mjs through the JSON file.
+ */
+export const STREAM_PRESET: Required<Pick<ApiKeyScopes, "tools" | "entities" | "scripts">> = streamPreset;
+
 /** Tool names a preset resolves to, given the catalog. */
 export function presetTools(preset: ScopePreset, tools: readonly ScopedToolInfo[]): string[] | undefined {
   if (preset === "all") return undefined;
   if (preset === "readOnly") return tools.filter((t) => t.readOnly).map((t) => t.name);
+  if (preset === "stream") return tools.filter((t) => STREAM_PRESET.tools.includes(t.name)).map((t) => t.name);
   return tools.filter((t) => !t.destructive).map((t) => t.name);
+}
+
+/** Full scopes a preset resolves to (tool list plus any argument limits it carries). */
+export function presetScopes(preset: ScopePreset, tools: readonly ScopedToolInfo[]): ApiKeyScopes | undefined {
+  const toolList = presetTools(preset, tools);
+  if (!toolList) return undefined;
+  if (preset === "stream") return { tools: toolList, entities: [...STREAM_PRESET.entities], scripts: [...STREAM_PRESET.scripts] };
+  return { tools: toolList };
 }
 
 export function toolAllowed(tool: ScopedToolInfo, scopes: ApiKeyScopes | null | undefined): boolean {

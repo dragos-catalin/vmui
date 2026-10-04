@@ -95,6 +95,43 @@ export const AMBILIGHT_MODES = [
   { id: "off", name: "Warm room", script: "movie_mode_off", description: "Grabber off; 3000 K at 60 %." },
 ] as const;
 
+type Rgb = readonly [number, number, number];
+
+/**
+ * Live-stream lighting scenes (TikSee / codai agents via MCP `scene_set`).
+ * Each id maps to `script.stream_scene_<id>` in pi/ha-packages/vmui_stream.yaml;
+ * every scene script snapshots the RGB bulbs, sets its look and restores the
+ * snapshot after the duration (mode: restart + stopping the other scenes, so
+ * the newest call wins). `default` is the restore itself. Strips (DX, case,
+ * MELK) are driven through HyperHDR at priority 30 — never light.led_argb
+ * directly, the MELK bridge owns its BLE link. The desk bar is white-only.
+ */
+export const STREAM_BULBS = ["light.moodlight", "light.ambience_light"] as const;
+/** RGB room lights a `stream` key may address with lights_set (scope `entities`). */
+export const STREAM_ENTITIES = ["light.moodlight", "light.ambience_light", "light.led_argb", "light.hyperhdr"] as const;
+
+export const STREAM_SCENES = [
+  { id: "party", label: { ro: "Petrecere", en: "Party" }, entity: "script.stream_scene_party", defaultDurationSec: 20, maxDurationSec: 60,
+    colors: [[255, 0, 200], [0, 220, 255]] as Rgb[], description: "Magenta/cyan alternating bulbs, Plasma on the strips." },
+  { id: "calm", label: { ro: "Calm", en: "Calm" }, entity: "script.stream_scene_calm", defaultDurationSec: 60, maxDurationSec: 600,
+    colors: [[90, 60, 200]] as Rgb[], description: "Dim violet bulbs, slow cold mood blobs on the strips." },
+  { id: "red_alert", label: { ro: "Alertă roșie", en: "Red alert" }, entity: "script.stream_scene_red_alert", defaultDurationSec: 8, maxDurationSec: 20,
+    colors: [[255, 0, 0]] as Rgb[], description: "Pulsing red everywhere." },
+  { id: "gift_gold", label: { ro: "Cadou auriu", en: "Gold gift" }, entity: "script.stream_scene_gift_gold", defaultDurationSec: 10, maxDurationSec: 30,
+    colors: [[255, 180, 0]] as Rgb[], description: "Full-brightness gold for a big gift." },
+  { id: "rainbow", label: { ro: "Curcubeu", en: "Rainbow" }, entity: "script.stream_scene_rainbow", defaultDurationSec: 20, maxDurationSec: 60,
+    colors: [[255, 0, 0], [255, 160, 0], [255, 255, 0], [0, 255, 0], [0, 120, 255], [160, 0, 255]] as Rgb[], description: "Bulbs cycle hues, rainbow swirl on the strips." },
+  { id: "blackout_flash", label: { ro: "Blackout cu flash", en: "Blackout flash" }, entity: "script.stream_scene_blackout_flash", defaultDurationSec: 4, maxDurationSec: 8,
+    colors: [[0, 0, 0], [255, 255, 255]] as Rgb[], description: "Lights out, three white strobes, then dark until restore." },
+  { id: "default", label: { ro: "Normal", en: "Default" }, entity: "script.stream_scene_default", defaultDurationSec: 0, maxDurationSec: 0,
+    colors: [] as Rgb[], description: "Stop any stream effect and restore the lights as they were." },
+] as const;
+
+export type StreamSceneId = (typeof STREAM_SCENES)[number]["id"];
+
+/** HA script names a stream key may reach (scene_set / flash_color scope keys). */
+export const STREAM_SCRIPTS = [...STREAM_SCENES.map((s) => s.entity.replace(/^script\./, "")), "stream_flash"];
+
 export const MUSIC_EFFECTS = [
   "Music: stereo for LED strip (MULTI COLOR)",
   "Music: stereo for LED strip (MULTI COLOR FAST)",

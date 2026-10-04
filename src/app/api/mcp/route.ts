@@ -2,6 +2,7 @@ import "server-only";
 
 import { requireApiRole, validateApiKey } from "@/lib/api-auth";
 import { argsAllowed, toolAllowed, type ApiKeyScopes } from "@/lib/api-key-scopes";
+import { effectLimiter } from "@/lib/mcp/effect-limiter";
 import { TOOL_BY_NAME, TOOLS } from "@/lib/mcp/tools";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
@@ -48,7 +49,11 @@ function toolList(scopes: ApiKeyScopes | null) {
 
 const NOT_PERMITTED = "tool not permitted for this key";
 
-async function handle(msg: Rpc, by: string, scopes: ApiKeyScopes | null): Promise<unknown | null> {
+function text(r: unknown, isError: boolean) {
+  return { isError, content: [{ type: "text", text: JSON.stringify(r) }] };
+}
+
+async function handle(msg: Rpc, by: string, keyId: string, scopes: ApiKeyScopes | null): Promise<unknown | null> {
   switch (msg.method) {
     case "initialize":
       return ok(msg.id, {
@@ -58,7 +63,8 @@ async function handle(msg: Rpc, by: string, scopes: ApiKeyScopes | null): Promis
         instructions:
           "Tools control Dragos's home (Home Assistant: lights, AC, Nest Hub, ambilight, door) and his Windows PC. " +
           "The tool list reflects this key's scope: tools or targets (VMs, entities, PC actions, scripts) outside it are refused. " +
-          "Call home_devices/home_state before guessing entity ids. Ask before destructive tools (door_open, pc_action lock/sleep, vm stop/terminate).",
+          "Call home_devices/home_state before guessing entity ids. Ask before destructive tools (door_open, pc_action lock/sleep, vm stop/terminate). " +
+          "Light effects (scene_set, flash_color, notify_flash) are rate-limited per key: a limited call answers {limited:true, retryAfterMs} and still plays once the window ends (last call wins) — it is not an error.",
       });
     case "notifications/initialized":
     case "notifications/cancelled":
@@ -79,8 +85,19 @@ async function handle(msg: Rpc, by: string, scopes: ApiKeyScopes | null): Promis
       if (!argsAllowed(tool.scopeKey?.(parsed.data), scopes)) {
         return ok(msg.id, { isError: true, content: [{ type: "text", text: NOT_PERMITTED }] });
       }
+      if (tool.effect && !tool.effect.bypass?.(parsed.data)) {
+        const data = parsed.data as Record<string, unknown>;
+        const idem = typeof data.idempotencyKey === "string" ? data.idempotencyKey : undefined;
+        const s = await effectLimiter().submit(keyId, tool.effect.kind, idem ? `${tool.name}:${idem}` : undefined, () => tool.run(data, by));
+        const first = s.status === "duplicate" ? s.first : s;
+        if (first.status === "limited") {
+          return ok(msg.id, text({ ok: true, limited: true, retryAfterMs: first.retryAfterMs, queued: true, ...(s.status === "duplicate" ? { duplicate: true } : {}) }, false));
+        }
+        const r = first.status === "ran" ? first.result : { ok: false as const, error: "unexpected limiter state" };
+        return ok(msg.id, text(s.status === "duplicate" ? { ...r, duplicate: true } : r, !r.ok));
+      }
       const r = await tool.run(parsed.data, by);
-      return ok(msg.id, { isError: !r.ok, content: [{ type: "text", text: JSON.stringify(r) }] });
+      return ok(msg.id, text(r, !r.ok));
     }
     default:
       return err(msg.id, -32601, `Method not found: ${msg.method}`);
@@ -105,7 +122,7 @@ export async function POST(req: NextRequest) {
       out.push(err((m as Rpc | undefined)?.id ?? null, -32600, "Invalid request"));
       continue;
     }
-    const r = await handle(m, by, auth.scopes);
+    const r = await handle(m, by, auth.keyId, auth.scopes);
     if (r !== null) out.push(r);
   }
   if (out.length === 0) return new NextResponse(null, { status: 202 });

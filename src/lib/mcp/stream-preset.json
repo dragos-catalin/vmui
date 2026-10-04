@@ -1,0 +1,14 @@
+{
+  "tools": ["home_devices", "home_state", "scene_list", "scene_set", "flash_color", "notify_flash", "ambilight_mode", "lights_set"],
+  "entities": ["light.moodlight", "light.ambience_light", "light.led_argb", "light.hyperhdr"],
+  "scripts": [
+    "stream_scene_party",
+    "stream_scene_calm",
+    "stream_scene_red_alert",
+    "stream_scene_gift_gold",
+    "stream_scene_rainbow",
+    "stream_scene_blackout_flash",
+    "stream_scene_default",
+    "stream_flash"
+  ]
+}

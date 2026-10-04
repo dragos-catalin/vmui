@@ -6,10 +6,12 @@ import { provisionCodaiEnvironment, refreshCodaiStatus } from "@/lib/codai/provi
 import { db } from "@/lib/db";
 import { auditLog, instances } from "@/lib/db/schema";
 import { showMessage } from "@/lib/esp/gallery";
-import { AMBILIGHT_MODES, DEVICES } from "@/lib/home/catalog";
+import { AMBILIGHT_MODES, DEVICES, STREAM_SCENES } from "@/lib/home/catalog";
 import { ha } from "@/lib/home/ha-client";
 import { armAutoOpen, ignoreCall, intercomState, openDoor } from "@/lib/home/intercom";
+import { FLASH_COLORS, flashColorSchema, resolveFlashColor, resolveScene, sceneScopeId, sceneSetSchema } from "@/lib/home/stream";
 import { pcIsUp, pcTarget, wakePc } from "@/lib/home/wol";
+import type { EffectKind } from "@/lib/mcp/effect-limiter";
 import { executeInstanceAction, syncAccountInstances } from "@/server/actions/instances";
 import { eq } from "drizzle-orm";
 import { spawn } from "node:child_process";
@@ -35,6 +37,11 @@ export type McpTool = {
   readOnly?: boolean;
   /** Which per-key argument limit (Settings -> API keys -> scope) applies to a call with these args. */
   scopeKey?: (args: Record<string, unknown>) => ScopeKey | undefined;
+  /**
+   * Physical light effect: /api/mcp runs it through the effect limiter (per-key cooldown,
+   * burst merge, idempotencyKey dedupe). `bypass` skips the cooldown (restore/stop).
+   */
+  effect?: { kind: EffectKind; bypass?: (args: Record<string, unknown>) => boolean };
   run: (args: Record<string, unknown>, by: string) => Promise<ToolResult>;
 };
 
@@ -207,8 +214,57 @@ export const TOOLS: McpTool[] = [
     name: "notify_flash",
     description: "Flash all ambilight LEDs in a colour for a moment (visual notification). Default 1.5 s.",
     schema: z.object({ color: rgb, durationMs: z.number().int().min(200).max(15000).default(1500) }),
+    effect: { kind: "flash" },
     run: ({ color, durationMs }, by) =>
       run("mcp.flash", (color as number[]).join(","), `${durationMs}ms`, by, () => ha.runScript("notify_flash", { color, duration_ms: durationMs })),
+  },
+  {
+    name: "scene_list",
+    description: "List the live-stream lighting scenes scene_set accepts, with labels (ro/en), default and maximum duration and colours.",
+    schema: z.object({}),
+    readOnly: true,
+    run: async () => ({
+      ok: true,
+      scenes: STREAM_SCENES.map((s) => ({ id: s.id, label: s.label, description: s.description, defaultDurationSec: s.defaultDurationSec, maxDurationSec: s.maxDurationSec, colors: s.colors })),
+      flashColors: Object.keys(FLASH_COLORS),
+    }),
+  },
+  {
+    name: "scene_set",
+    description:
+      "Play a live-stream lighting scene on the room bulbs and LED strips, then restore the lights exactly as they were after durationSec. The newest call replaces a running scene; scene 'default' stops any scene and restores at once. Rate-limited per key (one scene per 10 s; extra calls in the window merge into one, last wins, answered {limited:true, retryAfterMs}). Pass idempotencyKey (e.g. the gift event id) so retries never fire twice.",
+    schema: sceneSetSchema,
+    scopeKey: ({ scene }) => {
+      const id = sceneScopeId(scene);
+      return id ? { kind: "script", id } : undefined;
+    },
+    effect: { kind: "scene", bypass: ({ scene }) => scene === "default" },
+    run: (args, by) => {
+      const target = typeof args.scene === "string" ? args.scene : "?";
+      return run("mcp.scene", target, `${String(args.durationSec ?? "default")}s`, by, async () => {
+        const s = resolveScene(args as { scene: (typeof STREAM_SCENES)[number]["id"]; durationSec?: number });
+        // script.turn_on returns at once; calling script/<name> would block for the whole scene.
+        await ha.callService("script", "turn_on", { entity_id: `script.${s.script}`, variables: { duration_sec: s.durationSec } });
+        return { scene: s.id, durationSec: s.durationSec };
+      });
+    },
+  },
+  {
+    name: "flash_color",
+    description:
+      "Flash every ambilight LED strip (monitor, PC case, MELK room strip) in a colour 1-5 times; the strips fall back on their own, nothing to restore. Give rgb [r,g,b] or a colour name. Rate-limited per key (one flash per 1.5 s; extra calls merge, last wins, answered {limited:true, retryAfterMs}).",
+    schema: flashColorSchema,
+    scopeKey: () => ({ kind: "script", id: "stream_flash" }),
+    effect: { kind: "flash" },
+    run: (args, by) => {
+      const count = args.count as number;
+      const durationMs = args.durationMs as number;
+      return run("mcp.flash_color", String(args.color ?? (args.rgb as number[] | undefined)?.join(",") ?? "?"), `${count}x${durationMs}ms`, by, async () => {
+        const color = resolveFlashColor(args as { rgb?: [number, number, number]; color?: keyof typeof FLASH_COLORS });
+        await ha.callService("script", "turn_on", { entity_id: "script.stream_flash", variables: { color, count, duration_ms: durationMs } });
+        return { color, count, durationMs };
+      });
+    },
   },
   {
     name: "media_command",

@@ -1,0 +1,263 @@
+# Live-stream lighting effects (TikSee / codai agents through vmui MCP
+# scene_set + flash_color). Installed by scripts/pi-deploy.ps1 into
+# /srv/homepi/ha/packages/; reload with homeassistant.reload_all.
+#
+# Shape of every scene script (mode: restart, so a repeat call restarts it):
+#   stream_begin  -> snapshot the RGB bulbs into scene.stream_before ONLY when
+#                    no stream effect is active (a snapshot taken mid-effect
+#                    would capture the effect colour as the "original"; same
+#                    trap as copilot_snapshot), and stop every OTHER scene
+#                    script so the newest scene wins;
+#   the look      -> bulbs via light.turn_on, strips via HyperHDR priority 30
+#                    with a HyperHDR `duration`, so the strips fall back on
+#                    their own even if the restore never runs;
+#   stream_end    -> restore the snapshot, clear priority 30.
+# light.led_argb (MELK) is never called directly: melk_bridge.py owns its BLE
+# link while HyperHDR streams; it gets the effect through HyperHDR instance 4.
+# light.desk_light_bar is white-only and stays out.
+
+input_boolean:
+  stream_effect_active:
+    name: Stream effect active
+    icon: mdi:television-ambient-light
+    initial: false
+
+script:
+  stream_begin:
+    alias: "Stream: snapshot bulbs and stop other scenes"
+    mode: queued
+    fields:
+      keep: { description: scene script entity id that keeps running }
+    sequence:
+      - action: script.turn_off
+        target:
+          entity_id: >-
+            {{ ['script.stream_scene_party', 'script.stream_scene_calm', 'script.stream_scene_red_alert',
+                'script.stream_scene_gift_gold', 'script.stream_scene_rainbow', 'script.stream_scene_blackout_flash']
+               | reject('eq', keep) | list }}
+      - if:
+          - condition: state
+            entity_id: input_boolean.stream_effect_active
+            state: "off"
+        then:
+          - action: scene.create
+            data:
+              scene_id: stream_before
+              snapshot_entities: [light.moodlight, light.ambience_light]
+          - action: input_boolean.turn_on
+            target: { entity_id: input_boolean.stream_effect_active }
+
+  stream_end:
+    alias: "Stream: restore bulbs and strips"
+    mode: queued
+    sequence:
+      - action: script.ambilight_all
+        data:
+          commands: '[{"command": "clear", "priority": 30}]'
+      - if:
+          - condition: state
+            entity_id: input_boolean.stream_effect_active
+            state: "on"
+        then:
+          - action: scene.turn_on
+            target: { entity_id: scene.stream_before }
+            data: { transition: 1 }
+      - action: input_boolean.turn_off
+        target: { entity_id: input_boolean.stream_effect_active }
+
+  stream_strips:
+    alias: "Stream: colour or effect on every HyperHDR strip (priority 30)"
+    mode: queued
+    fields:
+      color: { description: "[r,g,b] or empty when effect is set" }
+      effect: { description: HyperHDR effect name }
+      duration_sec: { description: auto-expiry in seconds }
+    sequence:
+      - action: script.ambilight_all
+        data:
+          commands: >-
+            {% set ms = ((duration_sec | default(20) | int) + 2) * 1000 %}
+            {% if effect is defined and effect %}
+            {{ [{"command": "effect", "effect": {"name": effect}, "priority": 30, "duration": ms}] | to_json }}
+            {% else %}
+            {{ [{"command": "color", "color": color | default([255, 255, 255]), "priority": 30, "duration": ms}] | to_json }}
+            {% endif %}
+
+  stream_scene_party:
+    alias: "Stream scene: party"
+    icon: mdi:party-popper
+    mode: restart
+    fields:
+      duration_sec: { default: 20 }
+    sequence:
+      - action: script.stream_begin
+        data: { keep: script.stream_scene_party }
+      - action: script.stream_strips
+        data: { effect: Plasma, duration_sec: "{{ duration_sec | default(20) | int }}" }
+      - repeat:
+          count: "{{ ((duration_sec | default(20) | int) / 2) | round(0, 'ceil') | int }}"
+          sequence:
+            - action: light.turn_on
+              target: { entity_id: light.moodlight }
+              data: { rgb_color: [255, 0, 200], brightness_pct: 100, transition: 0 }
+            - action: light.turn_on
+              target: { entity_id: light.ambience_light }
+              data: { rgb_color: [0, 220, 255], brightness_pct: 100, transition: 0 }
+            - delay: { seconds: 1 }
+            - action: light.turn_on
+              target: { entity_id: light.moodlight }
+              data: { rgb_color: [0, 220, 255], brightness_pct: 100, transition: 0 }
+            - action: light.turn_on
+              target: { entity_id: light.ambience_light }
+              data: { rgb_color: [255, 0, 200], brightness_pct: 100, transition: 0 }
+            - delay: { seconds: 1 }
+      - action: script.stream_end
+
+  stream_scene_calm:
+    alias: "Stream scene: calm"
+    icon: mdi:weather-night
+    mode: restart
+    fields:
+      duration_sec: { default: 60 }
+    sequence:
+      - action: script.stream_begin
+        data: { keep: script.stream_scene_calm }
+      - action: script.stream_strips
+        data: { effect: Cold mood blobs, duration_sec: "{{ duration_sec | default(60) | int }}" }
+      - action: light.turn_on
+        target: { entity_id: [light.moodlight, light.ambience_light] }
+        data: { rgb_color: [90, 60, 200], brightness_pct: 25, transition: 3 }
+      - delay: { seconds: "{{ duration_sec | default(60) | int }}" }
+      - action: script.stream_end
+
+  stream_scene_red_alert:
+    alias: "Stream scene: red alert"
+    icon: mdi:alarm-light
+    mode: restart
+    fields:
+      duration_sec: { default: 8 }
+    sequence:
+      - action: script.stream_begin
+        data: { keep: script.stream_scene_red_alert }
+      - action: script.stream_strips
+        data: { color: [255, 0, 0], duration_sec: "{{ duration_sec | default(8) | int }}" }
+      - repeat:
+          count: "{{ (duration_sec | default(8) | int) }}"
+          sequence:
+            - action: light.turn_on
+              target: { entity_id: [light.moodlight, light.ambience_light] }
+              data: { rgb_color: [255, 0, 0], brightness_pct: 100, transition: 0 }
+            - delay: { milliseconds: 500 }
+            - action: light.turn_on
+              target: { entity_id: [light.moodlight, light.ambience_light] }
+              data: { rgb_color: [255, 0, 0], brightness_pct: 10, transition: 0 }
+            - delay: { milliseconds: 500 }
+      - action: script.stream_end
+
+  stream_scene_gift_gold:
+    alias: "Stream scene: gold gift"
+    icon: mdi:gift
+    mode: restart
+    fields:
+      duration_sec: { default: 10 }
+    sequence:
+      - action: script.stream_begin
+        data: { keep: script.stream_scene_gift_gold }
+      - action: script.stream_strips
+        data: { color: [255, 180, 0], duration_sec: "{{ duration_sec | default(10) | int }}" }
+      - action: light.turn_on
+        target: { entity_id: [light.moodlight, light.ambience_light] }
+        data: { rgb_color: [255, 180, 0], brightness_pct: 100, transition: 0.5 }
+      - delay: { seconds: "{{ duration_sec | default(10) | int }}" }
+      - action: script.stream_end
+
+  stream_scene_rainbow:
+    alias: "Stream scene: rainbow"
+    icon: mdi:looks
+    mode: restart
+    fields:
+      duration_sec: { default: 20 }
+    sequence:
+      - action: script.stream_begin
+        data: { keep: script.stream_scene_rainbow }
+      - action: script.stream_strips
+        data: { effect: Rainbow swirl, duration_sec: "{{ duration_sec | default(20) | int }}" }
+      - repeat:
+          count: "{{ ((duration_sec | default(20) | int) / 1.5) | round(0, 'ceil') | int }}"
+          sequence:
+            - variables:
+                hues: [[255, 0, 0], [255, 160, 0], [255, 255, 0], [0, 255, 0], [0, 120, 255], [160, 0, 255]]
+                i: "{{ (repeat.index - 1) % 6 }}"
+            - action: light.turn_on
+              target: { entity_id: light.moodlight }
+              data: { rgb_color: "{{ hues[i] }}", brightness_pct: 100, transition: 1 }
+            - action: light.turn_on
+              target: { entity_id: light.ambience_light }
+              data: { rgb_color: "{{ hues[(i + 3) % 6] }}", brightness_pct: 100, transition: 1 }
+            - delay: { milliseconds: 1500 }
+      - action: script.stream_end
+
+  stream_scene_blackout_flash:
+    alias: "Stream scene: blackout flash"
+    icon: mdi:flash
+    mode: restart
+    fields:
+      duration_sec: { default: 4 }
+    sequence:
+      - action: script.stream_begin
+        data: { keep: script.stream_scene_blackout_flash }
+      - action: script.stream_strips
+        data: { color: [0, 0, 0], duration_sec: "{{ duration_sec | default(4) | int }}" }
+      - action: light.turn_off
+        target: { entity_id: [light.moodlight, light.ambience_light] }
+        data: { transition: 0 }
+      - repeat:
+          count: 3
+          sequence:
+            - action: light.turn_on
+              target: { entity_id: [light.moodlight, light.ambience_light] }
+              data: { rgb_color: [255, 255, 255], brightness_pct: 100, transition: 0 }
+            - delay: { milliseconds: 150 }
+            - action: light.turn_off
+              target: { entity_id: [light.moodlight, light.ambience_light] }
+              data: { transition: 0 }
+            - delay: { milliseconds: 250 }
+      - delay: { seconds: "{{ [(duration_sec | default(4) | int) - 1, 0] | max }}" }
+      - action: script.stream_end
+
+  stream_scene_default:
+    alias: "Stream scene: default (stop and restore)"
+    icon: mdi:restore
+    mode: restart
+    sequence:
+      - action: script.turn_off
+        target:
+          entity_id:
+            - script.stream_scene_party
+            - script.stream_scene_calm
+            - script.stream_scene_red_alert
+            - script.stream_scene_gift_gold
+            - script.stream_scene_rainbow
+            - script.stream_scene_blackout_flash
+            - script.stream_flash
+      - action: script.stream_end
+
+  stream_flash:
+    alias: "Stream: colour flash on every strip"
+    icon: mdi:flash-alert
+    mode: restart
+    fields:
+      color: { description: "[r,g,b]", default: [255, 255, 255] }
+      count: { description: 1-5, default: 1 }
+      duration_ms: { description: length of each flash, default: 600 }
+    sequence:
+      # notify_flash = HyperHDR priority 10 with its own expiry: the strips
+      # return to whatever was showing (scene, movie, idle). Nothing to restore.
+      - repeat:
+          count: "{{ [[count | default(1) | int, 1] | max, 5] | min }}"
+          sequence:
+            - action: script.notify_flash
+              data:
+                color: "{{ color | default([255, 255, 255]) }}"
+                duration_ms: "{{ duration_ms | default(600) | int }}"
+            - delay: { milliseconds: "{{ (duration_ms | default(600) | int) + 250 }}" }
