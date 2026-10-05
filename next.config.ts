@@ -75,7 +75,6 @@ const config: NextConfig = {
   // first, so here it is only duplicated work.
   typescript: { ignoreBuildErrors: true },
   experimental: {
-    viewTransition: true,
     serverSourceMaps: false,
     // turbopackFileSystemCacheForBuild measured 2026-09-16: no-op rebuild
     // 31.6 s -> 32.9 s and .next 74 MB -> 212 MB. Not worth it here.

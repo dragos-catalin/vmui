@@ -32,7 +32,7 @@ tauri-plugin-autostart = "2.5"
 tauri-plugin-single-instance = "2.4"
 tauri-plugin-window-state = "2.4"
 tungstenite = "0.30"
-rumqttc = "0.25"
+rumqttc = { version = "0.25", default-features = false } # plain TCP MQTT only; default use-rustls pulled vulnerable rustls-webpki 0.102 (GHSA-82j2-j2ch-gfr8)
 tauri-plugin-notification = "2.4"
 
 [target."cfg(windows)".dependencies]

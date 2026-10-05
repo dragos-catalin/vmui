@@ -4,6 +4,13 @@ All notable changes to vmui are documented here. Format: [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Security
+
+- CI: lint, typecheck and tests through the shared `dragos-catalin/workflows` node-ci, plus a gitleaks + osv-scanner gate (full history weekly) and Renovate (`dragos-catalin/renovate-config`).
+- Patched vulnerable dependencies the new gate found: next 16.3.8, nodemailer 10, drizzle-orm 0.45.3 / drizzle-kit 0.31, nanoid, ws, vitest 4.1.11; transitive pins in `pnpm-workspace.yaml` `overrides` (shell-quote, grpc-js, form-data, protobufjs, brace-expansion, js-yaml, postcss, browserslist, fflate, uuid). `braces` has no fixed release yet: documented in `osv-scanner.toml` until 2026-11-05.
+- Desktop: `rumqttc` without default features (plain TCP MQTT only) drops the vulnerable `rustls-webpki` 0.102 (GHSA-82j2-j2ch-gfr8).
+- `packageManager` pnpm 12.3.4, `engines.node >=24`, `.nvmrc` 24. Removed the `experimental.viewTransition` flag that Next 16.3 dropped (view transitions need no config).
+
 ### Added
 
 - `POST /api/hooks/contact` (V3-30): dragoscatalin.ro contact form → notification kind `contact` (FCM, desktop toast, Android, HA Companion fallback, en + ro). HMAC-SHA256 over `${x-dc-timestamp}.${rawBody}` with `CONTACT_HOOK_SECRET` (503 when unset), ±300 s skew, nonce + signature replay table `contact_hook_nonces`, 10/min per source, zod-validated body, 280-char preview, message body never logged. HA bus event `vmui_notify` + optional automation `contact_flash` (`pi/ha-packages/vmui_contact.yaml`).

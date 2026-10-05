@@ -1,0 +1,5 @@
+# Exceptions to the shared security gate. Each needs a reason and an expiry.
+[[IgnoredVulns]]
+id = "GHSA-vfj7-8cjw-p6xm"
+ignoreUntil = 2026-11-05
+reason = "braces@3.0.3 is the latest release (no fix published); dev-only via eslint-config-next > fast-glob. Re-check monthly."

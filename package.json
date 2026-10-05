@@ -66,15 +66,15 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
-    "drizzle-orm": "^0.39.3",
+    "drizzle-orm": "^0.45.3",
     "google-auth-library": "^10.6.2",
     "lucide-react": "^0.475.0",
     "motion": "^12.4.7",
-    "nanoid": "^5.0.9",
-    "next": "^16.0.0",
+    "nanoid": "^5.1.16",
+    "next": "^16.3.6",
     "next-intl": "4.14.5",
     "next-themes": "^0.4.4",
-    "nodemailer": "^8.0.7",
+    "nodemailer": "^10.0.14",
     "nuqs": "^2.10.1",
     "otplib": "^12.0.1",
     "qrcode": "^1.5.4",
@@ -87,7 +87,7 @@
     "tailwind-merge": "^3.0.1",
     "three": "^0.184.0",
     "web-push": "^3.6.7",
-    "ws": "^8.20.0",
+    "ws": "^8.21.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
@@ -96,7 +96,7 @@
     "@tailwindcss/postcss": "^4.0.6",
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^22.13.1",
-    "@types/nodemailer": "^8.0.0",
+    "@types/nodemailer": "^8.0.2",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
@@ -105,14 +105,18 @@
     "@types/web-push": "^3.6.4",
     "@types/ws": "^8.18.1",
     "@typescript/native-preview": "7.0.0-dev.20260707.2",
-    "@vitest/ui": "^4.1.5",
+    "@vitest/ui": "^4.1.11",
     "babel-plugin-react-compiler": "^1.0.0",
-    "drizzle-kit": "^0.30.4",
+    "drizzle-kit": "^0.31.11",
     "eslint": "^9.20.1",
     "eslint-config-next": "^16.0.0",
     "happy-dom": "^20.9.0",
     "tailwindcss": "^4.0.6",
     "typescript": "^5.9.0",
-    "vitest": "^4.1.5"
+    "vitest": "^4.1.11"
+  },
+  "packageManager": "pnpm@12.3.4",
+  "engines": {
+    "node": ">=24"
   }
 }
