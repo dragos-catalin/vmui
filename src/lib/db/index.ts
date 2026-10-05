@@ -23,6 +23,16 @@ const sqlite =
 sqlite.pragma("journal_mode = WAL");
 sqlite.pragma("foreign_keys = ON");
 
+// next build evaluates this module in ~30 workers against the same file; on a fresh DB
+// they all see the column missing and race the ALTER. The loser's error is harmless.
+const alterAddColumn = (sql: string) => {
+  try {
+    sqlite.exec(sql);
+  } catch (e) {
+    if (!(e instanceof Error) || !/duplicate column name/i.test(e.message)) throw e;
+  }
+};
+
 // Bootstrap schema (no migrations needed for v1)
 sqlite.exec(`
 CREATE TABLE IF NOT EXISTS cloud_accounts (
@@ -204,7 +214,7 @@ const existingCols = new Set(
   ),
 );
 const addColumn = (def: string, name: string) => {
-  if (!existingCols.has(name)) sqlite.exec(`ALTER TABLE instances ADD COLUMN ${def}`);
+  if (!existingCols.has(name)) alterAddColumn(`ALTER TABLE instances ADD COLUMN ${def}`);
 };
 addColumn("display_name TEXT", "display_name");
 addColumn("pinned INTEGER NOT NULL DEFAULT 0", "pinned");
@@ -220,31 +230,31 @@ const existingAccountCols = new Set(
   ),
 );
 if (!existingAccountCols.has("regions")) {
-  sqlite.exec(`ALTER TABLE cloud_accounts ADD COLUMN regions TEXT`);
+  alterAddColumn(`ALTER TABLE cloud_accounts ADD COLUMN regions TEXT`);
 }
 if (!existingAccountCols.has("default_tags")) {
-  sqlite.exec(`ALTER TABLE cloud_accounts ADD COLUMN default_tags TEXT`);
+  alterAddColumn(`ALTER TABLE cloud_accounts ADD COLUMN default_tags TEXT`);
 }
 if (!existingAccountCols.has("snapshot_retention_count")) {
-  sqlite.exec(`ALTER TABLE cloud_accounts ADD COLUMN snapshot_retention_count INTEGER`);
+  alterAddColumn(`ALTER TABLE cloud_accounts ADD COLUMN snapshot_retention_count INTEGER`);
 }
 if (!existingAccountCols.has("monthly_budget_usd")) {
-  sqlite.exec(`ALTER TABLE cloud_accounts ADD COLUMN monthly_budget_usd REAL`);
+  alterAddColumn(`ALTER TABLE cloud_accounts ADD COLUMN monthly_budget_usd REAL`);
 }
 if (!existingAccountCols.has("required_tags")) {
-  sqlite.exec(`ALTER TABLE cloud_accounts ADD COLUMN required_tags TEXT`);
+  alterAddColumn(`ALTER TABLE cloud_accounts ADD COLUMN required_tags TEXT`);
 }
 if (!existingAccountCols.has("vcpu_quota")) {
-  sqlite.exec(`ALTER TABLE cloud_accounts ADD COLUMN vcpu_quota INTEGER`);
+  alterAddColumn(`ALTER TABLE cloud_accounts ADD COLUMN vcpu_quota INTEGER`);
 }
 if (!existingAccountCols.has("safe_terminate")) {
-  sqlite.exec(`ALTER TABLE cloud_accounts ADD COLUMN safe_terminate INTEGER NOT NULL DEFAULT 0`);
+  alterAddColumn(`ALTER TABLE cloud_accounts ADD COLUMN safe_terminate INTEGER NOT NULL DEFAULT 0`);
 }
 if (!existingAccountCols.has("auto_tag_rules")) {
-  sqlite.exec(`ALTER TABLE cloud_accounts ADD COLUMN auto_tag_rules TEXT`);
+  alterAddColumn(`ALTER TABLE cloud_accounts ADD COLUMN auto_tag_rules TEXT`);
 }
 if (!existingAccountCols.has("probe_key_enc")) {
-  sqlite.exec(`ALTER TABLE cloud_accounts ADD COLUMN probe_key_enc TEXT`);
+  alterAddColumn(`ALTER TABLE cloud_accounts ADD COLUMN probe_key_enc TEXT`);
 }
 
 const webhookCols = sqlite
@@ -252,7 +262,7 @@ const webhookCols = sqlite
   .all() as Array<{ name: string }>;
 const existingWebhookCols = new Set(webhookCols.map((c) => c.name));
 if (webhookCols.length > 0 && !existingWebhookCols.has("cooldown_sec")) {
-  sqlite.exec(`ALTER TABLE webhooks ADD COLUMN cooldown_sec INTEGER`);
+  alterAddColumn(`ALTER TABLE webhooks ADD COLUMN cooldown_sec INTEGER`);
 }
 
 sqlite.exec(`CREATE TABLE IF NOT EXISTS sync_history (
@@ -449,16 +459,16 @@ sqlite.exec(`CREATE TABLE IF NOT EXISTS users (
 const userCols = sqlite.prepare("PRAGMA table_info(users)").all() as Array<{ name: string }>;
 const existingUserCols = new Set(userCols.map((c) => c.name));
 if (!existingUserCols.has("totp_secret_enc")) {
-  sqlite.exec(`ALTER TABLE users ADD COLUMN totp_secret_enc TEXT`);
+  alterAddColumn(`ALTER TABLE users ADD COLUMN totp_secret_enc TEXT`);
 }
 if (!existingUserCols.has("totp_verified_at")) {
-  sqlite.exec(`ALTER TABLE users ADD COLUMN totp_verified_at INTEGER`);
+  alterAddColumn(`ALTER TABLE users ADD COLUMN totp_verified_at INTEGER`);
 }
 if (!existingUserCols.has("totp_backup_codes_enc")) {
-  sqlite.exec(`ALTER TABLE users ADD COLUMN totp_backup_codes_enc TEXT`);
+  alterAddColumn(`ALTER TABLE users ADD COLUMN totp_backup_codes_enc TEXT`);
 }
 if (!existingUserCols.has("preferences")) {
-  sqlite.exec(`ALTER TABLE users ADD COLUMN preferences TEXT`);
+  alterAddColumn(`ALTER TABLE users ADD COLUMN preferences TEXT`);
 }
 
 sqlite.exec(`CREATE TABLE IF NOT EXISTS sessions (
@@ -482,16 +492,10 @@ sqlite.exec(`CREATE TABLE IF NOT EXISTS api_keys (
   last_used_at INTEGER
 )`);
 
-// `next build` evaluates this module in many workers at once; two can both observe the column
-// missing and both ALTER, so a duplicate-column error here is a benign lost race, not a fault.
 const addColumnIfMissing = (table: string, name: string, def: string) => {
   const cols = sqlite.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
   if (cols.some((c) => c.name === name)) return;
-  try {
-    sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${def}`);
-  } catch (e) {
-    if (!(e instanceof Error) || !/duplicate column name/i.test(e.message)) throw e;
-  }
+  alterAddColumn(`ALTER TABLE ${table} ADD COLUMN ${def}`);
 };
 addColumnIfMissing("api_keys", "scopes", "scopes TEXT");
 addColumnIfMissing("api_keys", "lookup_id", "lookup_id TEXT");
@@ -954,9 +958,9 @@ sqlite.exec(`CREATE TABLE IF NOT EXISTS paired_devices (
 )`);
 {
   const cols = new Set((sqlite.prepare("PRAGMA table_info(paired_devices)").all() as Array<{ name: string }>).map((c) => c.name));
-  if (!cols.has("push_token")) sqlite.exec("ALTER TABLE paired_devices ADD COLUMN push_token TEXT");
-  if (!cols.has("language")) sqlite.exec("ALTER TABLE paired_devices ADD COLUMN language TEXT");
-  if (!cols.has("user_id")) sqlite.exec("ALTER TABLE paired_devices ADD COLUMN user_id TEXT");
+  if (!cols.has("push_token")) alterAddColumn("ALTER TABLE paired_devices ADD COLUMN push_token TEXT");
+  if (!cols.has("language")) alterAddColumn("ALTER TABLE paired_devices ADD COLUMN language TEXT");
+  if (!cols.has("user_id")) alterAddColumn("ALTER TABLE paired_devices ADD COLUMN user_id TEXT");
 }
 sqlite.exec(`CREATE TABLE IF NOT EXISTS meals (
   id TEXT PRIMARY KEY,
@@ -997,7 +1001,7 @@ sqlite.exec(`CREATE TABLE IF NOT EXISTS hydration (
 sqlite.exec(`CREATE INDEX IF NOT EXISTS hydration_day ON hydration(day)`);
 for (const table of ["meals", "hydration"] as const) {
   const cols = new Set((sqlite.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).map((c) => c.name));
-  if (!cols.has("user_id")) sqlite.exec(`ALTER TABLE ${table} ADD COLUMN user_id TEXT`);
+  if (!cols.has("user_id")) alterAddColumn(`ALTER TABLE ${table} ADD COLUMN user_id TEXT`);
 }
 sqlite.exec(`CREATE INDEX IF NOT EXISTS meals_user_day ON meals(user_id, day)`);
 sqlite.exec(`CREATE INDEX IF NOT EXISTS hydration_user_day ON hydration(user_id, day)`);
@@ -1047,7 +1051,7 @@ sqlite.exec(`CREATE TABLE IF NOT EXISTS home_invites (
 
 const accCols = sqlite.prepare("PRAGMA table_info(cloud_accounts)").all() as Array<{ name: string }>;
 if (!new Set(accCols.map((c) => c.name)).has("team_id")) {
-  sqlite.exec(`ALTER TABLE cloud_accounts ADD COLUMN team_id TEXT`);
+  alterAddColumn(`ALTER TABLE cloud_accounts ADD COLUMN team_id TEXT`);
 }
 
 // vmui VM ↔ codai Environment link (Provision codai environment, BYO path).
