@@ -16,8 +16,16 @@ param(
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 Set-Location $root
+# deploy-clean runs this from a detached worktree: gitignored runtime files (.private, fonts)
+# exist only in the main clone, and its --ignore-scripts install skips the sqlite binding.
+$common = (git rev-parse --path-format=absolute --git-common-dir).Replace('/', '\')
+$priv = Split-Path $common -Parent
 
 if (-not $SkipBuild -and -not $SyncOnly) {
+  if ($priv -ne $root -and -not (Get-ChildItem node_modules\.pnpm -Directory -Filter 'better-sqlite3@*' | Where-Object { Test-Path (Join-Path $_.FullName 'node_modules\better-sqlite3\build\Release\better_sqlite3.node') })) {
+    pnpm rebuild better-sqlite3
+    if ($LASTEXITCODE -ne 0) { throw "pnpm rebuild better-sqlite3 failed ($LASTEXITCODE)" }
+  }
   & pwsh -NoProfile -File "$env:USERPROFILE\.copilot\hooks\run-build.ps1" -Command 'pnpm build' -Wait
   if ($LASTEXITCODE -ne 0) { throw "build failed ($LASTEXITCODE)" }
 }
@@ -45,9 +53,10 @@ $linkFile = Join-Path $root '.copilot-tmp\pi\next-links.txt'
 scp -q -o BatchMode=yes $linkFile "${Pi}:$Dest/.next.new/.next/next-links.txt"
 # runtime-only files that git ignores
 foreach ($f in '.env', '.private/credentials.env', '.private/fcm-service-account.json') {
-  if (Test-Path $f) { scp -q -o BatchMode=yes $f "${Pi}:$Dest/$f" }
+  $p = if (Test-Path $f) { $f } else { Join-Path $priv $f }
+  if (Test-Path $p) { scp -q -o BatchMode=yes $p "${Pi}:$Dest/$f" }
 }
-if (Test-Path 'turzx\fonts') { tar -cf - turzx/fonts | ssh -o BatchMode=yes $Pi "tar -xf - -C $Dest" }
+if (Test-Path (Join-Path $priv 'turzx\fonts')) { tar -cf - -C $priv turzx/fonts | ssh -o BatchMode=yes $Pi "tar -xf - -C $Dest" }
 # Home Assistant packages (rest_command/scripts that call vmui on the Pi)
 if (Test-Path 'pi\ha-packages') { tar -cf - -C pi ha-packages | ssh -o BatchMode=yes $Pi "tar -xf - -C /tmp && sudo cp /tmp/ha-packages/*.yaml /srv/homepi/ha/packages/ && rm -rf /tmp/ha-packages" }
 # /api/desktop/pi restarts units with sudo -n; visudo -c refuses a broken file instead of locking us out
@@ -56,7 +65,7 @@ if (Test-Path 'pi\sudoers-vmui') { ((Get-Content -Raw 'pi\sudoers-vmui') -replac
 if (Test-Path 'pi\avahi-vmui.service') { ((Get-Content -Raw 'pi\avahi-vmui.service') -replace "`r`n", "`n") | ssh -o BatchMode=yes $Pi 'cat > /tmp/avahi-vmui.service && sudo install -m 644 /tmp/avahi-vmui.service /etc/avahi/services/vmui.service; rm -f /tmp/avahi-vmui.service' }
 # custom-component fixes that a HAOS restore would undo (see docs: HyperHDR async_timeout)
 if (Test-Path 'pi\ha-patches') { tar -cf - -C pi ha-patches | ssh -o BatchMode=yes $Pi 'tar -xf - -C /tmp; D=/srv/homepi/ha/custom_components/hyperhdr_integration; if [ -d "$D" ]; then sudo cp /tmp/ha-patches/hyperhdr_integration-coordinator.py "$D/coordinator.py"; sudo cp /tmp/ha-patches/hyperhdr_integration-config_flow.py "$D/config_flow.py"; fi; rm -rf /tmp/ha-patches' }
-$espTok = ((Get-Content '.private\credentials.env' | Where-Object { $_ -match '^ESP_DISPLAY_TOKEN=' }) -replace '^ESP_DISPLAY_TOKEN=', '').Trim('"')
+$espTok = ((Get-Content (Join-Path $priv '.private\credentials.env') | Where-Object { $_ -match '^ESP_DISPLAY_TOKEN=' }) -replace '^ESP_DISPLAY_TOKEN=', '').Trim('"')
 if ($espTok) {
   # keep the shared token in HA secrets.yaml (never in an entity state or the package file)
   "http://127.0.0.1:3737/api/pc/wake?k=$espTok&by=ha" | ssh -o BatchMode=yes $Pi 'read -r U; F=/srv/homepi/ha/secrets.yaml; sudo touch $F; sudo sed -i "/^vmui_pc_wake_url:/d" $F; echo "vmui_pc_wake_url: \"$U\"" | sudo tee -a $F >/dev/null'
