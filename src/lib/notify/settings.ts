@@ -21,6 +21,7 @@ export const KIND_META = {
   window: { color: "#8fd3ff", icon: "app-window" },
   presence: { color: "#c084fc", icon: "radar" },
   battery: { color: "#ff7a7a", icon: "battery-warning" },
+  contact: { color: "#38bdf8", icon: "mail" },
   system: { color: "#94a3b8", icon: "info" },
 } as const;
 export type KindId = keyof typeof KIND_META;

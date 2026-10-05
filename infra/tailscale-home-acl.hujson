@@ -25,6 +25,10 @@
 		// Owned by tag:appliance so the existing home OAuth client (auth_keys limited to
 		// tag:appliance) can mint keys for it; tags owned by an OAuth tag are mintable.
 		"tag:brivio-egress": ["tag:appliance"],
+		// homepi itself (2026-10-05): the only node allowed to Funnel, and only for
+		// /hooks/contact (dragoscatalin.ro contact form -> vmui /api/hooks/contact).
+		// Owned by tag:appliance (OAuth client can set it via the API) and admins.
+		"tag:funnel-hooks": ["tag:appliance", "autogroup:admin"],
 	},
 
 	"hosts": {
@@ -32,10 +36,13 @@
 		"homepi": "100.82.141.110",
 	},
 
-	// No "nodeAttrs" with "funnel" on purpose. Tailscale Serve (HTTPS inside
-	// the tailnet) needs only MagicDNS + HTTPS certificates enabled on the DNS
-	// page. Funnel would publish Home Assistant on the open internet, which
-	// defeats the reason for using a tailnet at all.
+	// Funnel ONLY for tag:funnel-hooks (homepi). Home Assistant (tag:appliance)
+	// never gets it: that would publish HA on the open internet. What homepi
+	// publishes is decided by `tailscale funnel status` on the Pi, which must
+	// show exactly one mount: /hooks/contact (docs/fleet.md "homepi Funnel").
+	"nodeAttrs": [
+		{"target": ["tag:funnel-hooks"], "attr": ["funnel"]},
+	],
 
 	"grants": [
 		// The tailnet owner reaches everything, including the HA admin UI, SSH
@@ -45,6 +52,11 @@
 
 		// Members always reach their own devices.
 		{"src": ["autogroup:member"], "dst": ["autogroup:self"], "ip": ["*"]},
+
+		// homepi lost user ownership when it became tag:funnel-hooks; these two
+		// keep what autogroup:self used to give it (owner -> Pi, Pi -> owner).
+		{"src": ["autogroup:member"], "dst": ["tag:funnel-hooks"], "ip": ["*"]},
+		{"src": ["tag:funnel-hooks"], "dst": ["autogroup:member"], "ip": ["*"]},
 
 		// Home Assistant may call back to member devices: mobile app push
 		// via the Companion local endpoint, and Chromecast/DLNA discovery
@@ -70,7 +82,7 @@
 	"tests": [
 		{
 			"src":    "vladulescu.catalin@gmail.com",
-			"accept": ["tag:appliance:8123", "tag:appliance:443"],
+			"accept": ["tag:appliance:8123", "tag:appliance:443", "tag:funnel-hooks:22", "tag:funnel-hooks:3737", "homepi:3128"],
 		},
 		{
 			"src":    "tag:marcai-ingest",

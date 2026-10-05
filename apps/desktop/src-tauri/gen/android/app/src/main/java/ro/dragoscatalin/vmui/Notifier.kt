@@ -158,7 +158,7 @@ object Notifier {
     return when (kind) {
       "copilot", "agents" -> 0xff6366f1.toInt(); "intercom" -> 0xffff5a1f.toInt(); "pairing" -> 0xff22c55e.toInt()
       "water", "window" -> 0xff8fd3ff.toInt(); "pc" -> 0xff7cff9a.toInt(); "pi", "door" -> 0xfff2b85a.toInt()
-      "presence" -> 0xffc084fc.toInt(); "battery" -> 0xffff7a7a.toInt(); else -> 0xff94a3b8.toInt()
+      "presence" -> 0xffc084fc.toInt(); "battery" -> 0xffff7a7a.toInt(); "contact" -> 0xff38bdf8.toInt(); else -> 0xff94a3b8.toInt()
     }
   }
 
@@ -168,6 +168,7 @@ object Notifier {
     "pc" -> R.drawable.ic_sc_pc; "pi" -> R.drawable.ic_k_cpu
     "door" -> R.drawable.ic_k_door; "window" -> R.drawable.ic_k_window
     "presence" -> R.drawable.ic_k_radar; "battery" -> R.drawable.ic_k_battery
+    "contact" -> R.drawable.ic_k_mail
     else -> R.drawable.ic_notif
   }
 

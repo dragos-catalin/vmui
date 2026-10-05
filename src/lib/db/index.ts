@@ -942,6 +942,11 @@ sqlite.exec(`CREATE TABLE IF NOT EXISTS home_notifications (
 )`);
 sqlite.exec(`CREATE INDEX IF NOT EXISTS home_notifications_tag ON home_notifications(tag)`);
 sqlite.exec(`CREATE INDEX IF NOT EXISTS home_notifications_open ON home_notifications(dismissed_at, created_at)`);
+sqlite.exec(`CREATE TABLE IF NOT EXISTS contact_hook_nonces (
+  key TEXT PRIMARY KEY,
+  expires_at INTEGER NOT NULL
+)`);
+sqlite.exec(`CREATE INDEX IF NOT EXISTS contact_hook_nonces_expiry ON contact_hook_nonces(expires_at)`);
 sqlite.exec(`CREATE TABLE IF NOT EXISTS paired_devices (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,

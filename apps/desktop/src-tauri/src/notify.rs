@@ -238,6 +238,7 @@ fn kind_icon(kind: &str, color: Option<&str>) -> Option<std::path::PathBuf> {
         "pi" | "door" => "#f2b85a",
         "presence" => "#c084fc",
         "battery" => "#ff7a7a",
+        "contact" => "#38bdf8",
         _ => "#94a3b8",
     });
     let dir = std::env::temp_dir().join("vmui-toast");

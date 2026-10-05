@@ -20,6 +20,7 @@
     "window": "Geam",
     "presence": "Prezență",
     "battery": "Baterii",
+    "contact": "Formular de contact",
     "system": "Sistem"
   },
   "cards": {
@@ -61,6 +62,10 @@
     "battery": {
       "title": "{name}: baterie {pct} %",
       "body": "Schimbă bateria senzorului."
+    },
+    "contact": {
+      "title": "Mesaj nou de la {name}",
+      "reply": "Răspunde"
     },
     "door": {
       "title": "{sensor, select, mainDoor {Ușa principală} window {Geamul} presence {Senzorul de prezență} other {{sensor}}} s-a deschis",

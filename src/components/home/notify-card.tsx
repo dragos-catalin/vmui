@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Panel } from "@/components/ui/settings-panel";
-import { AppWindow, BatteryWarning, BellOff, BellRing, Bot, Check, Cpu, DoorOpen, GlassWater, Info, Monitor, Radar, Smartphone, Trash2, X } from "lucide-react";
+import { AppWindow, BatteryWarning, BellOff, BellRing, Bot, Check, Cpu, DoorOpen, GlassWater, Info, Mail, Monitor, Radar, Smartphone, Trash2, X } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import * as React from "react";
 import { toast } from "sonner";
@@ -15,7 +15,7 @@ export type NotifyCard = {
 };
 
 const ICON: Record<string, React.ComponentType<{ className?: string }>> = {
-  copilot: Bot, agents: Bot, intercom: BellRing, pairing: Smartphone, water: GlassWater, pc: Monitor, pi: Cpu, door: DoorOpen, window: AppWindow, presence: Radar, battery: BatteryWarning, system: Info,
+  copilot: Bot, agents: Bot, intercom: BellRing, pairing: Smartphone, water: GlassWater, pc: Monitor, pi: Cpu, door: DoorOpen, window: AppWindow, presence: Radar, battery: BatteryWarning, contact: Mail, system: Info,
 };
 
 /** Live view of the notification centre (SSE /api/notify/stream). Every card

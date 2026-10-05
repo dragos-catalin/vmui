@@ -235,8 +235,11 @@ Assistant Lovelace`. Traps: Caddy runs as `caddy` and cannot write
 - **Nabu Casa** — optional, adds Alexa/Google without manual OAuth work, and
   funds the project. Turn it on in Settings → Home Assistant Cloud; it
   coexists with Tailscale.
-- **Funnel is deliberately NOT enabled.** It would publish the instance on the
-  open internet, which is the thing the tailnet exists to avoid.
+- **Funnel is deliberately NOT enabled for Home Assistant.** It would publish
+  the instance on the open internet, which is the thing the tailnet exists to
+  avoid. The one exception (2026-10-05) is homepi publishing the single path
+  `/hooks/contact` for the contact form — see "Contact form → phone" below and
+  `docs/fleet.md`; HA itself stays tailnet/LAN only.
 
 ### Certificate renewal
 
@@ -926,7 +929,7 @@ settings row 6 of `turzx_settings` (`lib/notify/settings.ts`).
 (`lib/devices/pairing.ts` — Aprobă / Respinge, code in the button body),
 `water` / `pc` / `pi` / `door` / `window` / `presence` / `battery`
 (`lib/notify/watchers.ts`, started from `/api/turzx/state` next to the
-activity feed), `system` (anything else, e.g. tests). Buttons are dispatched
+activity feed), `contact` (`/api/hooks/contact`, the dragoscatalin.ro form), `system` (anything else, e.g. tests). Buttons are dispatched
 by `lib/notify/actions.ts` — the only place that knows what `add250` or
 `restart-turzx` mean.
 
@@ -956,6 +959,49 @@ create}`, `POST /api/notify/act {id, action}`, `PUT /api/notify/token`,
 ```powershell
 $tok = ((Get-Content .private\credentials.env | ? { $_ -match '^ESP_DISPLAY_TOKEN=' }) -replace '^ESP_DISPLAY_TOKEN=', '').Trim('"')
 curl.exe -s -X POST "http://192.168.100.232:3737/api/notify?k=$tok" -H 'content-type: application/json' -d '{"op":"create","card":{"kind":"system","title":"Test","priority":"high","actions":[{"id":"ok","label":"OK"}]}}'
+```
+
+### Contact form → phone (2026-10-05)
+
+The dragoscatalin.ro contact form (Vercel server action) posts to
+`https://homepi.taild1532d.ts.net/hooks/contact` (Tailscale Funnel, that path
+only, `docs/fleet.md`) → `POST /api/hooks/contact` (`src/lib/hooks/contact.ts`)
+→ `notify({ kind: "contact", priority: "high" })` → SSE + FCM + the HA
+Companion fallback after 20 s, and an HA bus event `vmui_notify {kind: contact}`.
+
+Client contract:
+
+| header           | value                                                                 |
+| ---------------- | --------------------------------------------------------------------- |
+| `content-type`   | `application/json`                                                    |
+| `x-dc-timestamp` | unix seconds; rejected when more than 300 s from the Pi's clock       |
+| `x-dc-nonce`     | random UUID per request; replays rejected (409) for 600 s             |
+| `x-dc-signature` | hex `HMAC-SHA256(CONTACT_HOOK_SECRET, "${timestamp}.${rawBody}")`      |
+
+Body `{ name, email, subject?, message, locale, receivedAt (ISO 8601) }`, max
+16 KB. Answers: 202 delivered · 400 bad body/nonce · 401 missing/bad signature
+or stale timestamp · 409 replay · 413 too large · 429 over 10/min per source
+· 503 `CONTACT_HOOK_SECRET` unset. The signature itself is also a replay key,
+so re-sending a captured request with a fresh nonce still gets 409. The card
+shows a 280-char preview; the message body is never logged (`audit_log` gets
+`contact.received` with locale + length only). Tapping opens a `mailto:` reply.
+
+Optional light cue: `pi/ha-packages/vmui_contact.yaml` (installed by
+pi-deploy) adds automation `contact_flash` — two blue `notify_flash` pulses
+on the strips between 08:00 and 23:00. Off: `automation.turn_off
+automation.contact_flash`.
+
+Local test without the internet hop (secret read from the env file, never
+printed):
+
+```powershell
+$s = ((Get-Content .private\credentials.env | ? { $_ -match '^CONTACT_HOOK_SECRET=' }) -replace '^CONTACT_HOOK_SECRET=', '').Trim('"')
+$b = '{"name":"Test","email":"t@example.com","message":"hello","locale":"en","receivedAt":"2026-10-05T12:00:00Z"}'
+$t = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds().ToString()
+$h = [Security.Cryptography.HMACSHA256]::new([Text.Encoding]::UTF8.GetBytes($s))
+$sig = [Convert]::ToHexString($h.ComputeHash([Text.Encoding]::UTF8.GetBytes("$t.$b"))).ToLower()
+$f = New-TemporaryFile; Set-Content -NoNewline -Path $f -Value $b
+curl.exe -s -X POST http://192.168.100.232:3737/api/hooks/contact -H 'content-type: application/json' -H "x-dc-timestamp: $t" -H "x-dc-nonce: $([guid]::NewGuid())" -H "x-dc-signature: $sig" --data-binary "@$f"
 ```
 
 **Traps measured on 2026-09-19**

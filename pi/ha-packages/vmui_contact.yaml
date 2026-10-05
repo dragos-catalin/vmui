@@ -1,0 +1,28 @@
+# Contact form on dragoscatalin.ro -> vmui /api/hooks/contact -> notify kind
+# `contact` (FCM + Companion fallback) and this HA bus event. Optional light
+# cue: a short blue double flash on the strips via notify_flash (HyperHDR
+# priority 10, self-expiring - nothing to restore). Installed by pi-deploy.
+# Disable with: automation.turn_off automation.contact_flash
+automation:
+  - id: contact_flash
+    alias: "Contact form: flash the strips"
+    mode: single
+    max_exceeded: silent
+    trigger:
+      - platform: event
+        event_type: vmui_notify
+        event_data:
+          kind: contact
+    condition:
+      - condition: time
+        after: "08:00:00"
+        before: "23:00:00"
+    action:
+      - repeat:
+          count: 2
+          sequence:
+            - action: script.notify_flash
+              data:
+                color: [56, 189, 248]
+                duration_ms: 700
+            - delay: { milliseconds: 950 }

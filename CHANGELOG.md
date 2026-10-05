@@ -2,6 +2,13 @@
 
 All notable changes to vmui are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- `POST /api/hooks/contact` (V3-30): dragoscatalin.ro contact form → notification kind `contact` (FCM, desktop toast, Android, HA Companion fallback, en + ro). HMAC-SHA256 over `${x-dc-timestamp}.${rawBody}` with `CONTACT_HOOK_SECRET` (503 when unset), ±300 s skew, nonce + signature replay table `contact_hook_nonces`, 10/min per source, zod-validated body, 280-char preview, message body never logged. HA bus event `vmui_notify` + optional automation `contact_flash` (`pi/ha-packages/vmui_contact.yaml`).
+- Tailscale Funnel on homepi for `/hooks/contact` only (V3-31): `tag:funnel-hooks` + `funnel` nodeAttr in `infra/tailscale-home-acl.hujson`; runbook in `docs/fleet.md`.
+
 ## [0.2.0] - 2026-10-05
 
 ### Added

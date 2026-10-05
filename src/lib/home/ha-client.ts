@@ -64,6 +64,9 @@ export const ha = {
     }),
   runScript: (name: string, data: Record<string, unknown> = {}) =>
     rest(`/services/script/${name}`, { method: "POST", body: JSON.stringify(data) }),
+  /** Fire a custom event on the HA bus; automations trigger on `platform: event`. */
+  fireEvent: (eventType: string, data: Record<string, unknown> = {}) =>
+    rest<{ message: string }>(`/events/${encodeURIComponent(eventType)}`, { method: "POST", body: JSON.stringify(data) }),
   /** State history for one entity since `since` (ISO). Minimal response = [{s, lu}]-style compact rows. */
   history: (entityId: string, since: Date) =>
     rest<HaState[][]>(`/history/period/${since.toISOString()}?filter_entity_id=${encodeURIComponent(entityId)}&minimal_response&no_attributes`),

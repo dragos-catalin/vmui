@@ -10,7 +10,7 @@ const walk = (dir: string): string[] => readdirSync(dir).flatMap((f) => { const 
 const flat = (o: Record<string, unknown>, p = ""): string[] => Object.entries(o).flatMap(([k, v]) => (v && typeof v === "object" ? flat(v as Record<string, unknown>, `${p}${k}.`) : [`${p}${k}`]));
 
 const dict = (locale: string) => new Set(flat(JSON.parse(readFileSync(`messages/notify/${locale}.json`, "utf8")) as Record<string, unknown>));
-const SOURCES = ["src/lib/notify", "src/lib/devices", "src/lib/home", "src/lib/nutrition"];
+const SOURCES = ["src/lib/notify", "src/lib/devices", "src/lib/home", "src/lib/nutrition", "src/app/api/hooks"];
 
 describe("notify message refs", () => {
   const en = dict("en");
@@ -22,6 +22,7 @@ describe("notify message refs", () => {
     expect(refs.size).toBeGreaterThan(30);
     expect(refs).toContain("cards.intercom.ringTitle");
     expect(refs).toContain("cards.pairing.title");
+    expect(refs).toContain("cards.contact.title");
   });
 
   it("resolve in en and ro", () => {
@@ -32,7 +33,7 @@ describe("notify message refs", () => {
   it("dynamic key families exist in both locales", () => {
     for (const k of ["not_found", "expired", "code_mismatch"]) expect(en.has(`errors.pairing.${k}`) && ro.has(`errors.pairing.${k}`)).toBe(true);
     for (const k of ["streak_risk", "over_target", "under_target", "protein_low", "celebration", "weekly_review", "no_data"]) expect(en.has(`cards.coach.title.${k}`) && ro.has(`cards.coach.title.${k}`) && en.has(`cards.coach.fallback.${k}`)).toBe(true);
-    for (const k of ["copilot", "agents", "intercom", "pairing", "water", "pc", "pi", "door", "window", "presence", "battery", "system"]) expect(en.has(`kinds.${k}`) && ro.has(`kinds.${k}`)).toBe(true);
+    for (const k of ["copilot", "agents", "intercom", "pairing", "water", "pc", "pi", "door", "window", "presence", "battery", "contact", "system"]) expect(en.has(`kinds.${k}`) && ro.has(`kinds.${k}`)).toBe(true);
   });
 });
 

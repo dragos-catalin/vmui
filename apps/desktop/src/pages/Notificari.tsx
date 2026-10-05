@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { AppWindow, BatteryWarning, Bell, BellOff, BellRing, Bot, Check, Cpu, DoorOpen, GlassWater, Info, Monitor, Radar, Settings2, Smartphone, Trash2, X } from "lucide-react";
+import { AppWindow, BatteryWarning, Bell, BellOff, BellRing, Bot, Check, Cpu, DoorOpen, GlassWater, Info, Mail, Monitor, Radar, Settings2, Smartphone, Trash2, X } from "lucide-react";
 import * as React from "react";
 import { api, cn, toast, useEvent } from "../lib";
 import { usePlatform } from "../platform";
@@ -23,7 +23,7 @@ type Settings = {
 type Meta = Record<string, { label: string; color: string; icon: string }>;
 
 const ICON: Record<string, React.ComponentType<{ className?: string }>> = {
-  copilot: Bot, agents: Bot, intercom: BellRing, pairing: Smartphone, water: GlassWater, pc: Monitor, pi: Cpu, door: DoorOpen, window: AppWindow, presence: Radar, battery: BatteryWarning, system: Info,
+  copilot: Bot, agents: Bot, intercom: BellRing, pairing: Smartphone, water: GlassWater, pc: Monitor, pi: Cpu, door: DoorOpen, window: AppWindow, presence: Radar, battery: BatteryWarning, contact: Mail, system: Info,
 };
 
 function useNotifyApi() {
@@ -135,7 +135,7 @@ export function Notificari({ focusId }: { focusId?: string | null }) {
   );
 }
 
-const LABEL: Record<string, string> = { copilot: "Copilot", agents: "Agenți", intercom: "Interfon", pairing: "Dispozitive", water: "Apă", pc: "PC", pi: "Pi", door: "Ușă", window: "Geam", presence: "Prezență", battery: "Baterii", system: "Sistem" };
+const LABEL: Record<string, string> = { copilot: "Copilot", agents: "Agenți", intercom: "Interfon", pairing: "Dispozitive", water: "Apă", pc: "PC", pi: "Pi", door: "Ușă", window: "Geam", presence: "Prezență", battery: "Baterii", contact: "Contact", system: "Sistem" };
 
 async function act(n: ReturnType<typeof useNotifyApi>, c: NotifyCard, a: NotifyAction, reload: () => void) {
   if (a.url) {

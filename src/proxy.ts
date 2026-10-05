@@ -18,6 +18,7 @@ const PUBLIC_PREFIXES = [
   "/api/discover", // autodiscovery identity card (mDNS _vmui._tcp points here)
   "/api/devices", // pairing: /pair is open (rate-limited); the rest checks session OR device token itself
   "/api/notify", // notification centre: session OR device token OR shared token, checked per route
+  "/api/hooks", // inbound webhooks (Tailscale Funnel): HMAC-signed, checked per route
   "/_next",
   "/icons",
   "/favicon",

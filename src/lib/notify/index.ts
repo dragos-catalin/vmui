@@ -19,7 +19,7 @@ import { loadNotifySettings } from "./settings";
 // through the HA Companion app as before. Actions come back through
 // /api/notify/act and are routed by `kind` in ./actions.ts.
 
-export const NOTIFY_KINDS = ["copilot", "agents", "intercom", "pairing", "water", "pc", "pi", "door", "window", "presence", "battery", "system"] as const;
+export const NOTIFY_KINDS = ["copilot", "agents", "intercom", "pairing", "water", "pc", "pi", "door", "window", "presence", "battery", "contact", "system"] as const;
 export type NotifyKind = (typeof NOTIFY_KINDS)[number];
 
 /** A literal string or a `{ key, params }` reference into messages/notify (rendered per consumer language). */
@@ -240,7 +240,7 @@ function cancelFallback(id: string) {
 }
 
 const phoneService = () => credential("PHONE_NOTIFY_SERVICE") ?? "mobile_app_dragos_s_s25_ultra";
-const MDI: Partial<Record<NotifyKind, string>> = { copilot: "mdi:robot", agents: "mdi:robot", intercom: "mdi:doorbell", pairing: "mdi:cellphone-link", water: "mdi:cup-water", pc: "mdi:desktop-tower", pi: "mdi:raspberry-pi", door: "mdi:door", window: "mdi:window-open", presence: "mdi:motion-sensor", battery: "mdi:battery-alert", system: "mdi:information" };
+const MDI: Partial<Record<NotifyKind, string>> = { copilot: "mdi:robot", agents: "mdi:robot", intercom: "mdi:doorbell", pairing: "mdi:cellphone-link", water: "mdi:cup-water", pc: "mdi:desktop-tower", pi: "mdi:raspberry-pi", door: "mdi:door", window: "mdi:window-open", presence: "mdi:motion-sensor", battery: "mdi:battery-alert", contact: "mdi:email-alert", system: "mdi:information" };
 
 /** Same content through the HA Companion app; actions become NOTIFY_<id>_<actionId>. */
 async function haFallback(card: LocalizedCard): Promise<void> {

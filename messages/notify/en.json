@@ -20,6 +20,7 @@
     "window": "Window",
     "presence": "Presence",
     "battery": "Batteries",
+    "contact": "Contact form",
     "system": "System"
   },
   "cards": {
@@ -61,6 +62,10 @@
     "battery": {
       "title": "{name}: battery {pct}%",
       "body": "Change the sensor battery."
+    },
+    "contact": {
+      "title": "New message from {name}",
+      "reply": "Reply"
     },
     "door": {
       "title": "{sensor, select, mainDoor {The front door} window {The window} presence {The presence sensor} other {{sensor}}} was opened",

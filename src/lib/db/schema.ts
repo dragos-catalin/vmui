@@ -1341,6 +1341,12 @@ export const homeInvites = sqliteTable("home_invites", {
 });
 export type HomeInviteRow = typeof homeInvites.$inferSelect;
 
+/** Replay guard for /api/hooks/contact: `n:<nonce>` and `s:<sha256(signature)>`, purged after expiry. */
+export const contactHookNonces = sqliteTable("contact_hook_nonces", {
+  key: text("key").primaryKey(),
+  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+});
+
 /** Notification centre (lib/notify). One row per card; `tag` lets a source
  *  update a card in place (progress, agents summary). Actions are JSON
  *  [{id,label,style,body}] executed by /api/notify/act. */
