@@ -1,0 +1,28 @@
+# gitleaks config for the shared security gate (dragos-catalin/workflows security.yml).
+# Every allowlist entry is a reviewed false positive; real secrets never belong here.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Microsoft public KMS client setup keys (GVLK) used by the Windows VM unattend scripts; published by Microsoft, not secrets"
+paths = [
+  '''^scripts/setup-win-vm\.sh$''',
+  '''^scripts/setup-win-hyperv\.ps1$''',
+  '''^scripts/setup-dragos-dev\.ps1$''',
+  '''^scripts/lib/win-autounattend\.ps1$''',
+]
+
+[[allowlists]]
+description = "Test fixtures: fake keys/tokens that exercise crypto, TOTP and redaction"
+paths = [
+  '''^src/lib/crypto\.test\.ts$''',
+  '''^src/lib/totp\.test\.ts$''',
+  '''^src/lib/redact\.test\.ts$''',
+]
+
+[[allowlists]]
+description = "UI placeholder text showing the PEM shape ('-----BEGIN RSA PRIVATE KEY-----\\n...') and a doc comment"
+paths = [
+  '''^messages/vm/(en|ro)\.json$''',
+  '''^src/lib/secrets\.ts$''',
+]
