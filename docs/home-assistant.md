@@ -9,18 +9,18 @@
 
 ## homepi — the house server (2026-09-17)
 
-| what        | where                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| board       | Raspberry Pi 4B 4 GB, Pi OS Lite 64-bit (Trixie), boot from the Samsung FIT 64 GB USB stick (`pi/cloud-init/*`, written by `scripts/pi-image.ps1 -DiskNumber N`)                                                                                                                                                                                                                                                                                                                   |
-| network     | eth0 `192.168.100.232` (router reservation on `d8:3a:dd:9d:e3:b5`), wlan0 `.63` as fallback (`scripts/pi-wifi.ps1`), `ssh homepi` alias, user `dragos`, key-only                                                                                                                                                                                                                                                                                                                   |
-| stack       | `/srv/homepi/compose.yaml` (from `pi/compose.yaml`): `homeassistant` (host net, :80), `esphome` (:6052), `mosquitto` (:1883, user `homepi`, password in `.private/credentials.env` as `MQTT_PASS`)                                                                                                                                                                                                                                                                                 |
-| egress proxy | `/srv/homepi/egress-proxy` (from `pi/egress-proxy/`, `scripts/pi-egress-proxy.ps1`): 3proxy on `127.0.0.1:3128` + Tailscale `100.82.141.110:3128` only, per-app basic auth + host allowlist, RO residential egress for app crawlers (MarcAI D29). Read [pi/egress-proxy/README.md](../pi/egress-proxy/README.md) |
-| HA data     | `/srv/homepi/ha` — restored from a full HAOS backup via `/config/.HA_RESTORE` (`scripts/ha-backup-pull.ps1` makes and downloads one). Same instance ID, same long-lived tokens, 283 entities came across. `hassio:` fails to set up in container mode — expected, harmless                                                                                                                                                                                                         |
-| vmui        | `/srv/homepi/vmui`, Node 22 + pnpm, `systemd` unit `vmui` binding `0.0.0.0:3737`. **Build on the PC, ship with `scripts/pi-deploy.ps1`** (55 s here vs 4+ min on the Pi). The script tars source + `.next` (minus `.next/node_modules`, which are Windows junctions) and recreates the `serverExternalPackages` links on the Pi from `next-links.txt`; `pnpm install` runs only when the lockfile hash changed                                                                     |
-| Turzx       | `systemd` unit `turzx`, panel on `/dev/turzx` (udev rule by VID/PID). Fonts come from `turzx/fonts/` (Microsoft fonts copied from this PC, **gitignored**, shipped privately by pi-deploy). The "pc" view gets this PC's metrics from the `vmui-turzx` task, now `turzx.py --publish --vmui http://192.168.100.232:3737` → `POST /api/turzx/pc`, 15 s TTL                                                                                                                          |
-| desk button | `systemd` unit `desk-button` (`pi/desk-button.py`): GPIO17 → GND, optional LED GPIO27. 1–5 clicks (400 ms window) or ≥1 s hold → `POST /api/esp/button?btn=desk&click=N                                                                                                                                                                                                                                                                                                            | long`. What each gesture does is the table on `/home?tab=settings&section=deskButton`("Butonul de birou", row id 3 of`turzx_settings`); default 1 = +250 ml, 2 = +100 ml, 3 = Turzx next, 4 = Ambilight movie, 5 = intercom auto-open 45 min, long = undo water. lgpio needs a writable cwd (`WorkingDirectory=/srv/homepi/logs`) or it dies with `FileNotFoundError: .lgd-nfy-3` |
-| logs        | `/srv/homepi/logs/vmui.log`; turzx writes its own `/srv/homepi/vmui/.copilot-tmp/service-logs/turzx.log` (the systemd one stays empty); `journalctl -u desk-button`. **Power**: `vcgencmd get_throttled` must be `0x0` — `0x50005` (seen 2026-09-18) means under-voltage NOW; symptoms were the Turzx screen not enumerating (`1a86:5722 not found`), `write failed: Input/output error`, eth0 `Link is Down` and a spontaneous reboot. Needs a real 5.1 V/3 A supply, short cable |
-| ESP32       | `scripts/esp32-display.ps1` now compiles in the Pi's `esphome` container (`-HostSsh dragos@192.168.100.232`, `-EsphomeDir /srv/homepi/esphome`) and bakes `http://192.168.100.232:3737` into the firmware (`-VmuiHost`/`-LanPort` to point elsewhere). First compile on the Pi is 10–20 min (toolchain download), later ones ~3 min                                                                                                                                                |
+| what         | where                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| board        | Raspberry Pi 4B 4 GB, Pi OS Lite 64-bit (Trixie), boot from the Samsung FIT 64 GB USB stick (`pi/cloud-init/*`, written by `scripts/pi-image.ps1 -DiskNumber N`)                                                                                                                                                                                                                                                                                                                   |
+| network      | eth0 `192.168.100.232` (router reservation on `d8:3a:dd:9d:e3:b5`), wlan0 `.63` as fallback (`scripts/pi-wifi.ps1`), `ssh homepi` alias, user `dragos`, key-only                                                                                                                                                                                                                                                                                                                   |
+| stack        | `/srv/homepi/compose.yaml` (from `pi/compose.yaml`): `homeassistant` (host net, :80), `esphome` (:6052), `mosquitto` (:1883, user `homepi`, password in `.private/credentials.env` as `MQTT_PASS`)                                                                                                                                                                                                                                                                                 |
+| egress proxy | `/srv/homepi/egress-proxy` (from `pi/egress-proxy/`, `scripts/pi-egress-proxy.ps1`): 3proxy on `127.0.0.1:3128` + Tailscale `100.82.141.110:3128` only, per-app basic auth + host allowlist, RO residential egress for app crawlers (MarcAI D29). Read [pi/egress-proxy/README.md](../pi/egress-proxy/README.md)                                                                                                                                                                   |
+| HA data      | `/srv/homepi/ha` — restored from a full HAOS backup via `/config/.HA_RESTORE` (`scripts/ha-backup-pull.ps1` makes and downloads one). Same instance ID, same long-lived tokens, 283 entities came across. `hassio:` fails to set up in container mode — expected, harmless                                                                                                                                                                                                         |
+| vmui         | `/srv/homepi/vmui`, Node 22 + pnpm, `systemd` unit `vmui` binding `0.0.0.0:3737`. **Build on the PC, ship with `scripts/pi-deploy.ps1`** (55 s here vs 4+ min on the Pi). The script tars source + `.next` (minus `.next/node_modules`, which are Windows junctions) and recreates the `serverExternalPackages` links on the Pi from `next-links.txt`; `pnpm install` runs only when the lockfile hash changed                                                                     |
+| Turzx        | `systemd` unit `turzx`, panel on `/dev/turzx` (udev rule by VID/PID). Fonts come from `turzx/fonts/` (Microsoft fonts copied from this PC, **gitignored**, shipped privately by pi-deploy). The "pc" view gets this PC's metrics from the `vmui-turzx` task, now `turzx.py --publish --vmui http://192.168.100.232:3737` → `POST /api/turzx/pc`, 15 s TTL                                                                                                                          |
+| desk button  | `systemd` unit `desk-button` (`pi/desk-button.py`): GPIO17 → GND, optional LED GPIO27. 1–5 clicks (400 ms window) or ≥1 s hold → `POST /api/esp/button?btn=desk&click=N                                                                                                                                                                                                                                                                                                            | long`. What each gesture does is the table on `/home?tab=settings&section=deskButton`("Butonul de birou", row id 3 of`turzx_settings`); default 1 = +250 ml, 2 = +100 ml, 3 = Turzx next, 4 = Ambilight movie, 5 = intercom auto-open 45 min, long = undo water. lgpio needs a writable cwd (`WorkingDirectory=/srv/homepi/logs`) or it dies with `FileNotFoundError: .lgd-nfy-3` |
+| logs         | `/srv/homepi/logs/vmui.log`; turzx writes its own `/srv/homepi/vmui/.copilot-tmp/service-logs/turzx.log` (the systemd one stays empty); `journalctl -u desk-button`. **Power**: `vcgencmd get_throttled` must be `0x0` — `0x50005` (seen 2026-09-18) means under-voltage NOW; symptoms were the Turzx screen not enumerating (`1a86:5722 not found`), `write failed: Input/output error`, eth0 `Link is Down` and a spontaneous reboot. Needs a real 5.1 V/3 A supply, short cable |
+| ESP32        | `scripts/esp32-display.ps1` now compiles in the Pi's `esphome` container (`-HostSsh dragos@192.168.100.232`, `-EsphomeDir /srv/homepi/esphome`) and bakes `http://192.168.100.232:3737` into the firmware (`-VmuiHost`/`-LanPort` to point elsewhere). First compile on the Pi is 10–20 min (toolchain download), later ones ~3 min                                                                                                                                                |
 
 Two traps after restoring a HAOS backup into the container, both hit here:
 `esphome` refused to set up ("Setup failed for dependencies: ['bluetooth']")
@@ -215,9 +215,20 @@ and complains about one missing key per attempt — read, merge, write back.
 
 **On homepi (2026-09-18)**: `scripts/pi-publish-ha.ps1` → `pi/publish-ha.sh`.
 `https://home.dragoscatalin.ro` resolves to the **LAN IP** `192.168.100.232`
-(Vercel DNS; zone is NOT on Cloudflare), Caddy on the Pi terminates TLS with a
+(zone hosted in **Brivio** since 2026-10-05, NS `ns1/ns2.fabricai.ro`; edit the A
+record at brivio.ro > DNS), Caddy on the Pi terminates TLS with a
 Let's Encrypt cert from lego DNS-01 (`/srv/homepi/publish/.lego`, daily
-`/etc/cron.d/ha-cert-renew`) and proxies to HA :80; HA got
+`/etc/cron.d/ha-cert-renew`, log `/var/log/ha-cert-renew.log`) and proxies to HA :80.
+DNS-01 runs through `--dns exec` → `/usr/local/bin/brivio-acme-hook`
+(`pi/brivio-acme-hook.sh`) → `POST brivio.ro/api/dns/acme` with a `brv_dns_`
+token (`/srv/homepi/publish/brivio-acme.token`, root 600; source
+`.private/publish/brivio-acme-homepi.token`) that may ONLY write
+`_acme-challenge*` TXT in dragoscatalin.ro (403 for anything else, verified
+2026-10-06). Create/revoke: brivio.ro > DNS > dragoscatalin.ro > Token-uri API
+(one per device: "lego homepi", "lego vmui PC"). Caddy has a systemd drop-in
+(`pi/caddy-wait-network.conf`): without it Caddy started before DHCP at boot,
+died with `bind: cannot assign requested address` and home.* was down
+2026-09-18 → 2026-10-06. HA got
 `http: trusted_proxies` and `external_url`/`internal_url` via the websocket
 `config/core/update` (`pi/ha-set-urls.cjs`). The Pi advertises
 `192.168.100.0/24` on the tailnet (approved), so the same name works away from
@@ -380,8 +391,12 @@ Reaching it from the phone:
   delivered Ctrl+C to the server ~75 s after start
   (exit `0xC000013A`). The task re-fires every 5 min; the launcher is a no-op
   while the port answers. `-Status` shows pid and uptime.
-- `scripts/publish-vmui.ps1` — Vercel DNS `mui` A → PC tailnet IP, Let's
-  Encrypt via lego DNS-01 (Vercel), and a Caddy route to :3737. Because
+- `scripts/publish-vmui.ps1` — checks `mui` A → PC tailnet IP at the Brivio
+  nameserver (edit it in Brivio > DNS), Let's Encrypt via lego DNS-01 through
+  `scripts/brivio-acme-hook.cmd` (token `.private/publish/brivio-acme-pc.token`,
+  same `_acme-challenge`-only scope), and a Caddy route to :3737. `-Renew`
+  (daily task) renews only when due and leaves Caddy alone otherwise; until
+  2026-10-06 it forced a new certificate every day. Because
   brivio's elevated Caddy already owns :443, the route and certificate are
   **attached to it through its admin API** (:22019, `@id vmui-mui`). A
   5-minute task `vmui-publish-ensure` re-attaches after that Caddy restarts,
@@ -917,6 +932,15 @@ the Pi for it:
   the phone's Pi page; nothing else.
 - `/srv/homepi/vmui/public-apk/vmui.apk{,.json}` — latest signed APK for
   in-app updates (`scripts/android-release.ps1`).
+- Paired phones (2026-10-06): **Galaxy S25 Ultra** (`SM-S938B`, id
+  `230ee0e5504ce403`, main phone, FCM token registered) and the old A51
+  (`SM-A515F`). S25 install: `scp` the APK above, `adb install -r`, open the
+  app, tap `homepi`, approve via `POST /api/devices {op:approve,id,code}` with
+  the shared token. Traps measured: (1) cards created during quiet hours
+  (23:30–07:30) reach open apps over SSE but skip FCM unless the kind has
+  `breakQuiet` or the card is `force` — "no push at 4 am" is not a bug;
+  (2) a phone whose vmui process is dead/force-stopped gets no FCM until the
+  app is opened once (the A51 missed a forced push until relaunched).
 
 ## Notification centre (2026-09-19)
 
@@ -971,12 +995,12 @@ Companion fallback after 20 s, and an HA bus event `vmui_notify {kind: contact}`
 
 Client contract:
 
-| header           | value                                                                 |
-| ---------------- | --------------------------------------------------------------------- |
-| `content-type`   | `application/json`                                                    |
-| `x-dc-timestamp` | unix seconds; rejected when more than 300 s from the Pi's clock       |
-| `x-dc-nonce`     | random UUID per request; replays rejected (409) for 600 s             |
-| `x-dc-signature` | hex `HMAC-SHA256(CONTACT_HOOK_SECRET, "${timestamp}.${rawBody}")`      |
+| header           | value                                                             |
+| ---------------- | ----------------------------------------------------------------- |
+| `content-type`   | `application/json`                                                |
+| `x-dc-timestamp` | unix seconds; rejected when more than 300 s from the Pi's clock   |
+| `x-dc-nonce`     | random UUID per request; replays rejected (409) for 600 s         |
+| `x-dc-signature` | hex `HMAC-SHA256(CONTACT_HOOK_SECRET, "${timestamp}.${rawBody}")` |
 
 Body `{ name, email, subject?, message, locale, receivedAt (ISO 8601) }`, max
 16 KB. Answers: 202 delivered · 400 bad body/nonce · 401 missing/bad signature

@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
 # Serve Home Assistant at https://home.dragoscatalin.ro from the Pi.
-#   Caddy :443 (LAN IP) -> HA :80. Certificate: Let's Encrypt via lego, DNS-01 on Vercel.
+#   Caddy :443 (LAN IP) -> HA :80. Certificate: Let's Encrypt via lego, DNS-01 through
+#   Brivio (`--dns exec` -> /usr/local/bin/brivio-acme-hook -> POST brivio.ro/api/dns/acme
+#   with a brv_dns_ token that may only write _acme-challenge* TXT in dragoscatalin.ro).
 #   The A record points at the LAN IP so the Nest Hub (LAN only) can cast; the
 #   Pi advertises 192.168.100.0/24 as a Tailscale subnet route so the phone
 #   reaches the same name when away.
-# Env (passed by scripts/pi-publish-ha.ps1): VERCEL_API_TOKEN, VERCEL_TEAM_ID, LE_EMAIL,
-#   DOMAIN (default home.dragoscatalin.ro), LAN_IP (default 192.168.100.232), TS_AUTHKEY (optional)
+# Files staged by scripts/pi-publish-ha.ps1: /tmp/brivio-acme-hook.sh, /tmp/brivio-acme.token,
+#   /tmp/caddy-wait-network.conf. Env: LE_EMAIL, DOMAIN (default home.dragoscatalin.ro),
+#   LAN_IP (default 192.168.100.232), TS_AUTHKEY (optional)
 set -euo pipefail
 DOMAIN="${DOMAIN:-home.dragoscatalin.ro}"
 LAN_IP="${LAN_IP:-192.168.100.232}"
-: "${VERCEL_API_TOKEN:?}" "${LE_EMAIL:?}"
+: "${LE_EMAIL:?}"
 STATE=/srv/homepi/publish
 sudo mkdir -p "$STATE" && sudo chown "$USER" "$STATE"
 
@@ -29,8 +32,14 @@ if ! command -v lego >/dev/null; then
   curl -fsSL "https://github.com/go-acme/lego/releases/download/${V}/lego_${V}_linux_arm64.tar.gz" | sudo tar -xz -C /usr/local/bin lego
 fi
 cd "$STATE"
-export VERCEL_API_TOKEN VERCEL_TEAM_ID="${VERCEL_TEAM_ID:-}"
-lego run --accept-tos --email "$LE_EMAIL" --dns vercel --dns.propagation.wait 60s -d "$DOMAIN" --renew-days 30 --no-random-sleep 2>&1 | tail -3
+if [ -f /tmp/brivio-acme-hook.sh ]; then sudo install -m755 /tmp/brivio-acme-hook.sh /usr/local/bin/brivio-acme-hook && rm -f /tmp/brivio-acme-hook.sh; fi
+if [ -f /tmp/brivio-acme.token ]; then sudo install -m600 -o root -g root /tmp/brivio-acme.token "$STATE/brivio-acme.token" && rm -f /tmp/brivio-acme.token; fi
+sudo test -s "$STATE/brivio-acme.token" || { echo "missing $STATE/brivio-acme.token" >&2; exit 1; }
+# lego waits until BOTH Brivio authoritatives (ns1/ns2.fabricai.ro) serve the TXT.
+LEGO_ARGS="run --accept-tos --email $LE_EMAIL --dns exec --dns.resolvers 80.97.27.170:53,80.97.27.78:53 -d $DOMAIN --renew-days 30"
+LEGO_ENV="EXEC_PATH=/usr/local/bin/brivio-acme-hook EXEC_PROPAGATION_TIMEOUT=300 EXEC_POLLING_INTERVAL=5"
+sudo env $LEGO_ENV lego $LEGO_ARGS --no-random-sleep 2>&1 | tail -3
+sudo chown -R "$USER" "$STATE/.lego"
 CRT="$STATE/.lego/certificates/$DOMAIN.crt"; KEY="$STATE/.lego/certificates/$DOMAIN.key"
 test -f "$CRT"
 
@@ -70,6 +79,12 @@ https://$DOMAIN {
 }
 EOF
 sudo mkdir -p /var/log/caddy && sudo chown caddy:caddy /var/log/caddy
+# Caddy binds the LAN IP: wait for the network at boot and retry (it stayed down 2026-09-18..10-06).
+if [ -f /tmp/caddy-wait-network.conf ]; then
+	sudo mkdir -p /etc/systemd/system/caddy.service.d
+	sudo install -m644 /tmp/caddy-wait-network.conf /etc/systemd/system/caddy.service.d/10-wait-network.conf && rm -f /tmp/caddy-wait-network.conf
+	sudo systemctl daemon-reload
+fi
 sudo systemctl enable --now caddy >/dev/null
 sudo systemctl reload caddy || sudo systemctl restart caddy
 
@@ -78,10 +93,13 @@ sudo tee /usr/local/bin/ha-cert-renew >/dev/null <<EOF
 #!/usr/bin/env bash
 set -e
 cd $STATE
-export VERCEL_API_TOKEN='$VERCEL_API_TOKEN' VERCEL_TEAM_ID='${VERCEL_TEAM_ID:-}'
-lego run --accept-tos --email '$LE_EMAIL' --dns vercel --dns.propagation.wait 60s -d '$DOMAIN' --renew-days 30 >/dev/null 2>&1 || exit 0
+# lego exits 0 without touching the files when >30 days remain; compare mtimes.
+before=\$(stat -c %Y '$CRT')
+env $LEGO_ENV lego $LEGO_ARGS >>/var/log/ha-cert-renew.log 2>&1 || { echo "\$(date -Is) lego failed" >>/var/log/ha-cert-renew.log; exit 1; }
+[ "\$(stat -c %Y '$CRT')" = "\$before" ] && exit 0
 cp '$CRT' /etc/caddy/ha.crt; cp '$KEY' /etc/caddy/ha.key; chown caddy:caddy /etc/caddy/ha.*; chmod 600 /etc/caddy/ha.key
 systemctl reload caddy
+echo "\$(date -Is) renewed + caddy reloaded" >>/var/log/ha-cert-renew.log
 EOF
 sudo chmod 700 /usr/local/bin/ha-cert-renew
 echo '30 4 * * * root /usr/local/bin/ha-cert-renew' | sudo tee /etc/cron.d/ha-cert-renew >/dev/null
