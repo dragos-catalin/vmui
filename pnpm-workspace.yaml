@@ -17,10 +17,9 @@ allowBuilds:
   # generates JS, so allowing it is safe and silences a warning every install.
   protobufjs: true
   # Both only download/select a prebuilt binary for the platform.
-  '@parcel/watcher': true
-  '@swc/core': true
+  "@parcel/watcher": true
+  "@swc/core": true
 
 packages:
   - .
   - apps/desktop
-

@@ -217,7 +217,14 @@ if ($Register) {
         $principal = New-ScheduledTaskPrincipal -UserId $me -LogonType S4U -RunLevel Highest
         # Optimize-VHD over ~750 GB of WSL disks needs far more than 10 min;
         # the default limit killed it mid-compaction (task result 267014).
-        $limit = if ($t.Op -eq 'CompactWslDisks') { New-TimeSpan -Hours 3 } else { New-TimeSpan -Minutes 10 }
+        # PruneDocker too: on 2026-09-20 it found 724 GB of images and the
+        # 10-min limit killed it after the first `docker system df` — the log
+        # stopped at "before" and nothing was reclaimed.
+        $limit = switch ($t.Op) {
+            'CompactWslDisks' { New-TimeSpan -Hours 3 }
+            'PruneDocker'     { New-TimeSpan -Hours 2 }
+            default           { New-TimeSpan -Minutes 10 }
+        }
         $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable `
             -ExecutionTimeLimit $limit -MultipleInstances IgnoreNew
 
@@ -358,12 +365,24 @@ switch ($Operation) {
 
         Invoke-DockerPrune
 
-        # Docker Desktop must die BEFORE wsl --shutdown: it restarts its
-        # distro (and Ubuntu-24.04, via the WSL integration) within seconds,
-        # and the 2026-09-17 run compacted only docker_data because Ubuntu
-        # was already Running again. It is relaunched at the end via
-        # explorer.exe so the GUI runs UNELEVATED — an elevated Docker Desktop
-        # shows no window and cannot be stopped from a normal session.
+        # Two things undo `wsl --shutdown` within seconds and must be paused
+        # first: Docker Desktop (restarts its distro and, via the WSL
+        # integration, Ubuntu-24.04 — the 2026-09-17 run compacted only
+        # docker_data for this reason) and the `brivio-wsl-runner-keepalive`
+        # task (a resident `wsl --exec sleep infinity` loop for the self-hosted
+        # runners, replaced every 15 s by design — 2026-09-22 it kept the
+        # distro Running through every shutdown). Both are restored at the
+        # end; Docker Desktop via explorer.exe so the GUI runs UNELEVATED (an
+        # elevated one shows no window and cannot be stopped from a normal
+        # session).
+        $keepalive = 'brivio-wsl-runner-keepalive'
+        $keepaliveWas = (Get-ScheduledTask -TaskName $keepalive -ErrorAction SilentlyContinue).State
+        if ($keepaliveWas -and $keepaliveWas -ne 'Disabled') {
+            Disable-ScheduledTask -TaskName $keepalive -ErrorAction SilentlyContinue | Out-Null
+            Get-CimInstance Win32_Process -Filter "Name='pwsh.exe'" | Where-Object { $_.CommandLine -match 'wsl-keepalive-loop' } |
+                ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+            Write-Log "CompactWslDisks: paused $keepalive (was $keepaliveWas)"
+        }
         Get-Process 'Docker Desktop', 'com.docker.backend', 'com.docker.build' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
         Start-Sleep -Seconds 5
         $down = $false
@@ -377,6 +396,9 @@ switch ($Operation) {
             }
         }
         if (-not $down) { Write-Log 'CompactWslDisks: WSL still running; disks in use will FAIL below' }
+        # The utility VM releases the vhdx a few seconds after the last distro
+        # stops; compacting before that fails with 0x800700AA "in use".
+        for ($i = 0; $i -lt 12 -and (Get-Process vmmemWSL -ErrorAction SilentlyContinue); $i++) { Start-Sleep -Seconds 5 }
 
         foreach ($d in $wslDisks) {
             $sz = (Get-Item $d).Length
@@ -390,6 +412,11 @@ switch ($Operation) {
         }
         $after = 0; foreach ($d in $wslDisks) { $after += (Get-Item $d).Length }
         Write-Log ("CompactWslDisks: {0:N1} GB after, reclaimed {1:N1} GB" -f ($after/1GB), (($before-$after)/1GB))
+        if ($keepaliveWas -and $keepaliveWas -ne 'Disabled') {
+            Enable-ScheduledTask -TaskName $keepalive -ErrorAction SilentlyContinue | Out-Null
+            Start-ScheduledTask -TaskName $keepalive -ErrorAction SilentlyContinue
+            Write-Log "CompactWslDisks: resumed $keepalive"
+        }
         & explorer.exe "$env:ProgramFiles\Docker\Docker\Docker Desktop.exe"
         Write-Log 'CompactWslDisks: Docker Desktop relaunched (unelevated via explorer)'
         exit 0
