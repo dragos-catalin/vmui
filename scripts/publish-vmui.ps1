@@ -29,6 +29,8 @@ param(
     [Parameter(ParameterSetName = 'Renew')][switch]$Renew,
     [Parameter(ParameterSetName = 'Ensure')][switch]$Ensure,
     [Parameter(ParameterSetName = 'Remove')][switch]$Remove,
+    # With -Renew: renew even when >30 days remain (manual only; LE allows 5 duplicates/week).
+    [Parameter(ParameterSetName = 'Renew')][switch]$Force,
     [string]$Domain = 'mui.dragoscatalin.ro',
     [int]$Upstream = 3737
 )
@@ -58,25 +60,16 @@ function Get-LanIp {
     (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -like '192.168.100.*' } | Select-Object -First 1).IPAddress
 }
 
-# ---------- Vercel DNS ----------
-function Invoke-Vercel([string]$Method, [string]$Path, $Body) {
-    $sep = if ($Path.Contains('?')) { '&' } else { '?' }
-    $team = if ($env:VERCEL_TEAM_ID) { "${sep}teamId=$env:VERCEL_TEAM_ID" } else { '' }
-    $h = @{ Authorization = "Bearer $env:VERCEL_API_TOKEN" }
-    $u = "https://api.vercel.com$Path$team"
-    Write-Verbose "vercel $Method $($u -replace 'team_\w+','team_…')"
-    if ($Body) { Invoke-RestMethod -Method $Method -Uri $u -Headers $h -ContentType 'application/json' -Body ($Body | ConvertTo-Json -Compress) }
-    else { Invoke-RestMethod -Method $Method -Uri $u -Headers $h }
+# ---------- DNS (Brivio zone since 2026-10-05, NS ns1/ns2.fabricai.ro) ----------
+# The A record is edited in Brivio > DNS; here we only check the authoritative answer.
+function Get-AuthA([string]$Name) {
+    (Resolve-DnsName $Name -Type A -Server ns1.fabricai.ro -DnsOnly -ErrorAction SilentlyContinue | Where-Object Type -eq A).IPAddress
 }
-
 function Ensure-Dns {
     Write-Step "DNS: $Domain A $TailnetIp"
-    $recs = (Invoke-Vercel GET "/v4/domains/$Zone/records?limit=100").records
-    $mine = $recs | Where-Object { $_.name -eq $Sub -and $_.type -eq 'A' }
-    if ($mine -and $mine.value -eq $TailnetIp) { Write-Ok 'already correct'; return }
-    foreach ($r in $mine) { Invoke-Vercel DELETE "/v2/domains/$Zone/records/$($r.id)" | Out-Null }
-    Invoke-Vercel POST "/v2/domains/$Zone/records" @{ name = $Sub; type = 'A'; value = $TailnetIp; ttl = 60 } | Out-Null
-    Write-Ok 'record written'
+    $a = Get-AuthA $Domain
+    if ($a -eq $TailnetIp) { Write-Ok 'already correct'; return }
+    throw "A $Domain at ns1.fabricai.ro is '$a', want $TailnetIp - set it in Brivio > DNS > $Zone"
 }
 
 # ---------- certificate ----------
@@ -89,13 +82,17 @@ function Ensure-Cert([switch]$Force) {
     $p = Cert-Paths
     # lego 5: one `run` both obtains and renews; state lives in ./.lego of
     # the working directory (there is no --path any more).
-    $args = @('run', '--accept-tos', '--email', $Email, '--dns', 'vercel', '--dns.propagation.wait', '60s', '-d', $Domain, '--renew-days', '30', '--no-random-sleep')
+    # DNS-01 through Brivio: scripts/brivio-acme-hook.cmd -> POST brivio.ro/api/dns/acme with a
+    # brv_dns_ token (.private/publish/brivio-acme-pc.token) that may only write _acme-challenge* TXT.
+    $env:EXEC_PATH = Join-Path $PSScriptRoot 'brivio-acme-hook.cmd'
+    $env:EXEC_PROPAGATION_TIMEOUT = '300'; $env:EXEC_POLLING_INTERVAL = '5'
+    $args = @('run', '--accept-tos', '--email', $Email, '--dns', 'exec', '--dns.resolvers', '80.97.27.170:53,80.97.27.78:53', '-d', $Domain, '--renew-days', '30', '--no-random-sleep')
     if ($Force) { $args += '--renew-force' }
     if (Test-Path $p.crt) {
         $cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($p.crt)
         Write-Step ("cert: {0:N0} days left" -f ($cert.NotAfter - (Get-Date)).TotalDays)
     }
-    else { Write-Step 'cert: requesting via DNS-01 on Vercel' }
+    else { Write-Step 'cert: requesting via DNS-01 on Brivio' }
     Push-Location $LegoDir
     try { & $Lego @args 2>&1 | Select-Object -Last 3 } finally { Pop-Location }
     if (-not (Test-Path $p.crt)) { throw 'lego did not produce a certificate' }
@@ -322,7 +319,14 @@ function Show-Status {
 
 switch ($PSCmdlet.ParameterSetName) {
     'Status' { Show-Status }
-    'Renew' { Ensure-Cert -Force; Write-Caddyfile; Restart-Caddy; Test-Live }
+    'Renew' {
+        # The daily task calls this. Until 2026-10-06 it always forced, so LE issued a new cert every day.
+        $p = Cert-Paths
+        $before = if (Test-Path $p.crt) { (Get-FileHash $p.crt).Hash }
+        Ensure-Cert -Force:$Force
+        if ((Get-FileHash $p.crt).Hash -ne $before) { Write-Caddyfile; Restart-Caddy } else { Write-Ok 'not due; caddy untouched' }
+        Test-Live
+    }
     'Ensure' { Ensure-Attached }
     'Remove' {
         Get-Process caddy -ErrorAction SilentlyContinue | Stop-Process -Force
@@ -330,9 +334,7 @@ switch ($PSCmdlet.ParameterSetName) {
         Unregister-ScheduledTask -TaskName $RenewTask -Confirm:$false -ErrorAction SilentlyContinue
         Unregister-ScheduledTask -TaskName $EnsureTask -Confirm:$false -ErrorAction SilentlyContinue
         try { Invoke-RestMethod -Method DELETE 'http://127.0.0.1:22019/id/vmui-mui' -TimeoutSec 3 | Out-Null } catch {}
-        $recs = (Invoke-Vercel GET "/v4/domains/$Zone/records?limit=100").records | Where-Object { $_.name -eq $Sub -and $_.type -eq 'A' }
-        foreach ($r in $recs) { Invoke-Vercel DELETE "/v2/domains/$Zone/records/$($r.id)" | Out-Null }
-        Write-Ok 'removed (cert files kept in .private/publish)'
+        Write-Ok "removed (cert files kept in .private/publish; delete the A record for $Domain in Brivio > DNS)"
     }
     default {
         Ensure-Dns
