@@ -88,6 +88,19 @@ Full audit: `E:\gh\codai\.copilot-tmp\aq-audit\` (scripts + outputs).
 - **F2 — cloud foundation**: project, IAM, network, Cloud SQL, buckets, Secret Manager, budget;
   Turbo remote cache live and wired in codai/brivio; golden image `node24`; warm workspace codai;
   `agentq run -Where cloud`; TS daemon skeleton on the job contract.
+  - **Status 2026-10-12**: warm workspace `ws-codai` (c4d-highcpu-64 + Hyperdisk Balanced 300 GB /
+    24k IOPS) runs in **codai-training / europe-west4-a** because C4D is denied in dragos-devcloud;
+    the control plane stays in dragos-devcloud (bucket `dragos-devcloud-devcloud-jobs`, secret
+    `devcloud-turbo-token`, turbo-cache). SA `devcloud-ws@codai-training` gets cross-project
+    objectAdmin on the bucket + secretAccessor, and the custom role `devcloudSelfSuspend`
+    (instances.get/suspend) bound **on the instance only**. Provisioner: `infra/devcloud/workspace.ps1`.
+  - Job contract v1 = agentq `spec/job.md`; runner = agentq `cloud/runner-agent.mjs`; client =
+    agentq `ps/bin/agentq-cloud.ps1`, reached through `agentq run -Where local|cloud|auto` and the
+    PreToolUse rewrite (D19; opt-out `AGENTQ_WHERE=local`).
+  - Measured (`pnpm --filter @codai/common typecheck`, codai shared clone with an 811 KB dirty tree):
+    cold 173.8 s (211 MB full bundle + first pnpm install); resume from suspend 74.6 s
+    (total 109 s); warm 7.0 s end to end. The client talks REST with one cached token: each
+    `gcloud` process costs 4-5 s on this machine, which made the first warm run 71 s.
 - **F3 — CI controller**: GitHub App, controller on Cloud Run, images per toolchain, migrate long
   workflows (codai verify, metu, mmo…), keep only < 30 s gates on GitHub-hosted.
 - **F4 — dev servers + OS pools**: Syncthing/forward, Windows pool, Android emulator pool, Mac.

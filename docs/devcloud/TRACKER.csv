@@ -18,10 +18,10 @@ DC-030,F2,GCP project dragos-devcloud + billing + APIs + budget alert,done,"proj
 DC-031,F2,Turbo remote cache (Cloud Run + GCS) deployed + token in Secret Manager,done,"infra/devcloud/turbo-cache.ps1 -Verify: noauth=400 put=200 get=match, revision turbo-cache-00002-mgv",
 DC-032,F2,Wire turbo remote cache in codai + brivio (local + CI),in-progress,,
 DC-033,F2,Cloud SQL Postgres (metrics + pg-boss),todo,,
-DC-034,F2,Golden image family devcloud-node24 (mise + pnpm store + playwright),todo,,
-DC-035,F2,Warm workspace codai (c4d-highcpu-64-lssd + Hyperdisk + suspend/resume),todo,,
-DC-036,F2,Job contract spec (spec/job.md) + runner-agent,todo,,
-DC-037,F2,agentq run -Where cloud|auto (git-delta upload + log stream + exit code),todo,,
+DC-034,F2,Golden image family devcloud-node24 (mise + pnpm store + playwright),in-progress,,"bootstrap via agentq cloud/workspace-startup.sh (node 24.21 + pnpm 12.9.1, ~50 s first boot); image family not baked yet"
+DC-035,F2,Warm workspace codai (c4d-highcpu-64 + Hyperdisk 300GB/24k IOPS + suspend/resume),done,"ws-codai in codai-training/europe-west4-a (C4D denied in dragos-devcloud); SA devcloud-ws@codai-training: objectAdmin on dragos-devcloud-devcloud-jobs + secretAccessor devcloud-turbo-token (cross-project) + devcloudSelfSuspend bound on the instance only; self-suspended after 15 min idle (lastSuspended 2026-10-12T02:33Z); resume-from-suspend 74.6 s (journal resumeSec)",infra/devcloud/workspace.ps1
+DC-036,F2,Job contract spec (spec/job.md) + runner-agent,done,"agentq spec/job.md v1 + cloud/runner-agent.mjs (GCS claim by generation, known-shas, lockfile-gated install, log every 2 s, result.json last); 7 cloud jobs exit 0 on 2026-10-12",
+DC-037,F2,agentq run -Where cloud|auto (git-delta upload + log stream + exit code),done,"ps/bin/agentq-cloud.ps1 + agentq run -Where local|cloud|auto + PreToolUse rewrite (opt-out AGENTQ_WHERE=local); cold 173.8 s (211 MB bundle + install), warm 7.0 s end to end, resume path 109 s; cloud-done journaled, agentq metrics row cloud:codai + resumeP50 74.6s; run-all 9 suites green (cloud place 15/15, guard cloud 11/11)",
 DC-038,F2,agentq TS daemon (node:sqlite) behind ps shim,todo,,
 DC-039,F2,sccache GCS + Gradle cache node,todo,,
 DC-040,F3,GitHub App devcloud-runners manifest + install script,todo,,
