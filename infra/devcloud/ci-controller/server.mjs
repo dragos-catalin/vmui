@@ -92,6 +92,8 @@ export function shouldFallback(job, reason) {
 
 export function rerunPath(runId) { return `/actions/runs/${runId}/rerun`; }
 
+export function isAbort(e) { return e?.name === 'TimeoutError' || e?.name === 'AbortError'; }
+
 export function costUsd(profile, model, seconds) {
   const r = RATES[model] || RATES.STANDARD;
   const h = Math.max(0, seconds) / 3600;
@@ -170,7 +172,13 @@ const C = (p) => `https://compute.googleapis.com/compute/v1/projects/${CFG.runne
 
 async function waitOp(zone, op) {
   for (let i = 0; i < 40; i++) {
-    const r = await gapi(C(`zones/${zone}/operations/${op}/wait`), { method: 'POST' });
+    // operations.wait can hold the request longer than gapi's 30 s abort (2026-10-12: release-phone job
+    // 114739261211 got a running VM but no record -> never deleted by `completed`). An abort = keep waiting.
+    let r;
+    try { r = await gapi(C(`zones/${zone}/operations/${op}/wait`), { method: 'POST' }); } catch (e) {
+      if (isAbort(e)) continue;
+      throw e;
+    }
     if (r.body.status === 'DONE') return r.body.error ? r.body.error.errors?.map((e) => e.code + ': ' + e.message).join('; ') : null;
   }
   return 'operation wait timeout';

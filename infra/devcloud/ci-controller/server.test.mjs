@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import { verifySignature, pickProfile, costUsd, vmName, appJwt, handle, PROFILES, imageFamily, bootSecFromSerial, shouldFallback, capacityOk, rerunPath } from './server.mjs';
+import { verifySignature, pickProfile, costUsd, vmName, appJwt, handle, PROFILES, imageFamily, bootSecFromSerial, shouldFallback, capacityOk, rerunPath, isAbort } from './server.mjs';
 
 test('verifySignature accepts the GitHub HMAC and rejects tampering', () => {
   const raw = Buffer.from('{"a":1}');
@@ -46,6 +46,13 @@ test('shouldFallback only on the first attempt and only for capacity/preemption'
 test('fallback re-runs the whole run so the gate job re-decides the runner', () => {
   assert.equal(rerunPath(42), '/actions/runs/42/rerun');
   assert.doesNotMatch(rerunPath(42), /failed/);
+});
+
+test('isAbort recognises a fetch timeout so the op wait keeps waiting', async () => {
+  const e = await fetch('http://10.255.255.1/', { signal: AbortSignal.timeout(1) }).catch((x) => x);
+  assert.equal(isAbort(e), true);
+  assert.equal(isAbort(new Error('boom')), false);
+  assert.equal(isAbort(undefined), false);
 });
 
 test('capacityOk is false only for a recent unrecovered failure', () => {
