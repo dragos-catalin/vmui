@@ -34,7 +34,7 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('TunnelRefresh', 'TunnelForceRestart', 'KillRunawayRenderer', 'WatchExtensionHost', 'InstallVmSshKey', 'FixSshShell', 'CreateSshUser', 'ExposeDevServices', 'DisableSystemRestore', 'PruneDocker', 'CompactWslDisks', 'KillIdleRemoteShells', 'RestartRemoteExtHost', 'Status')]
+    [ValidateSet('TunnelRefresh', 'TunnelForceRestart', 'KillRunawayRenderer', 'WatchExtensionHost', 'InstallVmSshKey', 'FixSshShell', 'CreateSshUser', 'ExposeDevServices', 'DisableSystemRestore', 'PruneDocker', 'CompactWslDisks', 'KillIdleRemoteShells', 'RestartRemoteExtHost', 'DevDefenderExclusions', 'Status')]
     [string]$Operation = 'Status',
     [switch]$Register
 )
@@ -205,6 +205,13 @@ if ($Register) {
             Name = 'CodaiMaint-RestartRemoteExtHost'
             Op   = 'RestartRemoteExtHost'
             Desc = 'Kill a wedged Remote-SSH extension host (client reconnecting every 20 s). The VM window restarts it automatically; chat sessions live in the renderer and survive.'
+            Daily = $null
+        }
+        ,
+        @{
+            Name = 'CodaiMaint-DevDefenderExclusions'
+            Op   = 'DevDefenderExclusions'
+            Desc = 'Defender exclusions for dev build output under E:\gh (node_modules, .turbo, .next, target, .copilot-tmp, .wt slots, pnpm/cargo/gradle caches) and toolchain processes. MsMpEng burned ~1 core rescanning build output (2026-10-12).'
             Daily = $null
         }
     )
@@ -640,6 +647,22 @@ switch ($Operation) {
             $killed++
         }
         if (-not $killed) { Write-Log 'KillRunawayRenderer: nothing over threshold' }
+        exit 0
+    }
+
+    'DevDefenderExclusions' {
+        # Fixed list, no caller input. Paths = build output and package caches only (never source);
+        # processes = toolchain binaries (Microsoft Dev Drive / performance-mode guidance).
+        $paths = @('E:\gh\*\node_modules', 'E:\gh\*\.turbo', 'E:\gh\*\.next', 'E:\gh\*\target', 'E:\gh\*\.copilot-tmp', 'E:\gh\.wt',
+            "$env:LOCALAPPDATA\pnpm", "$env:USERPROFILE\.cargo\registry", "$env:USERPROFILE\.gradle\caches", "$env:USERPROFILE\.rustup")
+        $procs = @('node.exe', 'pnpm.exe', 'turbo.exe', 'tsgo.exe', 'esbuild.exe', 'cargo.exe', 'rustc.exe', 'link.exe', 'java.exe', 'git.exe')
+        $cur = Get-MpPreference
+        $addP = @($paths | Where-Object { $_ -notin @($cur.ExclusionPath) })
+        $addX = @($procs | Where-Object { $_ -notin @($cur.ExclusionProcess) })
+        if ($addP) { Add-MpPreference -ExclusionPath $addP }
+        if ($addX) { Add-MpPreference -ExclusionProcess $addX }
+        $now = Get-MpPreference
+        Write-Log "DevDefenderExclusions: +$($addP.Count) paths, +$($addX.Count) processes (now $(@($now.ExclusionPath).Count) paths, $(@($now.ExclusionProcess).Count) processes)"
         exit 0
     }
 
