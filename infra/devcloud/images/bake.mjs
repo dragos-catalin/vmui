@@ -29,6 +29,7 @@ const CFG = {
   toolchain: opt('toolchain', 'node24'),
   project: opt('project', process.env.RUNNER_PROJECT || 'codai-training'),
   control: opt('control', process.env.CONTROL_PROJECT || 'dragos-devcloud'),
+  bucket: opt('bucket', process.env.BUCKET || 'dragos-devcloud-devcloud-jobs'),
   zones: (opt('zones', 'europe-west4-a,europe-west4-b,europe-west4-c')).split(','),
   machine: opt('machine', 'c4d-highcpu-16'),
   keep: Number(opt('keep', '3')),
@@ -73,6 +74,11 @@ async function waitOp(op, zone) {
 }
 
 // ---------- lockfile ----------
+async function gcsObject(name) {
+  const r = await fetch(`https://storage.googleapis.com/storage/v1/b/${CFG.bucket}/o/${encodeURIComponent(name)}?alt=media`, { headers: { Authorization: `Bearer ${await token()}` }, signal: AbortSignal.timeout(60000) });
+  if (!r.ok) throw new Error(`gs://${CFG.bucket}/${name}: ${r.status}`);
+  return Buffer.from(await r.arrayBuffer());
+}
 async function secret(name) {
   const r = await gapi(`https://secretmanager.googleapis.com/v1/projects/${CFG.control}/secrets/${name}/versions/latest:access`);
   if (!r.ok) throw new Error(`secret ${name}: ${r.status}`);
@@ -128,7 +134,14 @@ async function main() {
   if (tc.store) {
     let lock, ws;
     if (opt('lock')) { lock = fs.readFileSync(opt('lock')); ws = opt('workspace') ? fs.readFileSync(opt('workspace')) : null; }
-    else { const f = await githubFiles(['pnpm-lock.yaml', 'pnpm-workspace.yaml']); lock = f['pnpm-lock.yaml']; ws = f['pnpm-workspace.yaml']; }
+    else {
+      try { const f = await githubFiles(['pnpm-lock.yaml', 'pnpm-workspace.yaml']); lock = f['pnpm-lock.yaml']; ws = f['pnpm-workspace.yaml']; }
+      catch (e) {
+        // Fallback: the copy images.ps1 -Schedule uploads from codai origin/main (staler, still a warm store).
+        log('bake.lock.github-failed', { err: String(e.message || e), fallback: `gs://${CFG.bucket}/images/` });
+        lock = await gcsObject('images/pnpm-lock.yaml'); ws = await gcsObject('images/pnpm-workspace.yaml').catch(() => null);
+      }
+    }
     lockSha = crypto.createHash('sha256').update(lock).digest('hex').slice(0, 12);
     chunk(zlib.gzipSync(lock, { level: 9 }).toString('base64')).forEach((v, i) => items.push({ key: `lock-${i}`, value: v }));
     if (ws) items.push({ key: 'pnpm-workspace', value: ws.toString('utf8') });

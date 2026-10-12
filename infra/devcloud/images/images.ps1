@@ -85,6 +85,17 @@ if ($Schedule -or $RunNow) {
   $tgz = Join-Path $env:TEMP 'devcloud-images-src.tgz'
   tar -czf $tgz -C $here bake.mjs image-setup.sh
   G storage cp $tgz "gs://$bucket/images/source.tgz" | Out-Null
+  # Lockfile fallback for the warm pnpm store when the App has no Contents: read (bake.mjs tries GitHub first).
+  $codai = 'E:\gh\codai'
+  if (Test-Path $codai) {
+    & git -C $codai fetch -q origin main
+    foreach ($f in 'pnpm-lock.yaml', 'pnpm-workspace.yaml') {
+      $tmp = Join-Path $env:TEMP "devcloud-$f"
+      cmd /c "git -C $codai cat-file blob origin/main:$f > `"$tmp`""
+      G storage cp $tmp "gs://$bucket/images/$f" | Out-Null
+    }
+    'lockfile copy uploaded (codai origin/main)'
+  }
   $b = Get-Content (Join-Path $here 'build.json') -Raw | ConvertFrom-Json
   $b.PSObject.Properties.Remove('comment')
   $b | Add-Member source @{ storageSource = @{ bucket = $bucket; object = 'images/source.tgz' } }
@@ -104,8 +115,9 @@ if ($Schedule -or $RunNow) {
   $job = 'devcloud-image-rebake'; $uri = "https://cloudbuild.googleapis.com/v1/projects/$Control/locations/$Region/builds"
   $exists = & gcloud scheduler jobs describe $job --project $Control --location $Region --format='value(name)' 2>$null
   $verb = if ($exists) { 'update' } else { 'create' }
+  $hdr = if ($exists) { '--update-headers' } else { '--headers' }
   G scheduler jobs $verb http $job --project $Control --location $Region --schedule $Cron --time-zone 'Etc/UTC' --uri $uri --http-method POST `
-    --message-body-from-file $body --headers 'Content-Type=application/json' --oauth-service-account-email $sa `
+    --message-body-from-file $body $hdr 'Content-Type=application/json' --oauth-service-account-email $sa `
     --oauth-token-scope 'https://www.googleapis.com/auth/cloud-platform' --attempt-deadline 60s | Out-Null
   "scheduler $verb $job ($Cron UTC) -> Cloud Build rebake of all devcloud-ci-* families"
 }

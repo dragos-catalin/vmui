@@ -1,14 +1,110 @@
 {
-  "comment": "devcloud DC-042 weekly rebake of every devcloud-ci-* family. images.ps1 -Schedule uploads this dir as source.tgz and posts this body (source + serviceAccount filled in) from Cloud Scheduler to builds.create.",
+  "comment": "devcloud DC-042 weekly rebake of every devcloud-ci-* family. images.ps1 -Schedule uploads this dir as source.tgz and posts this body (source + serviceAccount filled in) from Cloud Scheduler to builds.create. Steps are independent (allowFailure): a failed bake must not cancel the others mid-run (2026-10-12 a cancel left 4 bake VMs behind).",
   "steps": [
-    { "id": "node24", "name": "node:24-slim", "args": ["node", "bake.mjs", "--toolchain", "node24", "--project", "codai-training"] },
-    { "id": "android-jdk21", "name": "node:24-slim", "waitFor": ["-"], "args": ["node", "bake.mjs", "--toolchain", "android-jdk21", "--project", "codai-training"] },
-    { "id": "rust-tauri-linux", "name": "node:24-slim", "waitFor": ["-"], "args": ["node", "bake.mjs", "--toolchain", "rust-tauri-linux", "--project", "codai-training"] },
-    { "id": "python-uv", "name": "node:24-slim", "waitFor": ["-"], "args": ["node", "bake.mjs", "--toolchain", "python-uv", "--project", "codai-training"] },
-    { "id": "flutter", "name": "node:24-slim", "waitFor": ["-"], "args": ["node", "bake.mjs", "--toolchain", "flutter", "--project", "codai-training", "--max-min", "60"] },
-    { "id": "polyglot", "name": "node:24-slim", "waitFor": ["-"], "args": ["node", "bake.mjs", "--toolchain", "polyglot", "--project", "codai-training", "--max-min", "75"] }
+    {
+      "id": "node24",
+      "name": "node:24-slim",
+      "args": [
+        "node",
+        "bake.mjs",
+        "--toolchain",
+        "node24",
+        "--project",
+        "codai-training"
+      ],
+      "allowFailure": true
+    },
+    {
+      "id": "android-jdk21",
+      "name": "node:24-slim",
+      "waitFor": [
+        "-"
+      ],
+      "args": [
+        "node",
+        "bake.mjs",
+        "--toolchain",
+        "android-jdk21",
+        "--project",
+        "codai-training"
+      ],
+      "allowFailure": true
+    },
+    {
+      "id": "rust-tauri-linux",
+      "name": "node:24-slim",
+      "waitFor": [
+        "-"
+      ],
+      "args": [
+        "node",
+        "bake.mjs",
+        "--toolchain",
+        "rust-tauri-linux",
+        "--project",
+        "codai-training"
+      ],
+      "allowFailure": true
+    },
+    {
+      "id": "python-uv",
+      "name": "node:24-slim",
+      "waitFor": [
+        "-"
+      ],
+      "args": [
+        "node",
+        "bake.mjs",
+        "--toolchain",
+        "python-uv",
+        "--project",
+        "codai-training"
+      ],
+      "allowFailure": true
+    },
+    {
+      "id": "flutter",
+      "name": "node:24-slim",
+      "waitFor": [
+        "-"
+      ],
+      "args": [
+        "node",
+        "bake.mjs",
+        "--toolchain",
+        "flutter",
+        "--project",
+        "codai-training",
+        "--max-min",
+        "60"
+      ],
+      "allowFailure": true
+    },
+    {
+      "id": "polyglot",
+      "name": "node:24-slim",
+      "waitFor": [
+        "-"
+      ],
+      "args": [
+        "node",
+        "bake.mjs",
+        "--toolchain",
+        "polyglot",
+        "--project",
+        "codai-training",
+        "--max-min",
+        "75"
+      ],
+      "allowFailure": true
+    }
   ],
   "timeout": "6000s",
-  "options": { "logging": "CLOUD_LOGGING_ONLY" },
-  "tags": ["devcloud", "image-bake"]
+  "options": {
+    "logging": "CLOUD_LOGGING_ONLY"
+  },
+  "tags": [
+    "devcloud",
+    "image-bake"
+  ]
 }
