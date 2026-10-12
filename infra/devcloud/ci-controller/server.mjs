@@ -90,6 +90,8 @@ export function shouldFallback(job, reason) {
   return reason === 'no-capacity' || reason === 'preempted';
 }
 
+export function rerunPath(runId) { return `/actions/runs/${runId}/rerun`; }
+
 export function costUsd(profile, model, seconds) {
   const r = RATES[model] || RATES.STANDARD;
   const h = Math.max(0, seconds) / 3600;
@@ -255,7 +257,10 @@ async function fallbackToGithub(job, reason) {
     if (r.body.status === 'completed') break;
     await new Promise((res) => setTimeout(res, 5000));
   }
-  const rr = await ghRepo('POST', job.repo, `/actions/runs/${job.run_id}/rerun-failed-jobs`);
+  // Re-run the WHOLE run, not rerun-failed-jobs: the gate job succeeded in attempt 1 and GitHub splices its
+  // stale outputs (runner=devcloud) into a failed-jobs re-run (actions/runner#1961), so verify would ask for a
+  // self-hosted runner again and sit queued. A full re-run makes the gate read GET /fallback/<run> on attempt 2.
+  const rr = await ghRepo('POST', job.repo, rerunPath(job.run_id));
   log(rr.ok ? 'INFO' : 'ERROR', 'ci.fallback.rerun', { job: job.id, run: job.run_id, reason, cancel: c.status, rerun: rr.status, msg: rr.body.message || '' });
 }
 export async function fallbackFor(runId) {

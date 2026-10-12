@@ -22,8 +22,8 @@ GitHub has no `runs-on` fallback, so the workflow decides in its gate job:
 - `GET /health` -> `capacityOk:false` (a create failed on every zone/model in the last 30 min and nothing
   succeeded since) or unreachable -> `ubuntu-latest`.
 - Fork PRs and dispatch `runner=github` -> `ubuntu-latest`.
-- On no capacity at create time, or a Spot preemption mid-job, the controller cancels the run and calls
-  `rerun-failed-jobs` once (first attempt only) after writing `ci/fallback/<run>.json`; the re-run's gate
+- On no capacity at create time, or a Spot preemption mid-job, the controller cancels the run and re-runs the
+  WHOLE run once (first attempt only; not `rerun-failed-jobs`, which splices the gate's stale attempt-1 outputs) after writing `ci/fallback/<run>.json`; the re-run's gate
   reads `GET /fallback/<run>` and picks `ubuntu-latest`. **Needs the App permission Actions: Read & write**
   (without it the cancel/rerun calls 403, logged as `ci.fallback.rerun`).
 
@@ -32,7 +32,7 @@ GitHub has no `runs-on` fallback, so the workflow decides in its gate job:
 | family                         | layers                                                                                        | used by               |
 | ------------------------------ | --------------------------------------------------------------------------------------------- | --------------------- |
 | `devcloud-ci-node24`           | node 24, pnpm (codai `packageManager`), chrome, pwsh, gh, rg, actions runner, warm pnpm store | codai `ci.yml` verify |
-| `devcloud-ci-android-jdk21`    | node24 + Temurin 21 + Android SDK (latest platform / build-tools / NDK)                       | release-phone (next)  |
+| `devcloud-ci-android-jdk21`    | node24 + Temurin 21 + Android SDK (latest platform / build-tools / NDK)                       | codai `release-phone` |
 | `devcloud-ci-rust-tauri-linux` | node24 + rustup stable + Tauri 2 Linux deps                                                   | Linux desktop builds  |
 | `devcloud-ci-python-uv`        | node24 + uv + CPython 3.12                                                                    | Python services       |
 | `devcloud-ci-flutter`          | android-jdk21 + Flutter stable                                                                | caelia                |
