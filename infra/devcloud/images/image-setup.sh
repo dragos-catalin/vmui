@@ -39,7 +39,16 @@ export DEBIAN_FRONTEND=noninteractive
 step apt
 apt-get update -qq || fail
 apt-get install -y -qq --no-install-recommends git git-lfs curl wget jq zstd unzip zip xz-utils ca-certificates gnupg \
-  build-essential pkg-config python3 python3-venv rsync openssh-client file >/dev/null || fail
+  build-essential pkg-config python3 python3-venv rsync openssh-client file ripgrep >/dev/null || fail
+
+# ubuntu-latest parity: PowerShell (codai desktop eval tests shell out to pwsh) + GitHub CLI.
+step pwsh-gh
+curl -fsSL -o /tmp/msprod.deb https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb && dpkg -i /tmp/msprod.deb >/dev/null || fail
+curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg -o /usr/share/keyrings/githubcli-archive-keyring.gpg || fail
+echo "deb [arch=amd64 signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list
+apt-get update -qq && apt-get install -y -qq --no-install-recommends powershell gh >/dev/null || fail
+rm -f /tmp/msprod.deb
+pwsh -NoProfile -Command '$PSVersionTable.PSVersion.ToString()' || fail
 
 step node
 curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | bash - >/dev/null || fail
@@ -96,9 +105,12 @@ if has android; then
   yes | "$SDKM" --sdk_root="$A" --licenses >/dev/null 2>&1
   # Latest platform/build-tools/NDK the channel offers (codai phone compileSdk 37).
   LIST="$("$SDKM" --sdk_root="$A" --list 2>/dev/null)"
-  PLAT="$(echo "$LIST" | grep -oE 'platforms;android-[0-9]+' | sort -t- -k2 -n | uniq | tail -1)"
-  BT="$(echo "$LIST" | grep -oE 'build-tools;[0-9]+\.[0-9]+\.[0-9]+' | sort -V | uniq | tail -1)"
-  NDK="$(echo "$LIST" | grep -oE 'ndk;[0-9]+\.[0-9]+\.[0-9]+' | sort -V | uniq | tail -1)"
+  # Full package ids (platforms;android-37.0 since API 36.1); stable only (no -rc / ext / preview letters).
+  PLAT="$(echo "$LIST" | grep -oE 'platforms;android-[0-9]+(\.[0-9]+)?( |$)' | tr -d ' ' | sort -V | uniq | tail -1)"
+  BT="$(echo "$LIST" | grep -oE 'build-tools;[0-9]+\.[0-9]+\.[0-9]+( |$)' | tr -d ' ' | sort -V | uniq | tail -1)"
+  NDK="$(echo "$LIST" | grep -oE 'ndk;[0-9]+\.[0-9]+\.[0-9]+( |$)' | tr -d ' ' | sort -V | uniq | tail -1)"
+  echo "::android-pick plat=$PLAT bt=$BT ndk=$NDK"
+  [ -n "$PLAT" ] && [ -n "$BT" ] && [ -n "$NDK" ] || fail
   "$SDKM" --sdk_root="$A" --install platform-tools "$PLAT" "$BT" "$NDK" >/dev/null || fail
   chown -R runner:runner "$A"
   printf 'ANDROID_HOME=%s\nANDROID_SDK_ROOT=%s\nANDROID_NDK_HOME=%s/%s\n' "$A" "$A" "$A" "${NDK/;//}" >> "$R/.env"

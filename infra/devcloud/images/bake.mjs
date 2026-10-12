@@ -52,7 +52,8 @@ async function token() {
   return v;
 }
 async function gapi(url, init = {}) {
-  const r = await fetch(url, { ...init, headers: { Authorization: `Bearer ${await token()}`, 'Content-Type': 'application/json', ...(init.headers || {}) }, signal: AbortSignal.timeout(60000) });
+  const { timeoutMs = 60000, ...rest } = init;
+  const r = await fetch(url, { ...rest, headers: { Authorization: `Bearer ${await token()}`, 'Content-Type': 'application/json', ...(rest.headers || {}) }, signal: AbortSignal.timeout(timeoutMs) });
   const text = await r.text();
   let body; try { body = text ? JSON.parse(text) : {}; } catch { body = { raw: text }; }
   return { status: r.status, ok: r.ok, body };
@@ -60,9 +61,13 @@ async function gapi(url, init = {}) {
 const C = (p) => `https://compute.googleapis.com/compute/v1/projects/${CFG.project}/${p}`;
 async function waitOp(op, zone) {
   const u = zone ? C(`zones/${zone}/operations/${op}/wait`) : C(`global/operations/${op}/wait`);
-  for (let i = 0; i < 120; i++) {
-    const r = await gapi(u, { method: 'POST' });
+  // operations.wait holds up to ~2 min per call; image creation can take several calls.
+  const deadline = Date.now() + 30 * 60000;
+  while (Date.now() < deadline) {
+    let r;
+    try { r = await gapi(u, { method: 'POST', timeoutMs: 150000 }); } catch (e) { if (e.name === 'TimeoutError' || e.name === 'AbortError') continue; throw e; }
     if (r.body.status === 'DONE') return r.body.error ? r.body.error.errors.map((e) => `${e.code}: ${e.message}`).join('; ') : null;
+    if (!r.ok && r.status !== 503) return `operation wait ${r.status}: ${r.body.error?.message || ''}`;
   }
   return 'operation wait timeout';
 }
