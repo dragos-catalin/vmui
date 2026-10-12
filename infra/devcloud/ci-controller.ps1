@@ -9,6 +9,8 @@
 param([switch]$Verify, [int]$Jobs = 0, [string]$Project = 'dragos-devcloud', [string]$Region = 'europe-west4',
   [string]$RunnerProject = 'codai-training', [string]$Org = 'codai-ro', [string]$AllowRepos = 'codai-ro/codai-cc')
 $ErrorActionPreference = 'Stop'
+# --quiet on run deploy: --source asks interactively to create the cloud-run-source-deploy AR repo
+# in a new region; under a hidden/agent shell that prompt waited forever (2026-10-12).
 function G { $o = & gcloud @args 2>&1; if ($LASTEXITCODE) { throw "gcloud $($args -join ' ') failed: $o" }; $o }
 $svc = 'ci-controller'; $sa = "ci-controller@$Project.iam.gserviceaccount.com"; $bucket = "$Project-devcloud-jobs"
 $secrets = 'devcloud-runners-app-id', 'devcloud-runners-app-key', 'devcloud-runners-webhook-secret'
@@ -31,7 +33,7 @@ if (-not $Verify) {
   G storage buckets add-iam-policy-binding "gs://$bucket" --member "serviceAccount:$sa" --role roles/storage.objectAdmin | Out-Null
   Push-Location (Join-Path $PSScriptRoot 'ci-controller')
   try {
-    G run deploy $svc --project $Project --region $Region --source . --service-account $sa `
+    G run deploy $svc --quiet --project $Project --region $Region --source . --service-account $sa `
       --allow-unauthenticated --no-cpu-throttling --min-instances 0 --max-instances 2 --concurrency 20 --cpu 1 --memory 512Mi --timeout 120 `
       --set-env-vars "CONTROL_PROJECT=$Project,RUNNER_PROJECT=$RunnerProject,GH_ORG=$Org,ALLOW_REPOS=$AllowRepos,BUCKET=$bucket" `
       --labels 'owner=devcloud,purpose=ci' | Out-Null
