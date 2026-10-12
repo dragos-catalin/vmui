@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import { verifySignature, pickProfile, costUsd, vmName, appJwt, handle, PROFILES } from './server.mjs';
+import { verifySignature, pickProfile, costUsd, vmName, appJwt, handle, PROFILES, imageFamily, bootSecFromSerial, shouldFallback, capacityOk } from './server.mjs';
 
 test('verifySignature accepts the GitHub HMAC and rejects tampering', () => {
   const raw = Buffer.from('{"a":1}');
@@ -20,6 +20,35 @@ test('pickProfile needs self-hosted plus a devcloud label', () => {
   assert.equal(pickProfile(['self-hosted', 'linux']), null);
   assert.equal(pickProfile(['self-hosted', 'devcloud-linux-16']).machine, 'c4d-highcpu-16');
   assert.equal(pickProfile(['Self-Hosted', 'DEVCLOUD-LINUX-32']).machine, 'c4d-highcpu-32');
+});
+
+test('pickProfile picks the toolchain image family from an extra label', () => {
+  assert.equal(pickProfile(['self-hosted', 'devcloud-linux-16']).toolchain, 'node24');
+  assert.equal(pickProfile(['self-hosted', 'devcloud-linux-16', 'devcloud-android-jdk21']).toolchain, 'android-jdk21');
+  assert.equal(pickProfile(['self-hosted', 'devcloud-linux-32', 'devcloud-unknown']).toolchain, 'node24');
+  assert.equal(imageFamily({ toolchain: 'flutter' }, 'p'), 'projects/p/global/images/family/devcloud-ci-flutter');
+});
+
+test('bootSecFromSerial reads the runner-online marker', () => {
+  assert.equal(bootSecFromSerial('x\n::image {}\n::runner-online 23s\n'), 23);
+  assert.equal(bootSecFromSerial('no marker'), null);
+  assert.equal(bootSecFromSerial(undefined), null);
+});
+
+test('shouldFallback only on the first attempt and only for capacity/preemption', () => {
+  assert.equal(shouldFallback({ run_attempt: 1 }, 'no-capacity'), true);
+  assert.equal(shouldFallback({}, 'preempted'), true);
+  assert.equal(shouldFallback({ run_attempt: 2 }, 'no-capacity'), false);
+  assert.equal(shouldFallback({ run_attempt: 1 }, 'job-failed'), false);
+  assert.equal(shouldFallback(null, 'no-capacity'), false);
+});
+
+test('capacityOk is false only for a recent unrecovered failure', () => {
+  const now = 10_000_000;
+  assert.equal(capacityOk({ lastFailAt: 0, lastOkAt: 0 }, now, 30), true);
+  assert.equal(capacityOk({ lastFailAt: now - 60_000, lastOkAt: 0 }, now, 30), false);
+  assert.equal(capacityOk({ lastFailAt: now - 60_000, lastOkAt: now - 1000 }, now, 30), true);
+  assert.equal(capacityOk({ lastFailAt: now - 31 * 60_000, lastOkAt: 0 }, now, 30), true);
 });
 
 test('costUsd scales with time and is cheaper on Spot', () => {

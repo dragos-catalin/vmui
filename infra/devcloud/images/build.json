@@ -1,0 +1,14 @@
+{
+  "comment": "devcloud DC-042 weekly rebake of every devcloud-ci-* family. images.ps1 -Schedule uploads this dir as source.tgz and posts this body (source + serviceAccount filled in) from Cloud Scheduler to builds.create.",
+  "steps": [
+    { "id": "node24", "name": "node:24-slim", "args": ["node", "bake.mjs", "--toolchain", "node24", "--project", "codai-training"] },
+    { "id": "android-jdk21", "name": "node:24-slim", "waitFor": ["-"], "args": ["node", "bake.mjs", "--toolchain", "android-jdk21", "--project", "codai-training"] },
+    { "id": "rust-tauri-linux", "name": "node:24-slim", "waitFor": ["-"], "args": ["node", "bake.mjs", "--toolchain", "rust-tauri-linux", "--project", "codai-training"] },
+    { "id": "python-uv", "name": "node:24-slim", "waitFor": ["-"], "args": ["node", "bake.mjs", "--toolchain", "python-uv", "--project", "codai-training"] },
+    { "id": "flutter", "name": "node:24-slim", "waitFor": ["-"], "args": ["node", "bake.mjs", "--toolchain", "flutter", "--project", "codai-training", "--max-min", "60"] },
+    { "id": "polyglot", "name": "node:24-slim", "waitFor": ["-"], "args": ["node", "bake.mjs", "--toolchain", "polyglot", "--project", "codai-training", "--max-min", "75"] }
+  ],
+  "timeout": "6000s",
+  "options": { "logging": "CLOUD_LOGGING_ONLY" },
+  "tags": ["devcloud", "image-bake"]
+}

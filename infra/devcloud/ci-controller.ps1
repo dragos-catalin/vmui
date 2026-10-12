@@ -1,8 +1,8 @@
-<#
+﻿<#
   devcloud F3 (DC-041): ci-controller on Cloud Run + its IAM, secrets and runner-project grants.
   pwsh -NoProfile -File infra/devcloud/ci-controller.ps1              # provision (idempotent) + deploy
   pwsh -NoProfile -File infra/devcloud/ci-controller.ps1 -Verify      # unsigned 401, signed ping 200 through the real path
-  pwsh -NoProfile -File infra/devcloud/ci-controller.ps1 -Jobs 5      # last per-job records (duration + cost)
+  pwsh -NoProfile -File infra/devcloud/ci-controller.ps1 -Jobs 5      # last per-job records (duration, boot, cost) + per-month totals
   Secrets devcloud-runners-{app-id,app-key,webhook-secret} are written by github-app.ps1 (never printed).
   Deploy only from a clean tree (deploy-clean.ps1): the source upload is the working directory.
 #>
@@ -16,8 +16,19 @@ $svc = 'ci-controller'; $sa = "ci-controller@$Project.iam.gserviceaccount.com"; 
 $secrets = 'devcloud-runners-app-id', 'devcloud-runners-app-key', 'devcloud-runners-webhook-secret'
 
 if ($Jobs -gt 0) {
-  $names = @(G storage ls "gs://$bucket/ci/jobs/" | Select-Object -Last $Jobs)
-  foreach ($n in $names) { G storage cat $n | ConvertFrom-Json | Select-Object job, jobName, conclusion, machine, model, zone, queueSec, jobSec, vmSec, vmDeleted, costUsd | Format-List | Out-String | Write-Output }
+  # One `gcloud storage cat` for every record (each gcloud process costs ~4-5 s here); records are flat JSON objects.
+  $raw = (G storage cat "gs://$bucket/ci/jobs/*.json") -join "`n"
+  $recs = @([regex]::Split($raw.Trim(), '(?<=\})\s*(?=\{)') | Where-Object { $_ } | ForEach-Object { $_ | ConvertFrom-Json } | Sort-Object recordedAt)
+  $recs | Select-Object -Last $Jobs | Select-Object job, run, attempt, jobName, conclusion, toolchain, baked, machine, model, zone, queueSec, bootSec, jobSec, vmSec, preempted, vmDeleted, costUsd, recordedAt |
+    Format-List | Out-String | Write-Output
+  # Per month: VM cost (configured rate) vs the GitHub-hosted minutes those jobs would have billed
+  # (jobs round up per minute; ubuntu-latest 2-core list rate USD 0.008/min, reference only on the Free plan quota).
+  $recs | Where-Object { $_.vm } | Group-Object { ([datetime]$_.recordedAt).ToString('yyyy-MM') } | ForEach-Object {
+    $cost = ($_.Group | Measure-Object costUsd -Sum).Sum
+    $min = ($_.Group | ForEach-Object { [math]::Ceiling([double]$_.jobSec / 60) } | Measure-Object -Sum).Sum
+    [pscustomobject]@{ month = $_.Name; jobs = $_.Count; vmCostUsd = [math]::Round($cost, 3); ghMinutesSaved = $min; ghListUsd = [math]::Round($min * 0.008, 2)
+      undeleted = @($_.Group | Where-Object { -not $_.vmDeleted }).Count; fallbacks = @($_.Group | Where-Object { $_.preempted }).Count }
+  } | Format-Table -AutoSize | Out-String -Width 200 | Write-Output
   return
 }
 
