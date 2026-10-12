@@ -16,7 +16,7 @@ DC-020,F1,Rule + skill + memory updated for lanes/overrides,done,"skill agent-co
 DC-021,F1,Lease activity = git index/HEAD writes in slot (no expiry of live work from other shells),done,"agentq 15c31b4; v2 suite 51/51",
 DC-030,F2,GCP project dragos-devcloud + billing + APIs + budget alert,done,"project dragos-devcloud (296248082233) billing HAI Tips, 13 APIs enabled; budget abe20fb1 550 USD/month alerts 50/90/100%+forecast",
 DC-031,F2,Turbo remote cache (Cloud Run + GCS) deployed + token in Secret Manager,done,"infra/devcloud/turbo-cache.ps1 -Verify: noauth=400 put=200 get=match, revision turbo-cache-00002-mgv",
-DC-032,F2,Wire turbo remote cache in codai + brivio (local + CI),in-progress,,
+DC-032,F2,Wire turbo remote cache in codai + brivio (local + CI),in-progress,"local: user env TURBO_API/TEAM/TOKEN (2026-10-12) -> every turbo run on the workstation (husky hooks, run-build, ad hoc) uses turbo-cache; remote hit +1 s vs local (21.4 vs 20.9 s). codai hooks run their turbo steps on ws-codai (codai d3f0ac045, scripts/hooks/turbo-run.sh; smoke exit 0 in 30 s, fail propagates, warm 8 s)","CI still on rharkor/caching-for-turbo (Actions cache); switch CI to turbo-cache with F3 runners"
 DC-033,F2,Cloud SQL Postgres (metrics + pg-boss),todo,,
 DC-034,F2,Golden image family devcloud-node24 (mise + pnpm store + playwright),in-progress,,"bootstrap via agentq cloud/workspace-startup.sh (node 24.21 + pnpm 12.9.1, ~50 s first boot); image family not baked yet"
 DC-035,F2,Warm workspace codai (c4d-highcpu-64 + Hyperdisk 300GB/24k IOPS + suspend/resume),done,"ws-codai in codai-training/europe-west4-a (C4D denied in dragos-devcloud); SA devcloud-ws@codai-training: objectAdmin on dragos-devcloud-devcloud-jobs + secretAccessor devcloud-turbo-token (cross-project) + devcloudSelfSuspend bound on the instance only; self-suspended after 15 min idle (lastSuspended 2026-10-12T02:33Z); resume-from-suspend 74.6 s (journal resumeSec)",infra/devcloud/workspace.ps1
@@ -28,6 +28,7 @@ DC-040,F3,GitHub App devcloud-runners manifest + install script,todo,,
 DC-041,F3,ci-controller on Cloud Run (workflow_job -> JIT VM),todo,,
 DC-042,F3,Images: rust-tauri-linux / android-jdk21 / python-uv / flutter / polyglot,todo,,
 DC-043,F3,Migrate long workflows per repo; keep < 30 s gates on GitHub,todo,,
+DC-044,F3,Workstation CPU relief (prereq for F3),done,"before: 32/32 cores ~100 % (VS Code 8.9 + rustc 3.4 + hyperhdr 2.9 + MsMpEng 0.9 cores); after: ~10 cores. 225 idle session-restored agent shells closed (30.6 GB RAM) + terminal revive off; HyperHDR wedged API restarted (1.0 -> 0.2 core); Defender dev exclusions (vmui 7ab4c5e, CodaiMaint-DevDefenderExclusions, 15 paths + 10 procs); watcherExclude .copilot-tmp/target/.venv/.gradle; TS 7 native LS (tsgo) enabled; hooks -> ws-codai (DC-032)",
 DC-050,F4,Dev servers on warm workspace + Syncthing + Tailscale serve + local forward,todo,,
 DC-051,F4,Windows Server 2025 pool image (MSVC/Rust/WebView2/NSIS/WiX/mise),todo,,
 DC-052,F4,Android emulator pool (c4 nested virt),todo,,
