@@ -25,6 +25,10 @@ Onboarding an org: install the App (Actions RW, org self-hosted runners RW, Cont
 `release-phone.yml`. The org's default runner group must allow the repo (private repos: default yes).
 User accounts (dragoscv/*) have no org runners: not supported (repo-level JIT needs Administration: write).
 
+Without hosted minutes (brivio-ro since 2026-10-12: no payment method) a gate job cannot run either: such a repo asks for
+`[self-hosted, devcloud-linux-16|32]` directly and gets no ubuntu-latest fallback (brivio ADR-0278: ci.yml, e2e-nightly.yml,
+a11y-nightly ibm, release-android). Job `services:` containers work: Docker is in every image (DC-045).
+
 ## Fallback to GitHub-hosted
 
 GitHub has no `runs-on` fallback, so the workflow decides in its gate job:
