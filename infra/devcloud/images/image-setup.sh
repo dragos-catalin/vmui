@@ -87,6 +87,17 @@ mkdir -p "$TOOL/bin" && ln -sf /usr/bin/node "$TOOL/bin/node" && ln -sf /usr/lib
 rm -f "$TOOL/node"
 chown -R runner:runner "$R"
 
+# ubuntu-latest parity: Docker Engine + compose/buildx, so job `services:` containers and `docker run` work
+# (brivio ci.yml/e2e pgvector services, DC-045). The runner user joins the docker group.
+step docker
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc || fail
+echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list
+apt-get update -qq && apt-get install -y -qq --no-install-recommends docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin >/dev/null || fail
+usermod -aG docker runner || fail
+systemctl enable docker containerd >/dev/null 2>&1 || true
+docker --version || fail
+
 if has jdk; then
   step jdk
   curl -fsSL https://packages.adoptium.net/artifactory/api/gpg/key/public | gpg --dearmor -o /usr/share/keyrings/adoptium.gpg || fail

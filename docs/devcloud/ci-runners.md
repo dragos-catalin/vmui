@@ -41,7 +41,7 @@ GitHub has no `runs-on` fallback, so the workflow decides in its gate job:
 
 | family                         | layers                                                                                        | used by               |
 | ------------------------------ | --------------------------------------------------------------------------------------------- | --------------------- |
-| `devcloud-ci-node24`           | node 24, pnpm (codai `packageManager`), chrome, pwsh, gh, rg, actions runner, warm pnpm store | codai `ci.yml` verify |
+| `devcloud-ci-node24`           | node 24, pnpm (codai `packageManager`), chrome, pwsh, gh, rg, Docker (+compose/buildx), actions runner, warm pnpm store | codai `ci.yml` verify |
 | `devcloud-ci-android-jdk21`    | node24 + Temurin 21 + Android SDK (latest platform / build-tools / NDK)                       | codai `release-phone` |
 | `devcloud-ci-rust-tauri-linux` | node24 + rustup stable + Tauri 2 Linux deps                                                   | Linux desktop builds  |
 | `devcloud-ci-python-uv`        | node24 + uv + CPython 3.12                                                                    | Python services       |
