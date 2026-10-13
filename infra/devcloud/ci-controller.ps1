@@ -7,7 +7,7 @@
   Deploy only from a clean tree (deploy-clean.ps1): the source upload is the working directory.
 #>
 param([switch]$Verify, [int]$Jobs = 0, [string]$Project = 'dragos-devcloud', [string]$Region = 'europe-west4',
-  [string]$RunnerProject = 'codai-training', [string]$Org = 'codai-ro', [string]$AllowRepos = 'codai-ro/codai-cc')
+  [string]$RunnerProject = 'codai-training', [string]$Org = 'codai-ro', [string]$AllowRepos = 'codai-ro/codai-cc;brivio-ro/brivio')
 $ErrorActionPreference = 'Stop'
 # --quiet on run deploy: --source asks interactively to create the cloud-run-source-deploy AR repo
 # in a new region; under a hidden/agent shell that prompt waited forever (2026-10-12).
@@ -46,7 +46,7 @@ if (-not $Verify) {
   try {
     G run deploy $svc --quiet --project $Project --region $Region --source . --service-account $sa `
       --allow-unauthenticated --no-cpu-throttling --min-instances 0 --max-instances 2 --concurrency 20 --cpu 1 --memory 512Mi --timeout 120 `
-      --set-env-vars "CONTROL_PROJECT=$Project,RUNNER_PROJECT=$RunnerProject,GH_ORG=$Org,ALLOW_REPOS=$AllowRepos,BUCKET=$bucket" `
+      --set-env-vars "^@^CONTROL_PROJECT=$Project@RUNNER_PROJECT=$RunnerProject@GH_ORG=$Org@ALLOW_REPOS=$($AllowRepos -replace ';', ',')@BUCKET=$bucket" `
       --labels 'owner=devcloud,purpose=ci' | Out-Null
   } finally { Pop-Location }
   $url = (G run services describe $svc --project $Project --region $Region --format='value(status.url)').Trim()

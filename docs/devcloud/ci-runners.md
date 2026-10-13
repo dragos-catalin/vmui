@@ -15,6 +15,16 @@ GitHub keeps the workflow YAML and the short gates; long jobs run on a one-shot 
    (queueSec, bootSec, jobSec, vmSec, model, preempted, costUsd at configured rates).
 4. Janitor deletes TERMINATED or over-age `gha-*` VMs; `max-run-duration` (DELETE) is the backstop.
 
+## Repos and orgs (multi-org)
+
+The controller serves every repo in `ALLOW_REPOS` (`ci-controller.ps1 -AllowRepos 'a/b;c/d'`); the installation
+token and the org JIT runner registration come from the job repo's OWNER, so each org needs the App
+`devcloud-runners` installed (the App is public for that; unknown repos are still refused by `ALLOW_REPOS`).
+Onboarding an org: install the App (Actions RW, org self-hosted runners RW, Contents R) -> add the repo to
+`-AllowRepos` -> redeploy -> repo variable `DEVCLOUD_CI_CONTROLLER_URL` -> gate job as in codai `ci.yml` /
+`release-phone.yml`. The org's default runner group must allow the repo (private repos: default yes).
+User accounts (dragoscv/*) have no org runners: not supported (repo-level JIT needs Administration: write).
+
 ## Fallback to GitHub-hosted
 
 GitHub has no `runs-on` fallback, so the workflow decides in its gate job:

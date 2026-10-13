@@ -1,7 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import { verifySignature, pickProfile, costUsd, vmName, appJwt, handle, PROFILES, imageFamily, bootSecFromSerial, shouldFallback, capacityOk, rerunPath, isAbort } from './server.mjs';
+import { verifySignature, pickProfile, costUsd, vmName, appJwt, handle, PROFILES, imageFamily, bootSecFromSerial, shouldFallback, capacityOk, rerunPath, isAbort, ownerOf } from './server.mjs';
+
+test('ownerOf takes the installation owner from the job repo (multi-org)', () => {
+  assert.equal(ownerOf('brivio-ro/brivio'), 'brivio-ro');
+  assert.equal(ownerOf('codai-ro/codai-cc'), 'codai-ro');
+  assert.equal(ownerOf('', 'codai-ro'), 'codai-ro');
+  assert.equal(ownerOf(undefined, 'x'), 'x');
+});
 
 test('verifySignature accepts the GitHub HMAC and rejects tampering', () => {
   const raw = Buffer.from('{"a":1}');

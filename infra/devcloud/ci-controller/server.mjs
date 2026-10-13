@@ -23,6 +23,7 @@ export const CFG = {
   project: env('CONTROL_PROJECT', 'dragos-devcloud'),
   runnerProject: env('RUNNER_PROJECT', 'codai-training'),
   zones: env('RUNNER_ZONES', 'europe-west4-a,europe-west4-b,europe-west4-c').split(','),
+  // Default owner for calls that carry no repo; every job uses its own repo's owner (multi-org, DC-043).
   org: env('GH_ORG', 'codai-ro'),
   allowRepos: env('ALLOW_REPOS', 'codai-ro/codai-cc').split(','),
   bucket: env('BUCKET', 'dragos-devcloud-devcloud-jobs'),
@@ -104,6 +105,12 @@ export function costUsd(profile, model, seconds) {
 
 export function vmName(jobId) { return `gha-${jobId}`; }
 
+/** `brivio-ro/brivio` -> `brivio-ro`; the App installation + org runner registration live on that owner. */
+export function ownerOf(repo, fallback = CFG.org) {
+  const o = String(repo || '').split('/')[0];
+  return o || fallback;
+}
+
 export function appJwt(appId, pem, now = Math.floor(Date.now() / 1000)) {
   const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
   const data = `${b64({ alg: 'RS256', typ: 'JWT' })}.${b64({ iat: now - 60, exp: now + 540, iss: String(appId) })}`;
@@ -142,22 +149,23 @@ const gcs = {
 };
 
 // ---------- GitHub App ----------
-let itok = { v: '', exp: 0 };
-async function installationToken() {
-  if (itok.v && Date.now() < itok.exp) return itok.v;
+const itoks = new Map(); // owner -> { v, exp }
+async function installationToken(owner = CFG.org) {
+  const hit = itoks.get(owner);
+  if (hit && Date.now() < hit.exp) return hit.v;
   const jwt = appJwt((await secret(CFG.secretAppId)).trim(), await secret(CFG.secretKey));
   const h = { Authorization: `Bearer ${jwt}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'devcloud-ci-controller' };
-  const inst = await (await fetch(`https://api.github.com/orgs/${CFG.org}/installation`, { headers: h })).json();
-  if (!inst.id) throw new Error(`app not installed on ${CFG.org}: ${inst.message || ''}`);
+  const inst = await (await fetch(`https://api.github.com/orgs/${owner}/installation`, { headers: h })).json();
+  if (!inst.id) throw new Error(`app not installed on ${owner}: ${inst.message || ''}`);
   const t = await (await fetch(`https://api.github.com/app/installations/${inst.id}/access_tokens`, { method: 'POST', headers: h })).json();
   if (!t.token) throw new Error(`installation token: ${t.message || ''}`);
-  itok = { v: t.token, exp: Date.parse(t.expires_at) - 300000 };
-  return itok.v;
+  itoks.set(owner, { v: t.token, exp: Date.parse(t.expires_at) - 300000 });
+  return t.token;
 }
-async function jitConfig(name, labels) {
-  const r = await fetch(`https://api.github.com/orgs/${CFG.org}/actions/runners/generate-jitconfig`, {
+async function jitConfig(name, labels, owner = CFG.org) {
+  const r = await fetch(`https://api.github.com/orgs/${owner}/actions/runners/generate-jitconfig`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${await installationToken()}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'devcloud-ci-controller' },
+    headers: { Authorization: `Bearer ${await installationToken(owner)}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'devcloud-ci-controller' },
     body: JSON.stringify({ name, runner_group_id: CFG.runnerGroupId, labels: [...new Set([...labels, 'linux', 'x64'])], work_folder: '_work' }),
   });
   const j = await r.json();
@@ -251,7 +259,7 @@ export function capacityOk(state, now = Date.now(), windowMin = CFG.capacityWind
 async function ghRepo(method, repo, p, body) {
   const r = await fetch(`https://api.github.com/repos/${repo}${p}`, {
     method, body: body ? JSON.stringify(body) : undefined,
-    headers: { Authorization: `Bearer ${await installationToken()}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'devcloud-ci-controller' },
+    headers: { Authorization: `Bearer ${await installationToken(ownerOf(repo))}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'devcloud-ci-controller' },
   });
   return { status: r.status, ok: r.ok, body: r.status === 204 ? {} : await r.json().catch(() => ({})) };
 }
@@ -281,7 +289,7 @@ async function onQueued(p) {
   const profile = pickProfile(job.labels);
   const name = vmName(job.id);
   const t0 = Date.now();
-  const jit = await jitConfig(name, job.labels);
+  const jit = await jitConfig(name, job.labels, ownerOf(job.repo));
   if (!jit) { log('INFO', 'ci.queued.duplicate', { job: job.id, vm: name }); return; }
   let vm;
   try { vm = await createVm(name, profile, jit, job); } catch (e) {
