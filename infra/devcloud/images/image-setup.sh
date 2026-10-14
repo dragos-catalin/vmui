@@ -144,14 +144,23 @@ if has win; then
   step win
   XWIN_VER="$(md attributes/cargo-xwin-version 2>/dev/null || echo 0.23.1)"
   JSIGN_VER="$(md attributes/jsign-version 2>/dev/null || echo 7.6)"
-  apt-get install -y -qq --no-install-recommends nsis clang lld llvm openjdk-21-jre-headless osslsigncode >/dev/null || fail
+  apt-get install -y -qq --no-install-recommends nsis clang clang-tools lld llvm openjdk-21-jre-headless osslsigncode >/dev/null || fail
   curl -fsSL -o /tmp/jsign.deb "https://github.com/ebourg/jsign/releases/download/${JSIGN_VER}/jsign_${JSIGN_VER}_all.deb" || fail
   apt-get install -y -qq /tmp/jsign.deb >/dev/null || fail
   rm -f /tmp/jsign.deb
   curl -fsSL "https://github.com/rust-cross/cargo-xwin/releases/download/v${XWIN_VER}/cargo-xwin-v${XWIN_VER}.x86_64-unknown-linux-musl.tar.gz" | tar -xz -C /usr/local/bin || fail
   LLVM_BIN="$(ls -d /usr/lib/llvm-*/bin | sort -V | tail -1)"
-  [ -x "$LLVM_BIN/clang-cl" ] && [ -x "$LLVM_BIN/lld-link" ] && [ -x "$LLVM_BIN/llvm-rc" ] || { STEP="win: clang-cl/lld-link/llvm-rc missing in $LLVM_BIN"; fail; }
-  # Unversioned clang-cl / lld-link / llvm-rc / llvm-lib live only in the llvm bin dir; it goes on the runner PATH below.
+  LLVM_VER="${LLVM_BIN#/usr/lib/llvm-}"; LLVM_VER="${LLVM_VER%/bin}"
+  # cargo-xwin calls unversioned clang-cl / lld-link / llvm-rc / llvm-lib / llvm-ar; Ubuntu ships them as
+  # <tool>-<ver> in /usr/bin and/or unversioned in the llvm bin dir. Link whichever exists into /usr/local/bin.
+  MISSING=""
+  for t in clang-cl lld-link llvm-rc llvm-lib llvm-ar llvm-dlltool; do
+    src=""
+    for c in "$LLVM_BIN/$t" "/usr/bin/$t-$LLVM_VER" "/usr/bin/$t"; do [ -x "$c" ] && { src="$c"; break; }; done
+    if [ -n "$src" ]; then ln -sf "$src" "/usr/local/bin/$t"; else MISSING="$MISSING $t"; fi
+  done
+  echo "::llvm bin=$LLVM_BIN ver=$LLVM_VER missing=[${MISSING# }] has=$(ls "$LLVM_BIN" | grep -E '^(clang|lld|llvm-(rc|lib|ar))' | tr '\n' ' ')"
+  [ -z "$MISSING" ] || { STEP="win: missing$MISSING (llvm $LLVM_VER)"; fail; }
   echo "LLVM_BIN=$LLVM_BIN" > /etc/devcloud-llvm
   # Smoke + warm: a hello-world cross build downloads the MSVC CRT + Windows SDK into ~/.cache/cargo-xwin,
   # so a job does not fetch ~700 MB every time.
