@@ -1,4 +1,4 @@
-﻿﻿<#
+﻿<#
   devcloud F3 (DC-041): ci-controller on Cloud Run + its IAM, secrets and runner-project grants.
   pwsh -NoProfile -File infra/devcloud/ci-controller.ps1              # provision (idempotent) + deploy
   pwsh -NoProfile -File infra/devcloud/ci-controller.ps1 -Verify      # unsigned 401, signed ping 200 through the real path
