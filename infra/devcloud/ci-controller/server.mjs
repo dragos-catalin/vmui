@@ -74,8 +74,11 @@ export function verifySignature(secret, raw, header) {
   return want.length === got.length && crypto.timingSafeEqual(want, got);
 }
 
+// Dependabot "Labeled runner" (repo setting, no API) queues its update job with ONLY this label.
+export const DEPENDABOT_LABEL = 'devcloud-dependabot';
 export function pickProfile(labels) {
   const l = (labels || []).map((x) => String(x).toLowerCase());
+  if (l.length === 1 && l[0] === DEPENDABOT_LABEL) return { label: 'devcloud-linux-4', ...PROFILES['devcloud-linux-4'], toolchain: 'node24' };
   if (!l.includes('self-hosted')) return null;
   const name = l.find((x) => PROFILES[x]);
   if (!name) return null;

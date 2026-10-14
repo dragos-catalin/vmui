@@ -42,6 +42,13 @@ test('pickProfile needs self-hosted plus a devcloud label', () => {
   assert.equal(pickProfile(['self-hosted', 'devcloud-linux-4', 'devcloud-android-jdk21']).toolchain, 'android-jdk21');
 });
 
+test('pickProfile serves Dependabot labeled-runner jobs (single custom label) on the small VM', () => {
+  assert.equal(pickProfile(['devcloud-dependabot']).machine, 'c4d-highcpu-4');
+  assert.equal(pickProfile(['DEVCLOUD-DEPENDABOT']).toolchain, 'node24');
+  assert.equal(pickProfile(['dependabot']), null);
+  assert.equal(pickProfile(['devcloud-dependabot', 'ubuntu-latest']), null);
+});
+
 test('pickProfile picks the toolchain image family from an extra label', () => {
   assert.equal(pickProfile(['self-hosted', 'devcloud-linux-16']).toolchain, 'node24');
   assert.equal(pickProfile(['self-hosted', 'devcloud-linux-16', 'devcloud-android-jdk21']).toolchain, 'android-jdk21');
