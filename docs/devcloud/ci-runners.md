@@ -31,6 +31,22 @@ and gets no ubuntu-latest fallback (brivio did that 2026-10-12..14 while its org
 information to an org shares only the address, the card must be added on the org's own payment page). Job `services:`
 containers work: Docker is in every image (DC-045).
 
+## No gate job: repo variable DEVCLOUD_FALLBACK (DC-046)
+
+A repo listed in the controller's `FALLBACK_VAR_REPOS` (brivio since 2026-10-14) has no hosted gate job at all:
+
+```yaml
+runs-on: ${{ (inputs.runner == 'github' || vars.DEVCLOUD_FALLBACK == '1') && 'ubuntu-latest' || fromJSON('["self-hosted","devcloud-linux-16","devcloud-node24"]') }}
+```
+
+- `vars` and `inputs` are allowed in `runs-on`; a FULL re-run reads the variable's current value (verified 2026-10-14).
+- On no-capacity / Spot preemption the controller sets `DEVCLOUD_FALLBACK=1` on the repo, cancels and re-runs the run
+  whole; the next successful VM create sets it back to `0`. Needs App permission **Variables: Read & write**.
+- **Always name a toolchain label** (`devcloud-node24` when nothing else). GitHub gives a queued job to ANY idle
+  runner whose labels are a superset of the job's: a VM made for `[linux-4, android-jdk21]` took a plain
+  `[linux-4]` job and left its own job queued forever (brivio run 38501083333).
+- `devcloud-linux-4` (c4d-highcpu-4, 7 GB, 50 GB disk) is for 1-5 min jobs (lint gates, release helpers, crons).
+
 ## Fallback to GitHub-hosted
 
 GitHub has no `runs-on` fallback, so the workflow decides in its gate job:
