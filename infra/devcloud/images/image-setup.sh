@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # devcloud DC-042: provision a CI runner image on a throwaway bake VM (stock Ubuntu 24.04).
-# Toolchain (metadata `toolchain`): node24 | android-jdk21 | rust-tauri-linux | python-uv | flutter | polyglot
+# Toolchain (metadata `toolchain`): node24 | android-jdk21 | rust-tauri-linux | rust-tauri-win | python-uv | flutter | polyglot
 #   node24           node 24 + pnpm (codai packageManager) + chrome + actions runner (+ node in the runner
 #                    tool cache, so setup-node is a no-op) + git/jq/zstd/build-essential/python3
 #   android-jdk21    node24 + Temurin 21 + Android SDK (cmdline-tools, platform/build-tools, NDK)
 #   rust-tauri-linux node24 + rustup stable + Tauri 2 Linux deps (webkit2gtk-4.1, appindicator, rsvg)
+#   rust-tauri-win   rust-tauri-linux + Windows cross build (DC-047): rustup target x86_64-pc-windows-msvc,
+#                    cargo-xwin (MSVC CRT + SDK pre-downloaded), clang/lld/llvm (clang-cl, lld-link, llvm-rc),
+#                    NSIS (makensis), JRE 21 + jsign (Azure Artifact Signing), osslsigncode (verify)
 #   python-uv        node24 + uv + CPython 3.12 (uv-managed)
 #   flutter          android-jdk21 + Flutter stable
 #   polyglot         everything above
@@ -27,6 +30,7 @@ case "$TC" in
   node24) LAYERS="base" ;;
   android-jdk21) LAYERS="base jdk android" ;;
   rust-tauri-linux) LAYERS="base rust" ;;
+  rust-tauri-win) LAYERS="base rust win" ;;
   python-uv) LAYERS="base python" ;;
   flutter) LAYERS="base jdk android flutter" ;;
   polyglot) LAYERS="base jdk android rust python flutter store" ;;
@@ -135,6 +139,31 @@ if has rust; then
   sudo -u runner -H bash -c 'curl -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable -c clippy,rustfmt' >/dev/null || fail
 fi
 
+if has win; then
+  # Tauri v2 "Build Windows apps on Linux": NSIS only (no MSI), cargo-xwin + LLVM. Versions pinned.
+  step win
+  XWIN_VER="$(md attributes/cargo-xwin-version 2>/dev/null || echo 0.23.1)"
+  JSIGN_VER="$(md attributes/jsign-version 2>/dev/null || echo 7.6)"
+  apt-get install -y -qq --no-install-recommends nsis clang lld llvm openjdk-21-jre-headless osslsigncode >/dev/null || fail
+  curl -fsSL -o /tmp/jsign.deb "https://github.com/ebourg/jsign/releases/download/${JSIGN_VER}/jsign_${JSIGN_VER}_all.deb" || fail
+  apt-get install -y -qq /tmp/jsign.deb >/dev/null || fail
+  rm -f /tmp/jsign.deb
+  curl -fsSL "https://github.com/rust-cross/cargo-xwin/releases/download/v${XWIN_VER}/cargo-xwin-v${XWIN_VER}.x86_64-unknown-linux-musl.tar.gz" | tar -xz -C /usr/local/bin || fail
+  LLVM_BIN="$(ls -d /usr/lib/llvm-*/bin | sort -V | tail -1)"
+  [ -x "$LLVM_BIN/clang-cl" ] && [ -x "$LLVM_BIN/lld-link" ] && [ -x "$LLVM_BIN/llvm-rc" ] || { STEP="win: clang-cl/lld-link/llvm-rc missing in $LLVM_BIN"; fail; }
+  # Unversioned clang-cl / lld-link / llvm-rc / llvm-lib live only in the llvm bin dir; it goes on the runner PATH below.
+  echo "LLVM_BIN=$LLVM_BIN" > /etc/devcloud-llvm
+  # Smoke + warm: a hello-world cross build downloads the MSVC CRT + Windows SDK into ~/.cache/cargo-xwin,
+  # so a job does not fetch ~700 MB every time.
+  sudo -u runner -H env PATH="/home/runner/.cargo/bin:$LLVM_BIN:/usr/local/bin:/usr/bin:/bin" bash -c '
+    set -e; rustup target add x86_64-pc-windows-msvc >/dev/null
+    cd /tmp && rm -rf xwin-smoke && cargo new -q xwin-smoke && cd xwin-smoke
+    cargo xwin build -q --release --target x86_64-pc-windows-msvc
+    file target/x86_64-pc-windows-msvc/release/xwin-smoke.exe | grep -q "PE32+" ' || { STEP="win: cargo xwin smoke build"; fail; }
+  rm -rf /tmp/xwin-smoke
+  echo "::win cargo-xwin=$(cargo-xwin --version 2>/dev/null | head -1) makensis=$(makensis -VERSION) llvm=$LLVM_BIN cache=$(du -sh /home/runner/.cache/cargo-xwin 2>/dev/null | cut -f1)"
+fi
+
 if has python; then
   step python
   sudo -u runner -H bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh && ~/.local/bin/uv python install 3.12' >/dev/null || fail
@@ -148,6 +177,7 @@ fi
 # PATH for job steps: the runner reads .path (one entry per line, prepended).
 {
   echo /home/runner/.cargo/bin; echo /home/runner/.local/bin; echo /home/runner/flutter/bin
+  [ -f /etc/devcloud-llvm ] && . /etc/devcloud-llvm && echo "$LLVM_BIN"
   echo /opt/android-sdk/platform-tools; echo /opt/android-sdk/cmdline-tools/latest/bin
   echo /usr/local/sbin; echo /usr/local/bin; echo /usr/sbin; echo /usr/bin; echo /sbin; echo /bin
 } > "$R/.path"

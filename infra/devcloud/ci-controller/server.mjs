@@ -55,7 +55,7 @@ export const PROFILES = {
   'devcloud-linux-16': { machine: 'c4d-highcpu-16', vcpu: 16, memGb: 30, diskGb: 100, diskType: 'hyperdisk-balanced', toolchain: 'node24' },
   'devcloud-linux-32': { machine: 'c4d-highcpu-32', vcpu: 32, memGb: 60, diskGb: 150, diskType: 'hyperdisk-balanced', toolchain: 'node24' },
 };
-export const TOOLCHAINS = ['node24', 'android-jdk21', 'rust-tauri-linux', 'python-uv', 'flutter', 'polyglot'];
+export const TOOLCHAINS = ['node24', 'android-jdk21', 'rust-tauri-linux', 'rust-tauri-win', 'python-uv', 'flutter', 'polyglot'];
 const STOCK_IMAGE = 'projects/ubuntu-os-cloud/global/images/family/ubuntu-2404-lts-amd64';
 export const RATES = JSON.parse(env('RATES_JSON', JSON.stringify({
   // c4d europe-west4 list prices (USD): vCPU-h, GB-h; Spot = separate rates; hyperdisk-balanced GB-month

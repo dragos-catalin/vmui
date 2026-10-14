@@ -52,6 +52,9 @@ test('pickProfile serves Dependabot labeled-runner jobs (single custom label) on
 test('pickProfile picks the toolchain image family from an extra label', () => {
   assert.equal(pickProfile(['self-hosted', 'devcloud-linux-16']).toolchain, 'node24');
   assert.equal(pickProfile(['self-hosted', 'devcloud-linux-16', 'devcloud-android-jdk21']).toolchain, 'android-jdk21');
+  // DC-047: Windows cross builds (cargo-xwin + NSIS + jsign) run on Linux.
+  assert.equal(pickProfile(['self-hosted', 'devcloud-linux-16', 'devcloud-rust-tauri-win']).toolchain, 'rust-tauri-win');
+  assert.equal(pickProfile(['self-hosted', 'devcloud-linux-16', 'devcloud-rust-tauri-linux']).toolchain, 'rust-tauri-linux');
   assert.equal(pickProfile(['self-hosted', 'devcloud-linux-32', 'devcloud-unknown']).toolchain, 'node24');
   assert.equal(imageFamily({ toolchain: 'flutter' }, 'p'), 'projects/p/global/images/family/devcloud-ci-flutter');
 });

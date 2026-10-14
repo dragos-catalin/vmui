@@ -66,6 +66,7 @@ GitHub has no `runs-on` fallback, so the workflow decides in its gate job:
 | `devcloud-ci-node24`           | node 24, pnpm (codai `packageManager`), chrome, pwsh, gh, rg, Docker (+compose/buildx), actions runner, warm pnpm store | codai `ci.yml` verify |
 | `devcloud-ci-android-jdk21`    | node24 + Temurin 21 + Android SDK (latest platform / build-tools / NDK)                       | codai `release-phone` |
 | `devcloud-ci-rust-tauri-linux` | node24 + rustup stable + Tauri 2 Linux deps                                                   | Linux desktop builds  |
+| `devcloud-ci-rust-tauri-win`   | rust-tauri-linux + target x86_64-pc-windows-msvc, cargo-xwin (warm MSVC CRT/SDK cache), clang/lld/llvm-rc, NSIS, JRE 21 + jsign, osslsigncode | brivio Windows desktop release + cross clippy (DC-047) |
 | `devcloud-ci-python-uv`        | node24 + uv + CPython 3.12                                                                    | Python services       |
 | `devcloud-ci-flutter`          | android-jdk21 + Flutter stable                                                                | caelia                |
 | `devcloud-ci-polyglot`         | all of the above + warm store                                                                 | ad-hoc                |

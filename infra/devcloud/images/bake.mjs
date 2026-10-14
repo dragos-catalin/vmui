@@ -21,6 +21,7 @@ export const TOOLCHAINS = {
   node24: { diskGb: 30, store: true },
   'android-jdk21': { diskGb: 40, store: false },
   'rust-tauri-linux': { diskGb: 40, store: false },
+  'rust-tauri-win': { diskGb: 50, store: false },
   'python-uv': { diskGb: 30, store: false },
   flutter: { diskGb: 50, store: false },
   polyglot: { diskGb: 64, store: true },

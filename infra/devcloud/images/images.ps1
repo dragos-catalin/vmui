@@ -5,7 +5,7 @@
   pwsh -NoProfile -File infra/devcloud/images/images.ps1 -BootTest node24                            # boot the family, time "runner ready"
   pwsh -NoProfile -File infra/devcloud/images/images.ps1 -Schedule                                   # weekly Cloud Scheduler -> Cloud Build rebake of all families
   pwsh -NoProfile -File infra/devcloud/images/images.ps1 -RunNow                                     # trigger the scheduled rebake once
-  Toolchains: node24 android-jdk21 rust-tauri-linux python-uv flutter polyglot (layers: image-setup.sh).
+  Toolchains: node24 android-jdk21 rust-tauri-linux rust-tauri-win python-uv flutter polyglot (layers: image-setup.sh).
   Bake VMs have no service account; node24/polyglot warm the pnpm store from the codai lockfile
   (local -Lock, or fetched with the devcloud-runners App = needs Contents: read).
 #>

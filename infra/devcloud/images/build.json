@@ -47,6 +47,24 @@
       "allowFailure": true
     },
     {
+      "id": "rust-tauri-win",
+      "name": "node:24-slim",
+      "waitFor": [
+        "-"
+      ],
+      "args": [
+        "node",
+        "bake.mjs",
+        "--toolchain",
+        "rust-tauri-win",
+        "--project",
+        "codai-training",
+        "--max-min",
+        "60"
+      ],
+      "allowFailure": true
+    },
+    {
       "id": "python-uv",
       "name": "node:24-slim",
       "waitFor": [
