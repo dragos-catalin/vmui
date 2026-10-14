@@ -135,7 +135,7 @@ fi
 if has rust; then
   step rust
   apt-get install -y -qq --no-install-recommends libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev \
-    libssl-dev libxdo-dev libgtk-3-dev patchelf >/dev/null || fail
+    libssl-dev libxdo-dev libgtk-3-dev libudev-dev patchelf >/dev/null || fail
   sudo -u runner -H bash -c 'curl -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable -c clippy,rustfmt' >/dev/null || fail
 fi
 
