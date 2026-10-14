@@ -9,6 +9,10 @@
 //                jobs once with devcloud disabled for that attempt (DC-043; App needs Actions: write).
 //                The workflow's gate probes GET /health `capacityOk` and picks ubuntu-latest itself
 //                when the controller is down or saw no capacity in the last CAPACITY_WINDOW_MIN.
+//                Gate-free repos (DC-046, FALLBACK_VAR_REPOS): before the re-run the controller sets the
+//                repo variable DEVCLOUD_FALLBACK=1, which their runs-on reads (a full re-run sees the new
+//                value, verified 2026-10-14); the next successful VM create clears it again.
+//                App needs Variables: write on those repos.
 // No npm dependencies: node:http, node:crypto, global fetch. Credentials: the Cloud Run SA via the
 // metadata server; GitHub App id/key/webhook secret from Secret Manager (read lazily, cached).
 import http from 'node:http';
@@ -26,6 +30,8 @@ export const CFG = {
   // Default owner for calls that carry no repo; every job uses its own repo's owner (multi-org, DC-043).
   org: env('GH_ORG', 'codai-ro'),
   allowRepos: env('ALLOW_REPOS', 'codai-ro/codai-cc').split(','),
+  // Repos whose workflows have no hosted gate and read vars.DEVCLOUD_FALLBACK in runs-on (DC-046).
+  fallbackVarRepos: env('FALLBACK_VAR_REPOS', '').split(',').filter(Boolean),
   bucket: env('BUCKET', 'dragos-devcloud-devcloud-jobs'),
   runnerGroupId: Number(env('RUNNER_GROUP_ID', '1')),
   runnerVersion: env('RUNNER_VERSION', '2.338.0'),
@@ -44,6 +50,8 @@ export const CFG = {
 // startup script's bootstrap. USD/hour = on-demand list rates europe-west4 (vCPU + GB RAM + disk
 // GB-month), configured, not fetched: the job record says `costSource: "configured-rate"`.
 export const PROFILES = {
+  // Short jobs (1-5 min: lint gates, release helpers, crons). 50 GB = the baked images are 40 GB.
+  'devcloud-linux-4': { machine: 'c4d-highcpu-4', vcpu: 4, memGb: 7, diskGb: 50, diskType: 'hyperdisk-balanced', toolchain: 'node24' },
   'devcloud-linux-16': { machine: 'c4d-highcpu-16', vcpu: 16, memGb: 30, diskGb: 100, diskType: 'hyperdisk-balanced', toolchain: 'node24' },
   'devcloud-linux-32': { machine: 'c4d-highcpu-32', vcpu: 32, memGb: 60, diskGb: 150, diskType: 'hyperdisk-balanced', toolchain: 'node24' },
 };
@@ -92,6 +100,14 @@ export function shouldFallback(job, reason) {
 }
 
 export function rerunPath(runId) { return `/actions/runs/${runId}/rerun`; }
+
+export const FALLBACK_VAR = 'DEVCLOUD_FALLBACK';
+/** PATCH-then-POST plan for a repo variable: [method, path, body] (POST creates when PATCH is 404). */
+export function fallbackVarRequests(value) {
+  const body = { name: FALLBACK_VAR, value: String(value) };
+  return { patch: ['PATCH', `/actions/variables/${FALLBACK_VAR}`, body], create: ['POST', '/actions/variables', body] };
+}
+export function usesFallbackVar(repo, list = CFG.fallbackVarRepos) { return list.includes(repo); }
 
 export function isAbort(e) { return e?.name === 'TimeoutError' || e?.name === 'AbortError'; }
 
@@ -267,6 +283,7 @@ async function fallbackToGithub(job, reason) {
   if (!shouldFallback(job, reason)) { log('INFO', 'ci.fallback.skipped', { job: job.id, run: job.run_id, attempt: job.run_attempt, reason }); return; }
   // The workflow reads this in its gate: a re-run attempt whose marker exists runs on ubuntu-latest.
   await gcs.put(`ci/fallback/${job.run_id}.json`, { run: job.run_id, job: job.id, reason, at: new Date().toISOString() });
+  await setFallbackVar(job.repo, '1').catch((e) => log('ERROR', 'ci.fallback.var.failed', { repo: job.repo, err: String(e.message || e) }));
   const c = await ghRepo('POST', job.repo, `/actions/runs/${job.run_id}/cancel`);
   for (let i = 0; i < 24; i++) {
     const r = await ghRepo('GET', job.repo, `/actions/runs/${job.run_id}`);
@@ -279,6 +296,19 @@ async function fallbackToGithub(job, reason) {
   const rr = await ghRepo('POST', job.repo, rerunPath(job.run_id));
   log(rr.ok ? 'INFO' : 'ERROR', 'ci.fallback.rerun', { job: job.id, run: job.run_id, reason, cancel: c.status, rerun: rr.status, msg: rr.body.message || '' });
 }
+// Repo variable read by gate-free workflows: '1' = run on ubuntu-latest, '0' = devcloud. Best effort:
+// a failure is logged, never thrown (the webhook must not fail because of it).
+const fallbackVarState = new Map(); // repo -> last value written by this instance
+async function setFallbackVar(repo, value) {
+  if (!usesFallbackVar(repo)) return;
+  if (fallbackVarState.get(repo) === String(value)) return;
+  const { patch, create } = fallbackVarRequests(value);
+  let r = await ghRepo(...[patch[0], repo, patch[1], patch[2]]);
+  if (r.status === 404) r = await ghRepo(create[0], repo, create[1], create[2]);
+  if (r.ok) fallbackVarState.set(repo, String(value));
+  log(r.ok ? 'INFO' : 'ERROR', 'ci.fallback.var', { repo, value: String(value), status: r.status, msg: r.body.message || '' });
+}
+
 export async function fallbackFor(runId) {
   return gcs.get(`ci/fallback/${runId}.json`);
 }
@@ -297,6 +327,8 @@ async function onQueued(p) {
     throw e;
   }
   await noteCapacity(true);
+  // Capacity is back: gate-free repos return to devcloud for their next run.
+  await setFallbackVar(job.repo, '0').catch((e) => log('ERROR', 'ci.fallback.var.failed', { repo: job.repo, err: String(e.message || e) }));
   const rec = { vm: name, job: job.id, run: job.run, attempt: job.run_attempt, repo: job.repo, jobName: job.name, label: profile.label, toolchain: profile.toolchain, image: vm.image, baked: vm.baked, machine: profile.machine, zone: vm.zone, model: vm.model, createdAt: new Date().toISOString(), createSec: (Date.now() - t0) / 1000, attempts: vm.attempts };
   await gcs.put(`ci/vms/${name}.json`, rec);
   log('INFO', 'ci.vm.created', rec);
@@ -378,7 +410,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       if (req.method === 'GET' && req.url === '/health') {
         await loadCapacity().catch(() => {});
         res.writeHead(200, { 'content-type': 'application/json' });
-        res.end(JSON.stringify({ ok: true, rev: process.env.K_REVISION || 'local', capacityOk: capacityOk(capacity), lastCapacityFailAt: capacity.lastFailAt ? new Date(capacity.lastFailAt).toISOString() : null }));
+        res.end(JSON.stringify({ ok: true, rev: process.env.K_REVISION || 'local', capacityOk: capacityOk(capacity), fallbackVarRepos: CFG.fallbackVarRepos, lastCapacityFailAt: capacity.lastFailAt ? new Date(capacity.lastFailAt).toISOString() : null }));
         return;
       }
       // Gate probe for a re-run attempt: did the controller fall this run back to GitHub-hosted?

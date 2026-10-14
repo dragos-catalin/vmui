@@ -1,7 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import { verifySignature, pickProfile, costUsd, vmName, appJwt, handle, PROFILES, imageFamily, bootSecFromSerial, shouldFallback, capacityOk, rerunPath, isAbort, ownerOf } from './server.mjs';
+import { verifySignature, pickProfile, costUsd, vmName, appJwt, handle, PROFILES, imageFamily, bootSecFromSerial, shouldFallback, capacityOk, rerunPath, isAbort, ownerOf, fallbackVarRequests, usesFallbackVar, FALLBACK_VAR } from './server.mjs';
+
+test('fallback variable: PATCH existing, POST creates, only for opted-in repos', () => {
+  const { patch, create } = fallbackVarRequests(1);
+  assert.equal(FALLBACK_VAR, 'DEVCLOUD_FALLBACK');
+  assert.deepEqual(patch, ['PATCH', '/actions/variables/DEVCLOUD_FALLBACK', { name: 'DEVCLOUD_FALLBACK', value: '1' }]);
+  assert.deepEqual(create, ['POST', '/actions/variables', { name: 'DEVCLOUD_FALLBACK', value: '1' }]);
+  assert.equal(fallbackVarRequests('0').patch[2].value, '0');
+  assert.equal(usesFallbackVar('brivio-ro/brivio', ['brivio-ro/brivio']), true);
+  assert.equal(usesFallbackVar('codai-ro/codai-cc', ['brivio-ro/brivio']), false);
+  assert.equal(usesFallbackVar('brivio-ro/brivio', []), false);
+});
 
 test('ownerOf takes the installation owner from the job repo (multi-org)', () => {
   assert.equal(ownerOf('brivio-ro/brivio'), 'brivio-ro');
@@ -27,6 +38,8 @@ test('pickProfile needs self-hosted plus a devcloud label', () => {
   assert.equal(pickProfile(['self-hosted', 'linux']), null);
   assert.equal(pickProfile(['self-hosted', 'devcloud-linux-16']).machine, 'c4d-highcpu-16');
   assert.equal(pickProfile(['Self-Hosted', 'DEVCLOUD-LINUX-32']).machine, 'c4d-highcpu-32');
+  assert.equal(pickProfile(['self-hosted', 'devcloud-linux-4']).machine, 'c4d-highcpu-4');
+  assert.equal(pickProfile(['self-hosted', 'devcloud-linux-4', 'devcloud-android-jdk21']).toolchain, 'android-jdk21');
 });
 
 test('pickProfile picks the toolchain image family from an extra label', () => {
