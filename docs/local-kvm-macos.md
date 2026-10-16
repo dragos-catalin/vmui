@@ -3,6 +3,10 @@
 This document covers the **local-kvm** provider: a macOS guest running under
 QEMU/KVM inside WSL2 Ubuntu, controlled by vmui.
 
+The same disks also run in Google Cloud (nested KVM on a C4 VM, owner only):
+see [infra/devcloud/mac/README.md](../infra/devcloud/mac/README.md) (DC-053). `boot-mac.sh`
+is shared; `MAC_BIND` (default `0.0.0.0`) is `127.0.0.1` there.
+
 ## Architecture
 
 ```

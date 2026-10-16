@@ -77,7 +77,14 @@ function mapStatus(s: string | null | undefined): NormalizedState {
   }
 }
 
-function detectPlatform(machineType: string | null | undefined, name: string | null | undefined): Platform {
+export function detectPlatform(
+  machineType: string | null | undefined,
+  name: string | null | undefined,
+  labels?: Record<string, string> | null,
+): Platform {
+  // The devcloud macOS host (infra/devcloud/mac, DC-053) is an Ubuntu VM
+  // running OSX-KVM; its label says what the user actually works with.
+  if (labels?.role === "mac") return "macos";
   // GCP doesn't expose OS family on the instance directly; rely on disk
   // licenses. As a heuristic, "windows" in the name is good enough; real
   // detection happens by inspecting boot disk source image (out of scope
@@ -85,6 +92,28 @@ function detectPlatform(machineType: string | null | undefined, name: string | n
   const n = (name ?? "").toLowerCase();
   if (n.includes("win")) return "windows";
   return "linux";
+}
+
+/**
+ * Connection info for the devcloud macOS host: no external IP, everything
+ * (SSH to the guest, VNC, SPICE, Screen Sharing) goes through one IAP SSH
+ * tunnel that maps the SAME localhost ports as the local WSL2 VM.
+ */
+export function macIapConnectionInfo(name: string, zone: string, project: string): ConnectionInfo {
+  return {
+    protocol: "vnc",
+    host: "127.0.0.1",
+    port: 5900,
+    username: "dragos",
+    vncUrl: "vnc://127.0.0.1:5900",
+    sshCommand: "ssh dragos@127.0.0.1 -p 10022",
+    notes: [
+      "macOS (OSX-KVM) on a GCE nested-KVM host, no external IP. Open the IAP tunnel first:",
+      `pwsh -NoProfile -File infra/devcloud/mac/mac-gce.ps1 -Name ${name} -Zone ${zone} -Project ${project} -Tunnel`,
+      "Then: SSH 127.0.0.1:10022, VNC 127.0.0.1:5900, SPICE spice://127.0.0.1:5930, Screen Sharing 127.0.0.1:5901.",
+      "The host stops itself after 15 min without a session; start it from vmui or with -Start.",
+    ],
+  };
 }
 
 /**
@@ -170,7 +199,7 @@ export class GcpProvider implements CloudProvider {
           region: zone,
           name: inst.name ?? null,
           state: mapStatus(inst.status ?? null),
-          platform: detectPlatform(machineType, inst.name ?? null),
+          platform: detectPlatform(machineType, inst.name ?? null, (inst.labels as Record<string, string> | null | undefined) ?? null),
           instanceType: machineType,
           publicIp: accessCfg?.natIP ?? null,
           publicDns: null,
@@ -489,6 +518,9 @@ export class GcpProvider implements CloudProvider {
   async getConnectionInfo(region: string, id: string): Promise<ConnectionInfo> {
     const vm = await this.getInstance(region, id);
     if (!vm) throw new Error("VM not found");
+    if (vm.platform === "macos" && !vm.publicIp) {
+      return macIapConnectionInfo(vm.name ?? parseId(id).name, vm.region, this.project);
+    }
     const host = vm.publicIp ?? vm.privateIp ?? "";
     if (!host) {
       return {
