@@ -115,9 +115,29 @@
         "75"
       ],
       "allowFailure": true
+    },
+    {
+      "id": "win-desktop",
+      "name": "node:24-slim",
+      "waitFor": [
+        "-"
+      ],
+      "args": [
+        "node",
+        "bake.mjs",
+        "--toolchain",
+        "win-desktop",
+        "--project",
+        "codai-training",
+        "--machine",
+        "c4d-standard-16",
+        "--max-min",
+        "120"
+      ],
+      "allowFailure": true
     }
   ],
-  "timeout": "6000s",
+  "timeout": "9000s",
   "options": {
     "logging": "CLOUD_LOGGING_ONLY"
   },

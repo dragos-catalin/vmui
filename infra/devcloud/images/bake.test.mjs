@@ -1,6 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { chunk, stamp, imagesToDelete, TOOLCHAINS } from './bake.mjs';
+import { chunk, stamp, imagesToDelete, TOOLCHAINS, bakeOs } from './bake.mjs';
+
+test('win-desktop bakes Windows Server 2025 with the ps1 startup key; Linux keeps ubuntu + startup-script', () => {
+  const w = bakeOs(TOOLCHAINS['win-desktop']);
+  assert.equal(w.sourceImage, 'projects/windows-cloud/global/images/family/windows-2025');
+  assert.equal(w.startupKey, 'windows-startup-script-ps1');
+  assert.equal(w.script, 'image-setup-win.ps1');
+  const l = bakeOs(TOOLCHAINS.node24);
+  assert.equal(l.startupKey, 'startup-script');
+  assert.equal(l.script, 'image-setup.sh');
+  assert.match(l.sourceImage, /ubuntu-2404/);
+});
 
 test('chunk splits base64 under the 256 KB metadata value limit and rejoins losslessly', () => {
   const s = 'A'.repeat(600001);

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // devcloud DC-042: bake a CI runner image family `devcloud-ci-<toolchain>` in the runner project.
+// DC-051: toolchain win-desktop bakes Windows Server 2025 (image-setup-win.ps1, GCESysprep at the end).
 //   node bake.mjs --toolchain node24 [--lock pnpm-lock.yaml --workspace pnpm-workspace.yaml] [--keep 3] [--dry-run]
 // Throwaway bake VM (Spot, no service account) runs image-setup.sh, powers off; its disk becomes
 // image devcloud-ci-<tc>-<UTC stamp>; the VM is deleted; images beyond --keep in the family are deleted.
@@ -25,7 +26,15 @@ export const TOOLCHAINS = {
   'python-uv': { diskGb: 30, store: false },
   flutter: { diskGb: 50, store: false },
   polyglot: { diskGb: 64, store: true },
+  // Windows: stock image is 50 GB; VS Build Tools + SDK + Rust + Chrome ~ 25 GB more. CI disk is 150 GB.
+  'win-desktop': { diskGb: 100, store: false, os: 'windows', maxMin: 120 },
 };
+/** Per-OS bake shape: source image, startup metadata key + script file. */
+export function bakeOs(tc) {
+  return tc?.os === 'windows'
+    ? { sourceImage: 'projects/windows-cloud/global/images/family/windows-2025', startupKey: 'windows-startup-script-ps1', script: 'image-setup-win.ps1', stopWaitMin: 20 }
+    : { sourceImage: 'projects/ubuntu-os-cloud/global/images/family/ubuntu-2404-lts-amd64', startupKey: 'startup-script', script: 'image-setup.sh', stopWaitMin: 5 };
+}
 const CFG = {
   toolchain: opt('toolchain', 'node24'),
   project: opt('project', process.env.RUNNER_PROJECT || 'codai-training'),
@@ -37,7 +46,8 @@ const CFG = {
   runnerVersion: opt('runner-version', '2.338.0'),
   pnpmVersion: opt('pnpm-version', '12.9.1'),
   repo: opt('repo', 'codai-ro/codai-cc'),
-  maxMin: Number(opt('max-min', '45')),
+  maxMin: opt('max-min') ? Number(opt('max-min')) : null,
+  rustToolchain: opt('rust-toolchain', '1.98.1'),
 };
 const log = (msg, extra = {}) => console.log(JSON.stringify({ t: new Date().toISOString(), msg, ...extra }));
 
@@ -123,14 +133,17 @@ async function main() {
   const tc = TOOLCHAINS[CFG.toolchain];
   if (!tc) throw new Error(`unknown toolchain ${CFG.toolchain}`);
   const family = `devcloud-ci-${CFG.toolchain}`;
+  const os = bakeOs(tc);
+  const maxMin = CFG.maxMin ?? tc.maxMin ?? 45;
   const vm = `bake-${CFG.toolchain}-${stamp()}`.slice(0, 62);
   const items = [
-    { key: 'startup-script', value: fs.readFileSync(path.join(HERE, 'image-setup.sh'), 'utf8') },
+    { key: os.startupKey, value: fs.readFileSync(path.join(HERE, os.script), 'utf8') },
     { key: 'toolchain', value: CFG.toolchain },
     { key: 'runner-version', value: CFG.runnerVersion },
     { key: 'pnpm-version', value: CFG.pnpmVersion },
     { key: 'serial-port-logging-enable', value: 'true' },
   ];
+  if (tc.os === 'windows') items.push({ key: 'rust-toolchain', value: CFG.rustToolchain });
   let lockSha = null;
   if (tc.store) {
     let lock, ws;
@@ -156,9 +169,9 @@ async function main() {
     for (const z of CFG.zones) {
       const body = {
         name: vm, machineType: `zones/${z}/machineTypes/${CFG.machine}`,
-        disks: [{ boot: true, autoDelete: true, initializeParams: { sourceImage: 'projects/ubuntu-os-cloud/global/images/family/ubuntu-2404-lts-amd64', diskSizeGb: String(tc.diskGb), diskType: `zones/${z}/diskTypes/hyperdisk-balanced` } }],
+        disks: [{ boot: true, autoDelete: true, initializeParams: { sourceImage: os.sourceImage, diskSizeGb: String(tc.diskGb), diskType: `zones/${z}/diskTypes/hyperdisk-balanced` } }],
         networkInterfaces: [{ network: 'global/networks/default', accessConfigs: [{ type: 'ONE_TO_ONE_NAT', name: 'External NAT' }] }],
-        scheduling: { provisioningModel: model, instanceTerminationAction: 'DELETE', maxRunDuration: { seconds: String((CFG.maxMin + 15) * 60) }, automaticRestart: false, onHostMaintenance: 'TERMINATE' },
+        scheduling: { provisioningModel: model, instanceTerminationAction: 'DELETE', maxRunDuration: { seconds: String((maxMin + 15 + os.stopWaitMin) * 60) }, automaticRestart: false, onHostMaintenance: 'TERMINATE' },
         serviceAccounts: [],
         labels: { purpose: 'ci-bake', owner: 'devcloud', toolchain: CFG.toolchain },
         metadata: { items },
@@ -175,7 +188,7 @@ async function main() {
   log('bake.vm.created', { vm, zone, sec: (Date.now() - t0) / 1000 });
 
   let result = null; let start = 0; let tail = ''; let all = '';
-  const deadline = Date.now() + CFG.maxMin * 60000;
+  const deadline = Date.now() + maxMin * 60000;
   try {
     while (Date.now() < deadline) {
       await new Promise((r) => setTimeout(r, 10000));
@@ -184,20 +197,21 @@ async function main() {
         start = Number(s.body.next || start);
         const fresh = (s.body.contents || '').replace(/\r/g, '');
         all = (all + fresh).slice(-20000);
-        for (const line of fresh.split('\n')) if (/::(step|android|store|image-setup)/.test(line)) log('bake.serial', { line: line.replace(/^.*?(::)/, '::').slice(0, 200) });
+        for (const line of fresh.split('\n')) if (/::(step|android|store|image-setup|ver |warn|defender)/.test(line)) log('bake.serial', { line: line.replace(/^.*?(::)/, '::').slice(0, 200) });
         const text = tail + fresh;
         const m = text.match(/::image-setup (done|failed)([^\n]*)/);
         if (m) { result = m[1] === 'done' ? null : `setup failed${m[2]}`; break; }
         tail = text.slice(-300);
       } else if (s.status === 404) { throw new Error('bake VM disappeared (Spot preemption / max-run-duration)'); }
     }
-    if (result === null && Date.now() >= deadline) result = `setup timeout after ${CFG.maxMin} min`;
+    if (result === null && Date.now() >= deadline) result = `setup timeout after ${maxMin} min`;
     if (result) {
       const lines = all.split('\n').filter((l) => !/^\s*$/.test(l)).slice(-40);
       for (const l of lines) log('bake.serial.tail', { line: l.replace(/^.*?startup-script: /, '').slice(0, 300) });
       throw new Error(result);
     }
-    for (let i = 0; i < 60; i++) {
+    // Windows: GCESysprep generalises and then powers off (several minutes).
+    for (let i = 0; i < os.stopWaitMin * 12; i++) {
       const g = await gapi(C(`zones/${zone}/instances/${vm}`));
       if (g.body.status === 'TERMINATED') break;
       if (g.status === 404) throw new Error('bake VM deleted before imaging (Spot preemption?)');
@@ -207,7 +221,8 @@ async function main() {
     const img = {
       name, family, sourceDisk: `zones/${zone}/disks/${vm}`, storageLocations: ['eu'],
       labels: { owner: 'devcloud', toolchain: CFG.toolchain, ...(lockSha ? { lock: lockSha } : {}) },
-      description: `devcloud CI runner image (${CFG.toolchain}); runner ${CFG.runnerVersion}, pnpm ${CFG.pnpmVersion}${lockSha ? `, pnpm store warmed from lock ${lockSha}` : ''}`,
+      ...(tc.os === 'windows' ? { guestOsFeatures: [{ type: 'WINDOWS' }, { type: 'UEFI_COMPATIBLE' }, { type: 'VIRTIO_SCSI_MULTIQUEUE' }, { type: 'GVNIC' }, { type: 'MULTI_IP_SUBNET' }] } : {}),
+      description: `devcloud CI runner image (${CFG.toolchain}); runner ${CFG.runnerVersion}, pnpm ${CFG.pnpmVersion}${tc.os === 'windows' ? `, rust ${CFG.rustToolchain}, Windows Server 2025` : ''}${lockSha ? `, pnpm store warmed from lock ${lockSha}` : ''}`,
     };
     const r = await gapi(C('global/images'), { method: 'POST', body: JSON.stringify(img) });
     if (!r.ok) throw new Error(`image create ${r.status}: ${r.body.error?.message || ''}`);
