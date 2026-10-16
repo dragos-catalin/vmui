@@ -5,7 +5,8 @@
   pwsh -NoProfile -File infra/devcloud/images/images.ps1 -BootTest node24                            # boot the family, time "runner ready"
   pwsh -NoProfile -File infra/devcloud/images/images.ps1 -Schedule                                   # weekly Cloud Scheduler -> Cloud Build rebake of all families
   pwsh -NoProfile -File infra/devcloud/images/images.ps1 -RunNow                                     # trigger the scheduled rebake once
-  Toolchains: node24 android-jdk21 rust-tauri-linux rust-tauri-win python-uv flutter polyglot (layers: image-setup.sh).
+  Toolchains: node24 android-jdk21 rust-tauri-linux rust-tauri-win python-uv flutter polyglot (layers: image-setup.sh),
+  win-desktop (DC-051: Windows Server 2025, image-setup-win.ps1; -BootTest win-desktop boots c4d-standard-16 + ps1 probe).
   Bake VMs have no service account; node24/polyglot warm the pnpm store from the codai lockfile
   (local -Lock, or fetched with the devcloud-runners App = needs Contents: read).
 #>
@@ -31,6 +32,47 @@ if ($List) {
     [pscustomobject]@{ family = $_.Name; newest = $n.name; ageH = [math]::Round(((Get-Date) - [datetime]$n.creationTimestamp).TotalHours, 1); diskGb = $n.diskSizeGb; archiveGb = [math]::Round($n.archiveSizeBytes / 1GB, 1); count = $_.Count; lock = $n.labels.lock }
   } | Format-Table -AutoSize | Out-String -Width 200
   return
+}
+
+if ($BootTest -eq 'win-desktop') {
+  # Same shape as a devcloud-win-16 job VM (no SA, Spot, c4d-standard-16, 150 GB); the ps1 probe reports when node,
+  # pnpm, rustc, cargo fmt, cl.exe and the runner are usable, then powers off. Windows first boot (specialize +
+  # GCE agent) is minutes, not seconds: reported, no 60 s gate.
+  $vm = "boot-win-desktop-" + (Get-Date -Format 'MMddHHmmss')
+  $probe = Join-Path $env:TEMP 'boot-probe.ps1'
+  $ps = @'
+$ErrorActionPreference = 'Continue'
+if (Test-Path C:\devcloud\baked) { Write-Output "::image $(Get-Content C:\devcloud\image.json -Raw)" }
+$env:Path = [Environment]::GetEnvironmentVariable('Path','Machine')
+$cl = Get-ChildItem 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC' -Recurse -Filter cl.exe -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match 'Hostx64\\x64' } | Select-Object -First 1
+$v = @((node -v), (pnpm --version), (rustc -V), (cargo fmt --version), $cl.FullName, (Test-Path C:\actions-runner\run.cmd))
+Write-Output "::versions $($v -join ' | ')"
+if ($cl -and ($v | Where-Object { -not $_ }).Count -eq 0) {
+  $up = [int]((Get-Date) - (Get-CimInstance Win32_OperatingSystem).LastBootUpTime).TotalSeconds
+  Write-Output "::runner-ready $($up)s"
+}
+Start-Sleep 2; shutdown.exe /s /t 0 /f
+'@
+  [IO.File]::WriteAllText($probe, $ps)
+  $t0 = Get-Date
+  G compute instances create $vm --project $Project --zone "$Region-a" --machine-type c4d-standard-16 --image-family devcloud-ci-win-desktop --image-project $Project `
+    --boot-disk-size 150GB --boot-disk-type hyperdisk-balanced --provisioning-model SPOT --instance-termination-action DELETE --max-run-duration 2400s `
+    --no-service-account --no-scopes --metadata-from-file "windows-startup-script-ps1=$probe" --labels 'owner=devcloud,purpose=ci-boottest' | Out-Null
+  $created = Get-Date
+  try {
+    for ($i = 0; $i -lt 200; $i++) {
+      Start-Sleep 6
+      $s = (& gcloud compute instances get-serial-port-output $vm --project $Project --zone "$Region-a" 2>$null) -join "`n"
+      if ($s -match '::versions ([^\r\n]*)') { $vers = $Matches[1] }
+      if ($s -match '::runner-ready (\d+)s') {
+        $ready = Get-Date
+        "boot-test win-desktop: create call $([math]::Round(($created - $t0).TotalSeconds,1))s, create->ready $([math]::Round(($ready - $t0).TotalSeconds,1))s wall, guest uptime at ready $($Matches[1])s"
+        "versions: $vers"
+        'BOOT-TEST OK'; return
+      }
+    }
+    "BOOT-TEST TIMEOUT (last versions: $vers)"; exit 1
+  } finally { & gcloud compute instances delete $vm --project $Project --zone "$Region-a" --quiet 2>&1 | Out-Null; "deleted $vm" }
 }
 
 if ($BootTest) {
@@ -83,7 +125,7 @@ if ($Schedule -or $RunNow) {
   G storage buckets add-iam-policy-binding "gs://$bucket" --member "serviceAccount:$sa" --role roles/storage.objectViewer | Out-Null
   # Source = this directory (bake.mjs + image-setup.sh), uploaded on every -Schedule so the weekly bake runs the committed scripts.
   $tgz = Join-Path $env:TEMP 'devcloud-images-src.tgz'
-  tar -czf $tgz -C $here bake.mjs image-setup.sh
+  tar -czf $tgz -C $here bake.mjs image-setup.sh image-setup-win.ps1
   G storage cp $tgz "gs://$bucket/images/source.tgz" | Out-Null
   # Lockfile fallback for the warm pnpm store when the App has no Contents: read (bake.mjs tries GitHub first).
   $codai = 'E:\gh\codai'

@@ -1,7 +1,42 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import { verifySignature, pickProfile, costUsd, vmName, appJwt, handle, PROFILES, imageFamily, bootSecFromSerial, shouldFallback, capacityOk, rerunPath, isAbort, ownerOf, fallbackVarRequests, usesFallbackVar, FALLBACK_VAR } from './server.mjs';
+import { verifySignature, pickProfile, costUsd, vmName, appJwt, handle, PROFILES, imageFamily, bootSecFromSerial, shouldFallback, capacityOk, rerunPath, isAbort, ownerOf, fallbackVarRequests, usesFallbackVar, FALLBACK_VAR, stockImage, startupItem, runnerLabels } from './server.mjs';
+
+test('DC-051 windows pool: label -> Windows profile, win-desktop image, ps1 startup, windows runner labels', () => {
+  const labels = ['self-hosted', 'devcloud-win-16', 'devcloud-win-desktop'];
+  const p = pickProfile(labels);
+  assert.equal(p.label, 'devcloud-win-16');
+  assert.equal(p.os, 'windows');
+  assert.equal(p.toolchain, 'win-desktop');
+  assert.ok(p.vcpu >= 16 && p.memGb >= 60 && p.diskGb >= 150, JSON.stringify(p));
+  assert.equal(imageFamily(p, 'codai-training'), 'projects/codai-training/global/images/family/devcloud-ci-win-desktop');
+  assert.equal(stockImage(p), 'projects/windows-cloud/global/images/family/windows-2025');
+  const s = { linux: 'L', windows: 'W' };
+  assert.deepEqual(startupItem(p, s), { key: 'windows-startup-script-ps1', value: 'W' });
+  assert.deepEqual(runnerLabels(labels, p), ['self-hosted', 'devcloud-win-16', 'devcloud-win-desktop', 'windows', 'x64']);
+  // size label alone = default win-desktop; a Linux toolchain label never lands on Windows (and vice versa)
+  assert.equal(pickProfile(['self-hosted', 'devcloud-win-16']).toolchain, 'win-desktop');
+  assert.equal(pickProfile(['self-hosted', 'devcloud-win-16', 'devcloud-node24']).toolchain, 'win-desktop');
+  assert.equal(pickProfile(['self-hosted', 'devcloud-linux-16', 'devcloud-win-desktop']).toolchain, 'node24');
+  assert.equal(pickProfile(['devcloud-win-16', 'devcloud-win-desktop']), null);
+});
+
+test('Linux profiles keep startup-script, ubuntu stock image and linux runner labels', () => {
+  const p = pickProfile(['self-hosted', 'devcloud-linux-16']);
+  assert.equal(p.os, undefined);
+  assert.equal(stockImage(p), 'projects/ubuntu-os-cloud/global/images/family/ubuntu-2404-lts-amd64');
+  assert.deepEqual(startupItem(p, { linux: 'L', windows: 'W' }), { key: 'startup-script', value: 'L' });
+  assert.deepEqual(runnerLabels(['self-hosted', 'devcloud-linux-16'], p), ['self-hosted', 'devcloud-linux-16', 'linux', 'x64']);
+  assert.deepEqual(runnerLabels(['devcloud-dependabot'], pickProfile(['devcloud-dependabot'])), ['devcloud-dependabot', 'linux', 'x64']);
+});
+
+test('Windows cost includes the per-vCPU licence on Spot', () => {
+  const w = PROFILES['devcloud-win-16'];
+  const l = { ...w, os: undefined };
+  const lic = costUsd(w, 'SPOT', 3600) - costUsd(l, 'SPOT', 3600);
+  assert.ok(Math.abs(lic - 16 * 0.046) < 1e-5, `licence ${lic}`);
+});
 
 test('fallback variable: PATCH existing, POST creates, only for opted-in repos', () => {
   const { patch, create } = fallbackVarRequests(1);

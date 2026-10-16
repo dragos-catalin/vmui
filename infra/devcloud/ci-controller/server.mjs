@@ -56,14 +56,23 @@ export const PROFILES = {
   // @codai/gateway#test + @codai/web#build on 30 GB every run 2026-10-12..15 (codai SP-42).
   'devcloud-linux-16': { machine: 'c4d-standard-16', vcpu: 16, memGb: 62, diskGb: 100, diskType: 'hyperdisk-balanced', toolchain: 'node24' },
   'devcloud-linux-32': { machine: 'c4d-highcpu-32', vcpu: 32, memGb: 60, diskGb: 150, diskType: 'hyperdisk-balanced', toolchain: 'node24' },
+  // DC-051: real Windows (Server 2025) for jobs that cannot cross-compile: debug Tauri exe + real-exe E2E over
+  // CDP + Windows-only cargo/vitest (codai desktop). Startup = runner-startup.ps1 (windows-startup-script-ps1).
+  'devcloud-win-16': { machine: 'c4d-standard-16', vcpu: 16, memGb: 62, diskGb: 150, diskType: 'hyperdisk-balanced', toolchain: 'win-desktop', os: 'windows' },
 };
-export const TOOLCHAINS = ['node24', 'android-jdk21', 'rust-tauri-linux', 'rust-tauri-win', 'python-uv', 'flutter', 'polyglot'];
+export const TOOLCHAINS = ['node24', 'android-jdk21', 'rust-tauri-linux', 'rust-tauri-win', 'python-uv', 'flutter', 'polyglot', 'win-desktop'];
+// A toolchain image only boots on its own OS: a Linux size label never gets a Windows image and vice versa.
+export const TOOLCHAIN_OS = { 'win-desktop': 'windows' };
+export const osOf = (x) => x?.os || 'linux';
 const STOCK_IMAGE = 'projects/ubuntu-os-cloud/global/images/family/ubuntu-2404-lts-amd64';
+const STOCK_IMAGE_WIN = 'projects/windows-cloud/global/images/family/windows-2025';
 export const RATES = JSON.parse(env('RATES_JSON', JSON.stringify({
   // c4d europe-west4 list prices (USD): vCPU-h, GB-h; Spot = separate rates; hyperdisk-balanced GB-month
   STANDARD: { vcpu: 0.0418, mem: 0.0047 },
   SPOT: { vcpu: 0.0167, mem: 0.0019 },
   diskGbMonth: 0.08,
+  // Windows Server licence (premium image), per vCPU-hour, same on Spot and Standard.
+  windowsVcpu: 0.046,
 })));
 
 const log = (severity, msg, extra = {}) => console.log(JSON.stringify({ severity, msg, ...extra }));
@@ -84,12 +93,25 @@ export function pickProfile(labels) {
   if (!l.includes('self-hosted')) return null;
   const name = l.find((x) => PROFILES[x]);
   if (!name) return null;
-  const tc = l.map((x) => x.replace(/^devcloud-/, '')).find((x) => TOOLCHAINS.includes(x));
+  const tc = l.map((x) => x.replace(/^devcloud-/, '')).find((x) => TOOLCHAINS.includes(x) && (TOOLCHAIN_OS[x] || 'linux') === osOf(PROFILES[name]));
   return { label: name, ...PROFILES[name], ...(tc ? { toolchain: tc } : {}) };
 }
 
 export function imageFamily(profile, project = CFG.imageProject) {
   return `projects/${project}/global/images/family/devcloud-ci-${profile.toolchain}`;
+}
+
+/** Image to boot when the toolchain family has no READY image yet. */
+export function stockImage(profile) { return osOf(profile) === 'windows' ? STOCK_IMAGE_WIN : STOCK_IMAGE; }
+
+/** Startup metadata item: Linux = startup-script (bash), Windows = windows-startup-script-ps1. */
+export function startupItem(profile, scripts = STARTUP_SCRIPTS) {
+  return osOf(profile) === 'windows' ? { key: 'windows-startup-script-ps1', value: scripts.windows } : { key: 'startup-script', value: scripts.linux };
+}
+
+/** Labels the JIT runner registers with: the job's own labels + OS + arch (GitHub matches runs-on on these). */
+export function runnerLabels(labels, profile) {
+  return [...new Set([...(labels || []), osOf(profile) === 'windows' ? 'windows' : 'linux', 'x64'])];
 }
 
 // Seconds from VM create to "runner online", parsed from the startup script's serial markers.
@@ -119,7 +141,8 @@ export function isAbort(e) { return e?.name === 'TimeoutError' || e?.name === 'A
 export function costUsd(profile, model, seconds) {
   const r = RATES[model] || RATES.STANDARD;
   const h = Math.max(0, seconds) / 3600;
-  const compute = h * (profile.vcpu * r.vcpu + profile.memGb * r.mem);
+  const licence = osOf(profile) === 'windows' ? profile.vcpu * (RATES.windowsVcpu ?? 0.046) : 0;
+  const compute = h * (profile.vcpu * r.vcpu + profile.memGb * r.mem + licence);
   const disk = h * profile.diskGb * (RATES.diskGbMonth / 730);
   return Math.round((compute + disk) * 1e6) / 1e6;
 }
@@ -183,11 +206,11 @@ async function installationToken(owner = CFG.org) {
   itoks.set(owner, { v: t.token, exp: Date.parse(t.expires_at) - 300000 });
   return t.token;
 }
-async function jitConfig(name, labels, owner = CFG.org) {
+async function jitConfig(name, labels, owner = CFG.org, profile = null) {
   const r = await fetch(`https://api.github.com/orgs/${owner}/actions/runners/generate-jitconfig`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${await installationToken(owner)}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'devcloud-ci-controller' },
-    body: JSON.stringify({ name, runner_group_id: CFG.runnerGroupId, labels: [...new Set([...labels, 'linux', 'x64'])], work_folder: '_work' }),
+    body: JSON.stringify({ name, runner_group_id: CFG.runnerGroupId, labels: runnerLabels(labels, profile), work_folder: '_work' }),
   });
   const j = await r.json();
   if (r.status === 409) return null; // runner with this name exists = redelivery
@@ -196,7 +219,10 @@ async function jitConfig(name, labels, owner = CFG.org) {
 }
 
 // ---------- VMs ----------
-const STARTUP = fs.readFileSync(path.join(HERE, 'runner-startup.sh'), 'utf8');
+const STARTUP_SCRIPTS = {
+  linux: fs.readFileSync(path.join(HERE, 'runner-startup.sh'), 'utf8'),
+  windows: fs.readFileSync(path.join(HERE, 'runner-startup.ps1'), 'utf8'),
+};
 const C = (p) => `https://compute.googleapis.com/compute/v1/projects/${CFG.runnerProject}/${p}`;
 
 async function waitOp(zone, op) {
@@ -217,7 +243,7 @@ async function createVm(name, profile, jit, job) {
   const attempts = [];
   const fam = imageFamily(profile);
   const img = await gapi(`https://compute.googleapis.com/compute/v1/${fam}`);
-  const sourceImage = img.ok ? img.body.selfLink : STOCK_IMAGE;
+  const sourceImage = img.ok ? img.body.selfLink : stockImage(profile);
   const baked = img.ok;
   for (const model of ['SPOT', 'STANDARD']) {
     for (const zone of CFG.zones) {
@@ -232,7 +258,7 @@ async function createVm(name, profile, jit, job) {
         serviceAccounts: [],
         labels: { purpose: 'ci', owner: 'devcloud', job: String(job.id), repo: job.repo.replace(/[^a-z0-9-]/gi, '-').toLowerCase().slice(0, 60) },
         metadata: { items: [
-          { key: 'startup-script', value: STARTUP },
+          startupItem(profile),
           { key: 'jit-config', value: jit },
           { key: 'idle-minutes', value: String(CFG.idleMin) },
           { key: 'runner-version', value: CFG.runnerVersion },
@@ -324,7 +350,7 @@ async function onQueued(p) {
   const profile = pickProfile(job.labels);
   const name = vmName(job.id);
   const t0 = Date.now();
-  const jit = await jitConfig(name, job.labels, ownerOf(job.repo));
+  const jit = await jitConfig(name, job.labels, ownerOf(job.repo), profile);
   if (!jit) { log('INFO', 'ci.queued.duplicate', { job: job.id, vm: name }); return; }
   let vm;
   try { vm = await createVm(name, profile, jit, job); } catch (e) {
@@ -334,7 +360,7 @@ async function onQueued(p) {
   await noteCapacity(true);
   // Capacity is back: gate-free repos return to devcloud for their next run.
   await setFallbackVar(job.repo, '0').catch((e) => log('ERROR', 'ci.fallback.var.failed', { repo: job.repo, err: String(e.message || e) }));
-  const rec = { vm: name, job: job.id, run: job.run, attempt: job.run_attempt, repo: job.repo, jobName: job.name, label: profile.label, toolchain: profile.toolchain, image: vm.image, baked: vm.baked, machine: profile.machine, zone: vm.zone, model: vm.model, createdAt: new Date().toISOString(), createSec: (Date.now() - t0) / 1000, attempts: vm.attempts };
+  const rec = { vm: name, job: job.id, run: job.run, attempt: job.run_attempt, repo: job.repo, jobName: job.name, label: profile.label, os: osOf(profile), toolchain: profile.toolchain, image: vm.image, baked: vm.baked, machine: profile.machine, zone: vm.zone, model: vm.model, createdAt: new Date().toISOString(), createSec: (Date.now() - t0) / 1000, attempts: vm.attempts };
   await gcs.put(`ci/vms/${name}.json`, rec);
   log('INFO', 'ci.vm.created', rec);
 }
