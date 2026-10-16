@@ -11,7 +11,7 @@
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 function Say([string]$m) { Write-Output $m }
-function Md([string]$k, [string]$d = '') {
+function MetaAttr([string]$k, [string]$d = '') {
   try { (Invoke-RestMethod -Headers @{ 'Metadata-Flavor' = 'Google' } -Uri "http://metadata.google.internal/computeMetadata/v1/instance/attributes/$k" -TimeoutSec 10).ToString() } catch { $d }
 }
 function Uptime { [int]((Get-Date) - (Get-CimInstance Win32_OperatingSystem).LastBootUpTime).TotalSeconds }
@@ -19,8 +19,8 @@ $t0 = Get-Date
 $R = 'C:\actions-runner'
 $task = 'devcloud-runner'
 try {
-  $idleMin = [int](Md 'idle-minutes' '20')
-  $ver = Md 'runner-version' '2.338.0'
+  $idleMin = [int](MetaAttr 'idle-minutes' '20')
+  $ver = MetaAttr 'runner-version' '2.338.0'
   if (Test-Path 'C:\devcloud\baked') {
     Say "::image $(Get-Content C:\devcloud\image.json -Raw -ErrorAction SilentlyContinue)"
   } else {
@@ -45,7 +45,7 @@ try {
   if (-not (Get-LocalGroupMember -Group Administrators -Member runner -ErrorAction SilentlyContinue)) { Add-LocalGroupMember -Group Administrators -Member runner }
 
   # The JIT config goes through a file the wrapper deletes on read (not a task argument).
-  Set-Content -Path "$R\.jit" -Value (Md 'jit-config') -Encoding ascii -NoNewline
+  Set-Content -Path "$R\.jit" -Value (MetaAttr 'jit-config') -Encoding ascii -NoNewline
   $wrapper = @'
 $R = 'C:\actions-runner'
 $j = (Get-Content "$R\.jit" -Raw).Trim()

@@ -17,7 +17,7 @@ $T0 = Get-Date
 $script:STEP = 'init'
 function Say([string]$m) { Write-Output $m }
 function Step([string]$n) { $script:STEP = $n; Say "::step $n +$([int]((Get-Date) - $T0).TotalSeconds)s" }
-function Md([string]$k, [string]$d = '') {
+function MetaAttr([string]$k, [string]$d = '') {
   try { (Invoke-RestMethod -Headers @{ 'Metadata-Flavor' = 'Google' } -Uri "http://metadata.google.internal/computeMetadata/v1/instance/attributes/$k" -TimeoutSec 10).ToString() } catch { $d }
 }
 function RefreshPath {
@@ -50,9 +50,9 @@ function Msi([string]$path, [string]$extra = '') {
   Run 'msiexec.exe' @('/i', "`"$path`"", '/qn', '/norestart', $extra) @(0, 3010)
 }
 
-$RUNNER_VER = Md 'runner-version' '2.338.0'
-$PNPM_VER = Md 'pnpm-version' '12.9.1'
-$RUST_VER = Md 'rust-toolchain' '1.98.1'
+$RUNNER_VER = MetaAttr 'runner-version' '2.338.0'
+$PNPM_VER = MetaAttr 'pnpm-version' '12.9.1'
+$RUST_VER = MetaAttr 'rust-toolchain' '1.98.1'
 $TMP = 'C:\devcloud\tmp'
 New-Item -ItemType Directory -Force $TMP, 'C:\tools\bin' | Out-Null
 Say "::image-setup start toolchain=win-desktop $(Get-Date -Format o)"
