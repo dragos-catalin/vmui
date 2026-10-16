@@ -16,6 +16,10 @@ SSH_FORWARD_PORT="${SSH_FORWARD_PORT:-10022}"
 SPICE_PORT="${SPICE_PORT:-5930}"          # connect with virt-viewer / remote-viewer
 ARD_FORWARD_PORT="${ARD_FORWARD_PORT:-5901}"  # host:5901 -> guest:5900 (Apple Screen Sharing)
 NAME="${VM_NAME:-vmui-mac}"
+# Address VNC/SPICE listen on. 0.0.0.0 locally (WSL2 -> Windows); the devcloud GCE host
+# (infra/devcloud/mac, DC-053) sets 127.0.0.1 so the unauthenticated displays are reachable
+# only through the IAP SSH tunnel.
+MAC_BIND="${MAC_BIND:-0.0.0.0}"
 
 # SPICE tuning.
 #
@@ -156,12 +160,12 @@ exec qemu-system-x86_64 \
   -device ide-hd,bus=sata.2,drive=OpenCoreBoot \
   -drive id=MacHDD,if=none,file="$MAC_DISK",format=qcow2 \
   -device ide-hd,bus=sata.4,drive=MacHDD \
-  -netdev user,id=net0,hostfwd=tcp::"$SSH_FORWARD_PORT"-:22,hostfwd=tcp::"$ARD_FORWARD_PORT"-:5900 \
+  -netdev user,id=net0,hostfwd=tcp:"$MAC_BIND":"$SSH_FORWARD_PORT"-:22,hostfwd=tcp:"$MAC_BIND":"$ARD_FORWARD_PORT"-:5900 \
   -device vmxnet3,netdev=net0,id=net0,mac=52:54:00:c9:18:27 \
   -monitor none \
   -device VGA,edid=on,xres=1920,yres=1080,vgamem_mb=128 \
-  -vnc "0.0.0.0:$VNC_PORT,lossy=$MAC_VNC_LOSSY" \
-  -spice port="$SPICE_PORT",addr=0.0.0.0,disable-ticketing=on,image-compression=auto_glz,jpeg-wan-compression=auto,zlib-glz-wan-compression=auto,streaming-video="$MAC_SPICE_STREAMING",agent-mouse="$MAC_SPICE_AGENT_MOUSE",playback-compression=off \
+  -vnc "$MAC_BIND:$VNC_PORT,lossy=$MAC_VNC_LOSSY" \
+  -spice port="$SPICE_PORT",addr="$MAC_BIND",disable-ticketing=on,image-compression=auto_glz,jpeg-wan-compression=auto,zlib-glz-wan-compression=auto,streaming-video="$MAC_SPICE_STREAMING",agent-mouse="$MAC_SPICE_AGENT_MOUSE",playback-compression=off \
   -device virtio-serial-pci \
   -chardev spicevmc,id=spicechannel0,name=vdagent \
   -device virtserialport,chardev=spicechannel0,name=com.redhat.spice.0 \

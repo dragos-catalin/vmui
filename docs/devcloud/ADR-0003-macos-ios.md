@@ -33,3 +33,4 @@ Status: accepted by the owner on 2026-10-11, with an explicit risk acceptance fo
 - **What the owner path cannot do.** It does not deliver a working iOS Simulator. That needs Metal, which means real Apple silicon (the Scaleway/Tart path) or a GPU-passthrough host.
 - **Billing floor.** A Scaleway host costs at least 24 h once started (about €5.3). Pool sizing must account for this.
 - **Tracker.** Implementation is DC-053 (owner GCE) and DC-054 (customer pool).
+- **Implemented (DC-053, 2026-10-17):** `infra/devcloud/mac/` (`mac-gce.ps1`, `mac-host-startup.sh`, README). On demand with a 15 min idle stop, no external IP, IAP tunnel to the same local ports as the WSL VM, every QEMU listener on 127.0.0.1 (`MAC_BIND`). A spike measured the C4 host first: `vmx` exposed, TSC clocksource with `constant_tsc nonstop_tsc`, Tahoe recovery reached its UI with the unchanged CPU line.
