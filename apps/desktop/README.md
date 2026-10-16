@@ -16,9 +16,12 @@ bottom tabs under 768 px.
 ```powershell
 pwsh -File scripts\android-release.ps1 -Install     # build signed APK, publish on the Pi, adb install
 pwsh -File scripts\android-release.ps1 -SkipBuild   # re-publish the last build
+pwsh -File scripts\android-release.ps1 -NoPublish   # build + verify, nothing uploaded
 cd apps\desktop; pnpm exec tauri android dev        # live reload on the connected phone
 ```
 
+- **JDK 21.** AGP 8.11 / Kotlin 1.9 cannot build with the Android Studio JBR (JDK 25). The release script picks JDK 21 by itself (`VMUI_JAVA_HOME`, `JAVA_HOME`, then a Microsoft / Temurin JDK 21 install); for `tauri android dev`, first run
+  `$env:JAVA_HOME = 'C:\Program Files\Microsoft\jdk-21.0.12.101-hotspot'`.
 - Signing: `.private/android-release.jks` + `android-keystore.properties`
   (gitignored; `gen/android/app/build.gradle.kts` reads it). Lose the keystore
   and the phone will refuse the next update — back it up.

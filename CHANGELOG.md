@@ -4,9 +4,17 @@ All notable changes to vmui are documented here. Format: [Keep a Changelog](http
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-17
+
+Desktop app 0.3.2 (Windows tray). The Android app was not re-released: the change is in the `#[cfg(desktop)]` agent module, so the phone and the Pi keep 0.3.1 (versionCode 3001).
+
 ### Fixed
 
-- Desktop app 0.3.2: the PC agent heartbeat (`vmui/pc/state`, every 15 s) no longer waits on HyperHDR. It used to log in to all five HyperHDR instances before each publish (~15 s per login, 2+ minutes per beat), so the Pi saw the PC offline for ~2 of every ~4 minutes and raised a "PC stopped responding" card about 15 times an hour. Instance info is now refreshed every 30 s on a separate thread.
+- The PC agent heartbeat (`vmui/pc/state`, every 15 s) no longer waits on HyperHDR. It used to log in to all five HyperHDR instances before each publish (~15 s per login, 2+ minutes per beat), so the Pi saw the PC offline for ~2 of every ~4 minutes and raised a "PC stopped responding" card about 15 times an hour. Instance info is now refreshed every 30 s on a separate thread.
+
+### Changed
+
+- `scripts/android-release.ps1` builds with JDK 21 whatever `JAVA_HOME` says (the Android Studio JBR is JDK 25, which AGP 8.11 / Kotlin 1.9 cannot build with). It uses `VMUI_JAVA_HOME`, then `JAVA_HOME`, then an installed Microsoft / Temurin JDK 21, and fails early otherwise. New `-NoPublish` switch: build and check the APK without uploading it to the Pi.
 
 ## [0.3.0] - 2026-10-16
 
