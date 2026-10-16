@@ -36,7 +36,7 @@ test('pickProfile needs self-hosted plus a devcloud label', () => {
   assert.equal(pickProfile(['ubuntu-latest']), null);
   assert.equal(pickProfile(['devcloud-linux-16']), null);
   assert.equal(pickProfile(['self-hosted', 'linux']), null);
-  assert.equal(pickProfile(['self-hosted', 'devcloud-linux-16']).machine, 'c4d-highcpu-16');
+  assert.equal(pickProfile(['self-hosted', 'devcloud-linux-16']).machine, 'c4d-standard-16');
   assert.equal(pickProfile(['Self-Hosted', 'DEVCLOUD-LINUX-32']).machine, 'c4d-highcpu-32');
   assert.equal(pickProfile(['self-hosted', 'devcloud-linux-4']).machine, 'c4d-highcpu-4');
   assert.equal(pickProfile(['self-hosted', 'devcloud-linux-4', 'devcloud-android-jdk21']).toolchain, 'android-jdk21');

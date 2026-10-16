@@ -52,7 +52,9 @@ export const CFG = {
 export const PROFILES = {
   // Short jobs (1-5 min: lint gates, release helpers, crons). 50 GB = the baked images are 40 GB.
   'devcloud-linux-4': { machine: 'c4d-highcpu-4', vcpu: 4, memGb: 7, diskGb: 50, diskType: 'hyperdisk-balanced', toolchain: 'node24' },
-  'devcloud-linux-16': { machine: 'c4d-highcpu-16', vcpu: 16, memGb: 30, diskGb: 100, diskType: 'hyperdisk-balanced', toolchain: 'node24' },
+  // standard (4 GB/vCPU), not highcpu: codai verify at turbo --concurrency=8 OOM-killed (exit 137)
+  // @codai/gateway#test + @codai/web#build on 30 GB every run 2026-10-12..15 (codai SP-42).
+  'devcloud-linux-16': { machine: 'c4d-standard-16', vcpu: 16, memGb: 62, diskGb: 100, diskType: 'hyperdisk-balanced', toolchain: 'node24' },
   'devcloud-linux-32': { machine: 'c4d-highcpu-32', vcpu: 32, memGb: 60, diskGb: 150, diskType: 'hyperdisk-balanced', toolchain: 'node24' },
 };
 export const TOOLCHAINS = ['node24', 'android-jdk21', 'rust-tauri-linux', 'rust-tauri-win', 'python-uv', 'flutter', 'polyglot'];
