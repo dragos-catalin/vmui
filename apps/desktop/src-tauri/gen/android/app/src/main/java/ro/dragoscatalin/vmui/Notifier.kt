@@ -56,13 +56,18 @@ object Notifier {
     ch("vmui_quiet", "Discret · agenți, apă, baterii", NotificationManager.IMPORTANCE_LOW, false)
   }
 
-  private fun notifId(id: String): Int = id.hashCode() and 0x7fffffff
+  /** A tagged card replaces the previous notification with the same tag; untagged cards stay per card id. */
+  fun notifKey(id: String, tag: String?): String = if (tag.isNullOrEmpty()) id else "tag:$tag"
+
+  private fun notifId(key: String): Int = key.hashCode() and 0x7fffffff
 
   /** Builds and posts; network (image) happens on the caller's thread — call from a worker. */
   fun show(ctx: Context, card: JSONObject) {
     ensureChannels(ctx)
     val id = card.optString("id")
     if (id.isEmpty()) return
+    val tag = card.optString("tag")
+    val key = notifKey(id, tag)
     val kind = card.optString("kind", "system")
     val priority = card.optString("priority", "default")
     val color = parseColor(card.optString("color"), kind)
@@ -74,7 +79,7 @@ object Notifier {
     val progress = card.optString("progress").toIntOrNull()
     val sticky = card.optString("sticky") == "1" || card.optBoolean("sticky", false)
 
-    val tap = if (url.isNotEmpty()) openUrl(ctx, url, id) else openApp(ctx, id)
+    val tap = if (url.isNotEmpty()) openUrl(ctx, url, id, tag, key) else openApp(ctx, id, tag, key)
     val b = NotificationCompat.Builder(ctx, channelId(kind, priority))
       .setSmallIcon(R.drawable.ic_notif)
       .setLargeIcon(kindIcon(ctx, kind, color))
@@ -93,7 +98,7 @@ object Notifier {
       .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
       .setWhen(card.optString("at").toLongOrNull() ?: System.currentTimeMillis())
       .setShowWhen(true)
-      .setDeleteIntent(dismissIntent(ctx, id))
+      .setDeleteIntent(dismissIntent(ctx, id, tag, key))
 
     if (progress != null) b.setProgress(100, progress.coerceIn(0, 100), false)
 
@@ -110,47 +115,47 @@ object Notifier {
       val aid = a.optString("id"); val label = a.optString("label")
       if (aid.isEmpty() || label.isEmpty()) continue
       val aUrl = a.optString("url")
-      val pi = if (aUrl.isNotEmpty()) openUrl(ctx, aUrl, id, aid) else actIntent(ctx, id, aid)
+      val pi = if (aUrl.isNotEmpty()) openUrl(ctx, aUrl, id, tag, key, aid) else actIntent(ctx, id, tag, key, aid)
       b.addAction(NotificationCompat.Action.Builder(null as IconCompat?, label, pi).build())
     }
     if (priority == "urgent") b.setFullScreenIntent(tap, true)
 
-    try { NotificationManagerCompat.from(ctx).notify(notifId(id), b.build()) } catch (_: SecurityException) { /* POST_NOTIFICATIONS denied */ }
+    try { NotificationManagerCompat.from(ctx).notify(notifId(key), b.build()) } catch (_: SecurityException) { /* POST_NOTIFICATIONS denied */ }
   }
 
-  fun cancel(ctx: Context, id: String) {
-    NotificationManagerCompat.from(ctx).cancel(notifId(id))
+  fun cancel(ctx: Context, id: String, tag: String? = null) {
+    NotificationManagerCompat.from(ctx).cancel(notifId(notifKey(id, tag)))
   }
 
-  private fun openApp(ctx: Context, id: String): PendingIntent {
+  private fun openApp(ctx: Context, id: String, tag: String, key: String): PendingIntent {
     val i = Intent(ctx, MainActivity::class.java).apply {
       action = Intent.ACTION_VIEW
-      data = Uri.parse("vmui://notifications/$id")
+      data = Uri.parse("vmui://notifications/$id").let { u -> if (tag.isEmpty()) u else u.buildUpon().appendQueryParameter("tag", tag).build() }
       flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
     }
-    return PendingIntent.getActivity(ctx, notifId("open-$id"), i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+    return PendingIntent.getActivity(ctx, notifId("open-$key"), i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
   }
 
   /** Deep link (codai://…, https://…) through the action receiver so the card is marked read/dismissed first. */
-  private fun openUrl(ctx: Context, url: String, id: String, actionId: String = "open"): PendingIntent {
+  private fun openUrl(ctx: Context, url: String, id: String, tag: String, key: String, actionId: String = "open"): PendingIntent {
     val i = Intent(ctx, NotifyActionReceiver::class.java).apply {
       action = NotifyActionReceiver.ACTION_OPEN
-      putExtra("id", id); putExtra("action", actionId); putExtra("url", url)
+      putExtra("id", id); putExtra("tag", tag); putExtra("action", actionId); putExtra("url", url)
     }
-    return PendingIntent.getBroadcast(ctx, notifId("url-$id-$actionId"), i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+    return PendingIntent.getBroadcast(ctx, notifId("url-$key-$actionId"), i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
   }
 
-  private fun actIntent(ctx: Context, id: String, actionId: String): PendingIntent {
+  private fun actIntent(ctx: Context, id: String, tag: String, key: String, actionId: String): PendingIntent {
     val i = Intent(ctx, NotifyActionReceiver::class.java).apply {
       action = NotifyActionReceiver.ACTION_ACT
-      putExtra("id", id); putExtra("action", actionId)
+      putExtra("id", id); putExtra("tag", tag); putExtra("action", actionId)
     }
-    return PendingIntent.getBroadcast(ctx, notifId("act-$id-$actionId"), i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+    return PendingIntent.getBroadcast(ctx, notifId("act-$key-$actionId"), i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
   }
 
-  private fun dismissIntent(ctx: Context, id: String): PendingIntent {
-    val i = Intent(ctx, NotifyActionReceiver::class.java).apply { action = NotifyActionReceiver.ACTION_DISMISS; putExtra("id", id) }
-    return PendingIntent.getBroadcast(ctx, notifId("dis-$id"), i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+  private fun dismissIntent(ctx: Context, id: String, tag: String, key: String): PendingIntent {
+    val i = Intent(ctx, NotifyActionReceiver::class.java).apply { action = NotifyActionReceiver.ACTION_DISMISS; putExtra("id", id); putExtra("tag", tag) }
+    return PendingIntent.getBroadcast(ctx, notifId("dis-$key"), i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
   }
 
   private fun parseColor(hex: String, kind: String): Int {

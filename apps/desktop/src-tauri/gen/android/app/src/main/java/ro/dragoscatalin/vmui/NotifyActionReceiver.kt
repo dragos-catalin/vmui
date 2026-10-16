@@ -24,7 +24,7 @@ class NotifyActionReceiver : BroadcastReceiver() {
         Vmui.post(ctx, "/api/notify/act", JSONObject().put("id", id).put("action", action)) { ok, res ->
           val msg = res?.optString("message")?.takeIf { it.isNotEmpty() } ?: if (ok) "gata" else (res?.optString("error") ?: "nu a mers")
           android.os.Handler(ctx.mainLooper).post { Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show() }
-          if (ok) Notifier.cancel(ctx, id)
+          if (ok) Notifier.cancel(ctx, id, intent.getStringExtra("tag"))
           pending.finish()
         }
       }

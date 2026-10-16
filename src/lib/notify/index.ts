@@ -155,6 +155,8 @@ export async function dismiss(id: string, by = "system", actedWith?: string): Pr
   if (r.fallbackAt && r.tag) void haClear(r.tag);
   const card = toCard((await db.select().from(notifications).where(eq(notifications.id, id)).get())!);
   bus.emit("ev", { type: "dismiss", card });
+  // phones keep the native notification until told; never let FCM break a dismiss
+  void loadNotifySettings().then((s) => wakePhones(card, s.fcm)).catch((e) => console.warn("[vmui] fcm dismiss", e));
   return card;
 }
 

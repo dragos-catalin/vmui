@@ -77,16 +77,28 @@ async function water() {
 
 // ---------------------------------------------------------------- PC agent (only meaningful on the Pi, where the sensor lives)
 
+/** Offline samples (60 s apart) before the card fires: sleep/wake and agent restarts flap for a minute. */
+export const PC_OFFLINE_SAMPLES = 2;
+export type PcWatch = { online?: boolean; offN: number };
+
+/** Confirmed state + consecutive offline count → next state and the edge to act on. First sample never fires. */
+export function pcStep(st: PcWatch, online: boolean): { st: PcWatch; edge: "offline" | "online" | null } {
+  if (online) return { st: { online: true, offN: 0 }, edge: st.online === false ? "online" : null };
+  const offN = st.offN + 1;
+  if (st.online === undefined) return { st: { online: false, offN }, edge: null };
+  if (st.online && offN >= PC_OFFLINE_SAMPLES) return { st: { online: false, offN }, edge: "offline" };
+  return { st: { online: st.online, offN }, edge: null };
+}
+
 async function pcAgent() {
   if (!haConfig()) return;
   const s = await ha.state("sensor.vmui_pc_agent").catch(() => null);
   const a = (s?.attributes ?? {}) as Record<string, unknown>;
   const seen = typeof a.at === "number" ? a.at : 0;
   const online = s?.state === "online" && Date.now() / 1000 - seen < 120;
-  const was = w.last.pcOnline;
-  w.last.pcOnline = online;
-  if (was === undefined) return; // first sample: no edge
-  if (was && !online) {
+  const { st, edge } = pcStep((w.last.pc as PcWatch | undefined) ?? { offN: 0 }, online);
+  w.last.pc = st;
+  if (edge === "offline") {
     // the PC itself may just be asleep — say so and offer wake
     await notify({
       kind: "pc",
@@ -98,7 +110,7 @@ async function pcAgent() {
       noFallback: true,
       actions: [{ id: "wake", label: msg("cards.pc.wake"), style: "primary" }],
     });
-  } else if (!was && online) {
+  } else if (edge === "online") {
     await dismissByTag("pc-agent", "pc");
   }
 }
