@@ -44,6 +44,6 @@ class MainActivity : TauriActivity() {
     if (d.scheme != "vmui") return
     File(dataDir, "pending-link.txt").writeText(d.toString())
     val id = d.pathSegments.firstOrNull()
-    if (d.host == "notifications" && id != null) Notifier.cancel(this, id)
+    if (d.host == "notifications" && id != null) Notifier.cancel(this, id, d.getQueryParameter("tag"))
   }
 }

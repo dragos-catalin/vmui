@@ -4,6 +4,10 @@ All notable changes to vmui are documented here. Format: [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Fixed
+
+- Notifications no longer pile up on the phone: the Android app keys a tagged card's notification (and its PendingIntents) on the tag, so a new card with the same tag replaces the old one; a server-side dismiss (`dismiss` / `dismissByTag`) now sends an FCM `type=dismiss` message that cancels it (fail-open). The "PC stopped responding" watcher fires only after 2 consecutive offline samples (~2 min), so sleep/wake flaps no longer alert.
+
 ### Security
 
 - CI: lint, typecheck and tests through the shared `dragos-catalin/workflows` node-ci, plus a gitleaks + osv-scanner gate (full history weekly) and Renovate (`dragos-catalin/renovate-config`).
