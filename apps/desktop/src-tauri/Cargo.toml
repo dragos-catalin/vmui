@@ -1,6 +1,6 @@
 [package]
 name = "vmui-desktop"
-version = "0.3.0"
+version = "0.3.1"
 description = "vmui — tray + control window for the home stack"
 authors = ["Dragos Catalin Vladulescu"]
 edition = "2021"

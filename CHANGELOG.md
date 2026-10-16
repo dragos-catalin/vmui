@@ -4,6 +4,10 @@ All notable changes to vmui are documented here. Format: [Keep a Changelog](http
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-16
+
+Android / desktop app 0.3.1 (versionCode 3001).
+
 ### Fixed
 
 - Notifications no longer pile up on the phone: the Android app keys a tagged card's notification (and its PendingIntents) on the tag, so a new card with the same tag replaces the old one; a server-side dismiss (`dismiss` / `dismissByTag`) now sends an FCM `type=dismiss` message that cancels it (fail-open). The "PC stopped responding" watcher fires only after 2 consecutive offline samples (~2 min), so sleep/wake flaps no longer alert.
