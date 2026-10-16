@@ -11,7 +11,7 @@ use crate::stack;
 use rumqttc::{Client, Event, Incoming, MqttOptions, QoS};
 use serde_json::{json, Value};
 use std::collections::HashSet;
-use std::sync::{Arc, Mutex};
+use std::sync::{OnceLock, Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, Manager};
 
@@ -22,10 +22,27 @@ fn now() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
 }
 
+/// HyperHDR logins take seconds each, so the heartbeat must never wait on them:
+/// a background thread refreshes this snapshot and the publisher only reads it.
+static INSTANCES: OnceLock<Mutex<Vec<stack::HyperInstance>>> = OnceLock::new();
+
+fn instances_cache() -> &'static Mutex<Vec<stack::HyperInstance>> {
+    INSTANCES.get_or_init(|| Mutex::new(Vec::new()))
+}
+
+fn refresh_instances_forever() {
+    loop {
+        if let Ok(v) = stack::hyper_instances() {
+            *instances_cache().lock().unwrap() = v;
+        }
+        std::thread::sleep(Duration::from_secs(30));
+    }
+}
+
 fn state_payload(app: &AppHandle) -> String {
     let last = app.state::<crate::desktop::State>().last.lock().unwrap().clone();
     let mode = app.state::<crate::desktop::State>().mode.lock().unwrap().clone();
-    let instances = stack::hyper_instances().unwrap_or_default();
+    let instances = instances_cache().lock().unwrap().clone();
     json!({
         "state": "online",
         "at": now(),
@@ -79,6 +96,7 @@ pub fn run(app: AppHandle) {
     let user = user.clone();
     let pass = pass.clone();
     let seen = Arc::new(Mutex::new(HashSet::new()));
+    std::thread::spawn(refresh_instances_forever);
     let mut backoff = 5u64;
     loop {
         let mut opts = MqttOptions::new(format!("vmui-pc-{}", std::env::var("COMPUTERNAME").unwrap_or_else(|_| "pc".into())), &host, 1883);

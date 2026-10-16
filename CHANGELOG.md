@@ -4,6 +4,10 @@ All notable changes to vmui are documented here. Format: [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Fixed
+
+- Desktop app 0.3.2: the PC agent heartbeat (`vmui/pc/state`, every 15 s) no longer waits on HyperHDR. It used to log in to all five HyperHDR instances before each publish (~15 s per login, 2+ minutes per beat), so the Pi saw the PC offline for ~2 of every ~4 minutes and raised a "PC stopped responding" card about 15 times an hour. Instance info is now refreshed every 30 s on a separate thread.
+
 ## [0.3.0] - 2026-10-16
 
 Android / desktop app 0.3.1 (versionCode 3001).
