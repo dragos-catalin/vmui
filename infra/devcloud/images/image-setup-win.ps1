@@ -5,7 +5,8 @@
 # runs GCESysprep, which generalises the disk and powers the VM off; bake.mjs images the disk.
 #   git, node 24 (+ runner tool cache), pnpm 12 (native win32 binary, not the npm shim), pwsh 7,
 #   rustup + Rust (metadata rust-toolchain, default 1.98.1) msvc with rustfmt + clippy,
-#   VS 2022 Build Tools (VCTools workload + Windows 11 SDK), WebView2 runtime, Google Chrome, gh, ripgrep, 7-Zip,
+#   VS 2022 Build Tools (VCTools workload + Windows 11 SDK), CMake + NASM (build scripts: opusic-sys bundled libopus,
+#   aws-lc-sys), WebView2 runtime, Google Chrome, gh, ripgrep, 7-Zip,
 #   actions runner win-x64 pre-extracted in C:\actions-runner, git core.autocrlf=false + core.longpaths=true,
 #   Win32 long paths, Defender exclusions for the runner + work dir + cargo/rustup/pnpm caches.
 # NSIS/WiX/mise are not baked: the codai desktop job builds `tauri build --debug --no-bundle`, and the Tauri
@@ -122,6 +123,20 @@ try {
   Msi "$TMP\7z.msi"
   AddPath 'C:\Program Files\7-Zip'
 
+  # codai desktop: opusic-sys builds bundled libopus with cmake ("failed to execute command: program not found",
+  # codai run 38927840211); aws-lc-sys (reqwest rustls) uses cmake/NASM when its prebuilt objects do not apply.
+  Step 'cmake'
+  Get-File (Latest 'Kitware/CMake' '^cmake-[0-9.]+-windows-x86_64\.msi$') "$TMP\cmake.msi"
+  Msi "$TMP\cmake.msi" 'ADD_CMAKE_TO_PATH=System'
+  RefreshPath
+  & cmake --version
+
+  Step 'nasm'
+  Get-File 'https://www.nasm.us/pub/nasm/releasebuilds/2.16.03/win64/nasm-2.16.03-win64.zip' "$TMP\nasm.zip"
+  Expand-Archive "$TMP\nasm.zip" -DestinationPath "$TMP\nasm" -Force
+  Copy-Item (Get-ChildItem "$TMP\nasm" -Recurse -Filter nasm.exe | Select-Object -First 1).FullName 'C:\tools\bin\nasm.exe' -Force
+  & nasm -v
+
   Step 'chrome'
   Get-File 'https://dl.google.com/dl/chrome/install/googlechromestandaloneenterprise64.msi' "$TMP\chrome.msi"
   Msi "$TMP\chrome.msi"
@@ -171,6 +186,7 @@ try {
   $v = [ordered]@{
     git = (& git --version); node = (& node -v); pnpm = (& pnpm --version); pwsh = (& pwsh -NoProfile -Command '$PSVersionTable.PSVersion.ToString()')
     rustc = (& rustc -V); cargo = (& cargo -V); rustfmt = (& cargo fmt --version); clippy = (& cargo clippy --version)
+    cmake = ((& cmake --version) | Select-Object -First 1); nasm = (& nasm -v)
     gh = ((& gh --version) | Select-Object -First 1); rg = ((& rg --version) | Select-Object -First 1); sevenzip = ((& 7z i) | Select-Object -Skip 1 -First 1)
     cl = $cl.FullName; sdk = $sdk.Name; webview2 = $wv2; chrome = $chrome
   }
