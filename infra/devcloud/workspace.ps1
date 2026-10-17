@@ -77,7 +77,7 @@ if (-not $exists) {
     --boot-disk-provisioned-iops $Iops --boot-disk-provisioned-throughput $ThroughputMb `
     --service-account $sa --scopes cloud-platform `
     --metadata $meta --metadata-from-file $metaFiles `
-    --labels "app=devcloud,ws=$Ws,os=$Os" --shielded-secure-boot --shielded-vtpm `
+    --labels "app=devcloud,ws=$Ws,os=$Os,reaper=keep" --shielded-secure-boot --shielded-vtpm `
     --reservation-affinity none | Out-Null
   "created $name ($Os, $Machine, $Zone)"
 } else {
