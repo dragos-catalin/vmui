@@ -99,7 +99,35 @@ export function detectPlatform(
  * (SSH to the guest, VNC, SPICE, Screen Sharing) goes through one IAP SSH
  * tunnel that maps the SAME localhost ports as the local WSL2 VM.
  */
-export function macIapConnectionInfo(name: string, zone: string, project: string): ConnectionInfo {
+/**
+ * Connection info for the devcloud macOS host. With the GCE label `tailnet=<suffix>` the host has
+ * joined that tailnet (tag:devcloud-mac, `tailscale serve` of the guest ports), so the tailnet name is
+ * offered first; IAP stays as the fallback that always works.
+ */
+export function macIapConnectionInfo(name: string, zone: string, project: string, tailnet?: string | null): ConnectionInfo {
+  const iap = [
+    "macOS (OSX-KVM) on a GCE nested-KVM host, no external IP. Open the IAP tunnel first:",
+    `pwsh -NoProfile -File infra/devcloud/mac/mac-gce.ps1 -Name ${name} -Zone ${zone} -Project ${project} -Tunnel`,
+    "Then: SSH 127.0.0.1:10022, VNC 127.0.0.1:5900, SPICE spice://127.0.0.1:5930, Screen Sharing 127.0.0.1:5901.",
+    "The host suspends itself after 15 min without a session; start it from vmui or with -Start.",
+  ];
+  if (tailnet && /^[a-z0-9-]+$/.test(tailnet)) {
+    const host = `${name}.${tailnet}.ts.net`;
+    return {
+      protocol: "vnc",
+      host,
+      port: 5900,
+      username: "dragos",
+      vncUrl: `vnc://${host}:5900`,
+      sshCommand: `ssh dragos@${host} -p 10022`,
+      notes: [
+        `On the tailnet (${tailnet}.ts.net): SSH ${host}:10022, VNC ${host}:5900, Screen Sharing ${host}:5901, SPICE spice://${host}:5930.`,
+        `Host shell: tailscale ssh ${name}. If the host is suspended or stopped, start it first.`,
+        "Fallback without Tailscale:",
+        ...iap,
+      ],
+    };
+  }
   return {
     protocol: "vnc",
     host: "127.0.0.1",
@@ -107,12 +135,7 @@ export function macIapConnectionInfo(name: string, zone: string, project: string
     username: "dragos",
     vncUrl: "vnc://127.0.0.1:5900",
     sshCommand: "ssh dragos@127.0.0.1 -p 10022",
-    notes: [
-      "macOS (OSX-KVM) on a GCE nested-KVM host, no external IP. Open the IAP tunnel first:",
-      `pwsh -NoProfile -File infra/devcloud/mac/mac-gce.ps1 -Name ${name} -Zone ${zone} -Project ${project} -Tunnel`,
-      "Then: SSH 127.0.0.1:10022, VNC 127.0.0.1:5900, SPICE spice://127.0.0.1:5930, Screen Sharing 127.0.0.1:5901.",
-      "The host stops itself after 15 min without a session; start it from vmui or with -Start.",
-    ],
+    notes: iap,
   };
 }
 
@@ -519,7 +542,8 @@ export class GcpProvider implements CloudProvider {
     const vm = await this.getInstance(region, id);
     if (!vm) throw new Error("VM not found");
     if (vm.platform === "macos" && !vm.publicIp) {
-      return macIapConnectionInfo(vm.name ?? parseId(id).name, vm.region, this.project);
+      const labels = (vm.raw as { labels?: Record<string, string> | null } | null)?.labels;
+      return macIapConnectionInfo(vm.name ?? parseId(id).name, vm.region, this.project, labels?.tailnet);
     }
     const host = vm.publicIp ?? vm.privateIp ?? "";
     if (!host) {

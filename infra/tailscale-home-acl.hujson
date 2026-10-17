@@ -29,6 +29,11 @@
 		// /hooks/contact (dragoscatalin.ro contact form -> vmui /api/hooks/contact).
 		// Owned by tag:appliance (OAuth client can set it via the API) and admins.
 		"tag:funnel-hooks": ["tag:appliance", "autogroup:admin"],
+		// The owner's macOS VM host on GCE (vmui DC-053, infra/devcloud/mac). Enrolled by its own
+		// OAuth client ("devcloud-mac enrol", auth_keys scoped to this tag only, secret in Secret
+		// Manager devcloud-mac-tailscale-authkey in dragos-devcloud). A cloud VM is not a home
+		// device: it reaches nothing here, only the owner reaches it.
+		"tag:devcloud-mac": ["autogroup:admin"],
 	},
 
 	"hosts": {
@@ -68,6 +73,11 @@
 
 		// Brivio worker -> RO egress proxy only (brivio news ingest, gov.ro).
 		{"src": ["tag:brivio-egress"], "dst": ["homepi"], "ip": ["tcp:3128"]},
+
+		// Owner -> macOS VM host: guest SSH 10022, VNC 5900, Screen Sharing 5901, SPICE 5930
+		// (tailscale serve -> QEMU on 127.0.0.1). Host shell is Tailscale SSH (ssh block below).
+		// No grant FROM tag:devcloud-mac: the VM cannot open connections into the tailnet.
+		{"src": ["autogroup:member"], "dst": ["tag:devcloud-mac"], "ip": ["tcp:10022", "tcp:5900", "tcp:5901", "tcp:5930"]},
 	],
 
 	"ssh": [
@@ -77,12 +87,24 @@
 			"dst":    ["autogroup:self"],
 			"users":  ["autogroup:nonroot", "root"],
 		},
+		{
+			"action": "check",
+			"src":    ["autogroup:member"],
+			"dst":    ["tag:devcloud-mac"],
+			"users":  ["autogroup:nonroot"],
+		},
 	],
 
 	"tests": [
 		{
 			"src":    "vladulescu.catalin@gmail.com",
-			"accept": ["tag:appliance:8123", "tag:appliance:443", "tag:funnel-hooks:22", "tag:funnel-hooks:3737", "homepi:3128"],
+			"accept": ["tag:appliance:8123", "tag:appliance:443", "tag:funnel-hooks:22", "tag:funnel-hooks:3737", "homepi:3128",
+			           "tag:devcloud-mac:10022", "tag:devcloud-mac:5900", "tag:devcloud-mac:5930"],
+			"deny":   ["tag:devcloud-mac:3389"],
+		},
+		{
+			"src":    "tag:devcloud-mac",
+			"deny":   ["homepi:22", "homepi:3128", "tag:appliance:8123", "tag:funnel-hooks:3737"],
 		},
 		{
 			"src":    "tag:marcai-ingest",

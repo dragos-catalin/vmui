@@ -60,8 +60,12 @@ Environment=MAC_DISK=$DISK ALLOCATED_RAM=$RAM CPU_CORES=$CORES CPU_THREADS=$THRE
 ExecStart=$DATA/boot-mac.sh
 ExecStop=/usr/local/bin/vmui-mac-shutdown
 TimeoutStopSec=330
-Restart=on-failure
-RestartSec=20
+# boot-mac.sh passes -no-reboot, so a guest RESTART (macOS updates restart 2-3 times) exits QEMU with
+# status 0. Restart=always brings it straight back; `systemctl stop` (vmui-mac-shutdown, -Stop) is
+# never restarted by systemd. A shutdown from inside macOS also comes back: the idle timer is what
+# puts an unused Mac to sleep here, not the guest's own power menu (2026-10-17, 26.7.1 update).
+Restart=always
+RestartSec=3
 [Install]
 WantedBy=multi-user.target
 EOF
@@ -131,14 +135,18 @@ WantedBy=timers.target
 EOF
 rm -f "$DATA/.last-active"
 
-# --- optional Tailscale (faster VNC/SPICE than IAP). Joins only when the owner has stored an auth
-# key in Secret Manager `devcloud-mac-tailscale-authkey` (dragos-devcloud) and granted this SA
-# secretAccessor on it; otherwise the host stays IAP-only. Guest ports are served on the tailnet
-# with `tailscale serve` (tcp), still bound to 127.0.0.1 on the host.
+# --- optional Tailscale (faster VNC/SPICE than IAP), personal tailnet taild1532d. The secret
+# `devcloud-mac-tailscale-authkey` (dragos-devcloud, this SA has secretAccessor) holds an OAuth
+# client secret (`tskey-client-...?ephemeral=false&preauthorized=true`, client "devcloud mac enrol
+# DC053", scope auth_keys, tag:devcloud-mac only). tailscaled mints its own key from it, so it never
+# expires like a 90-day auth key, and the node is tagged (no key expiry, policy in vmui
+# infra/tailscale-home-acl.hujson: owner -> 10022/5900/5901/5930 + Tailscale SSH, node -> nothing).
+# Without the secret the host stays IAP-only. Guest ports are served with `tailscale serve` (tcp),
+# QEMU stays bound to 127.0.0.1. Re-running is idempotent (`up` on an enrolled node is a no-op).
 TS_KEY=$(gcloud secrets versions access latest --secret=devcloud-mac-tailscale-authkey --project="$(curl -fsS -H 'Metadata-Flavor: Google' http://metadata.google.internal/computeMetadata/v1/project/project-id)" 2>/dev/null)
 if [ -n "$TS_KEY" ]; then
   command -v tailscale >/dev/null || curl -fsSL https://tailscale.com/install.sh | sh >/dev/null 2>&1
-  tailscale up --auth-key="$TS_KEY" --hostname=vmui-mac --ssh --accept-dns=false >/dev/null 2>&1 \
+  tailscale up --auth-key="$TS_KEY" --advertise-tags=tag:devcloud-mac --hostname=vmui-mac --ssh --accept-dns=false >/dev/null 2>&1 \
     && for p in 10022 5900 5901 5930; do tailscale serve --bg --tcp "$p" "tcp://127.0.0.1:$p" >/dev/null 2>&1; done
   log "tailscale $(tailscale status --self --peers=false 2>/dev/null | awk 'NR==1{print $1, $2}')"
 fi

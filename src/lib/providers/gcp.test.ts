@@ -19,4 +19,15 @@ describe("gcp provider: devcloud macOS host (DC-053)", () => {
     expect(c.sshCommand).toBe("ssh dragos@127.0.0.1 -p 10022");
     expect(c.notes.join("\n")).toContain("mac-gce.ps1 -Name vmui-mac -Zone europe-central2-a -Project dragos-devcloud -Tunnel");
   });
+
+  it("with a tailnet label it offers the MagicDNS name first and keeps IAP as the fallback", () => {
+    const c = macIapConnectionInfo("vmui-mac", "europe-central2-a", "dragos-devcloud", "taild1532d");
+    expect(c).toMatchObject({ host: "vmui-mac.taild1532d.ts.net", port: 5900, vncUrl: "vnc://vmui-mac.taild1532d.ts.net:5900" });
+    expect(c.sshCommand).toBe("ssh dragos@vmui-mac.taild1532d.ts.net -p 10022");
+    expect(c.notes.join("\n")).toContain("-Tunnel");
+  });
+
+  it("ignores a malformed tailnet label", () => {
+    expect(macIapConnectionInfo("vmui-mac", "z", "p", "evil.example/x").host).toBe("127.0.0.1");
+  });
 });
