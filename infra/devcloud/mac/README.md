@@ -65,6 +65,10 @@ How it is wired:
 - Rotate: create a new credential in the console (Settings -> Trust credentials), add a secret
   version, revoke the old client. Removing the secret makes a rebuilt host IAP-only.
 
+**Guest login.** The cloud guest started as a copy of the local disk but has its own password since
+2026-10-17: `MAC_GCE_GUEST_PASS` in `.private/credentials.env` (`MAC_GUEST_PASS` stays the local
+OSX-KVM guest). macOS 26.7.1 (25G241) since the same day.
+
 ## Setup (once)
 
 ```powershell
@@ -109,6 +113,8 @@ pwsh -NoProfile -File infra/devcloud/mac/mac-gce.ps1 -Status      # first boot p
   silently after `Downloading: 100%`.
 - `boot-mac.sh` passes `-no-reboot`, so every guest restart ends QEMU with status 0. The unit uses
   `Restart=always`; with the old `on-failure` the 26.7.1 update left the VM powered off mid-install.
+- A wedged install shows all vCPUs busy while QMP `info blockstats` (MacHDD rd/wr bytes) stays
+  frozen; 26.7.1 sat at ~15 % for 20+ min until `vmui-mac-qmp system_reset`, then finished.
 - Pause `vmui-mac-idle.timer` on the host during a long unattended guest task (macOS update):
   the tunnel is idle, so the VM would suspend mid-install.
 - Piping a secret into `gcloud compute ssh` stdin on Windows (PuTTY) garbles it; copy a 0600
