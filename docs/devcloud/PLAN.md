@@ -104,6 +104,19 @@ Full audit: `E:\gh\codai\.copilot-tmp\aq-audit\` (scripts + outputs).
 - **F3 — CI controller**: GitHub App, controller on Cloud Run, images per toolchain, migrate long
   workflows (codai verify, metu, mmo…), keep only < 30 s gates on GitHub-hosted.
 - **F4 — dev servers + OS pools**: Syncthing/forward, Windows pool, Android emulator pool, Mac.
+  - **Windows warm workspace (DC-063, 2026-10-17, owner-approved ~1.14 USD/h)**: `ws-vitals-win`
+    in codai-training / europe-west4-a, c4d-standard-16 (16 vCPU / 62 GB) from image family
+    `devcloud-ci-win-desktop` (DC-051 toolchain), 300 GB Hyperdisk Balanced. Provision:
+    `infra/devcloud/workspace.ps1 -Ws vitals-win -Os windows`. Startup = agentq
+    `cloud/workspace-startup.ps1` (metadata `windows-startup-script-ps1`, SYSTEM, every boot):
+    hibernation off (needed for GCE suspend), local admin `dev` with a random password per boot,
+    scheduled task `devcloud-agent` -> `agent-loop.ps1` (restart loop) -> node `runner-agent.mjs`.
+    The same runner-agent is platform-aware: `C:\work\<repo>`, the command runs as a pwsh script
+    built from `spec.argv` (PowerShell quoting; ends with the native exit code because
+    `pwsh -Command` maps every native failure to 1), `taskkill /T` on timeout, self-update from
+    metadata while idle (no ssh path on Windows). Client: `agentq run -Where cloud -Ws vitals-win`;
+    config `cloudWorkspaces.vitals = vitals-win`, `cloudRegistry` replaces the hard-coded table.
+    TS lanes of vitals still go to `-Ws codai` explicitly. Measurements: tracker DC-063.
 - **F5 — vmui UI/API/MCP + codai production** (admin-only Mac option).
 
 ## Ideas recommended (nice to have, ranked)

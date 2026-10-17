@@ -11,14 +11,21 @@
   pwsh -NoProfile -File infra/devcloud/workspace.ps1 -Ws codai -Status
   pwsh -NoProfile -File infra/devcloud/workspace.ps1 -Ws codai -UpdateAgent  # push agent + restart it
   pwsh -NoProfile -File infra/devcloud/workspace.ps1 -Ws codai -Delete       # irreversible (asks)
+
+  DC-063 Windows workspace (Windows-only gates: windows crate, Tauri, vitals-win, scripts/verify.ps1):
+  pwsh -NoProfile -File infra/devcloud/workspace.ps1 -Ws vitals-win -Os windows
+  -> image family devcloud-ci-win-desktop (codai-training, DC-051), c4d-standard-16 (16 vCPU / 62 GB),
+  300 GB hyperdisk-balanced, metadata windows-startup-script-ps1 (agentq cloud/workspace-startup.ps1)
+  + runner-agent. -UpdateAgent on Windows only rewrites metadata: the idle agent adopts it within ~60 s.
 #>
 param(
   [string]$Ws = 'codai', [string]$Project = 'codai-training', [string]$Zone = 'europe-west4-a',
-  [string]$CtlProject = 'dragos-devcloud',
-  [string]$Machine = 'c4d-highcpu-64', [int]$BootGb = 300, [int]$Iops = 24000, [int]$ThroughputMb = 1000, [int]$IdleMin = 15,
+  [string]$CtlProject = 'dragos-devcloud', [ValidateSet('linux', 'windows')][string]$Os = 'linux',
+  [string]$Machine = '', [int]$BootGb = 300, [int]$Iops = 24000, [int]$ThroughputMb = 1000, [int]$IdleMin = 15,
   [string]$AgentDir = 'E:\gh\agentq\cloud', [switch]$Status, [switch]$Delete, [switch]$UpdateAgent
 )
 $ErrorActionPreference = 'Stop'
+if (-not $Machine) { $Machine = if ($Os -eq 'windows') { 'c4d-standard-16' } else { 'c4d-highcpu-64' } }
 $name = "ws-$Ws"; $bucket = "$CtlProject-devcloud-jobs"; $sa = "devcloud-ws@$Project.iam.gserviceaccount.com"; $region = $Zone -replace '-[a-z]$', ''
 function G { $o = & gcloud @args 2>&1; if ($LASTEXITCODE) { throw "gcloud $($args -join ' ') failed: $o" }; $o }
 
@@ -52,28 +59,34 @@ if (-not $r) { G iam roles create devcloudSelfSuspend --project $Project --title
 $turboApi = (G run services describe turbo-cache --project $CtlProject --region europe-central2 --format='value(status.url)').Trim()
 $mdFile = Join-Path $env:TEMP 'dc-md'
 New-Item -ItemType Directory -Force $mdFile | Out-Null
-foreach ($f in 'runner-agent.mjs', 'workspace-startup.sh') {
+$startup = if ($Os -eq 'windows') { 'workspace-startup.ps1' } else { 'workspace-startup.sh' }
+foreach ($f in 'runner-agent.mjs', $startup) {
   $t = [IO.File]::ReadAllText((Join-Path $AgentDir $f)) -replace "`r`n", "`n"
   [IO.File]::WriteAllText((Join-Path $mdFile $f), $t, [Text.UTF8Encoding]::new($false))
 }
 $meta = "devcloud-bucket=$bucket,devcloud-ws=$Ws,devcloud-idle-min=$IdleMin,devcloud-turbo-api=$turboApi,devcloud-secret-project=$CtlProject,node-version=24.21.0,pnpm-version=12.9.1"
-$metaFiles = "startup-script=$mdFile\workspace-startup.sh,runner-agent=$mdFile\runner-agent.mjs"
+$startupKey = if ($Os -eq 'windows') { 'windows-startup-script-ps1' } else { 'startup-script' }
+$metaFiles = "$startupKey=$mdFile\$startup,runner-agent=$mdFile\runner-agent.mjs"
+$img = if ($Os -eq 'windows') { @('--image-family', 'devcloud-ci-win-desktop', '--image-project', $Project) } else { @('--image-family', 'ubuntu-2404-lts-amd64', '--image-project', 'ubuntu-os-cloud') }
 
 $exists = & gcloud compute instances describe $name --zone $Zone --project $Project --format='value(status)' 2>$null
 if (-not $exists) {
   G compute instances create $name --project $Project --zone $Zone --machine-type $Machine `
-    --image-family ubuntu-2404-lts-amd64 --image-project ubuntu-os-cloud `
+    @img `
     --boot-disk-type hyperdisk-balanced --boot-disk-size "${BootGb}GB" --boot-disk-auto-delete `
     --boot-disk-provisioned-iops $Iops --boot-disk-provisioned-throughput $ThroughputMb `
     --service-account $sa --scopes cloud-platform `
     --metadata $meta --metadata-from-file $metaFiles `
-    --labels "app=devcloud,ws=$Ws" --shielded-secure-boot --shielded-vtpm `
+    --labels "app=devcloud,ws=$Ws,os=$Os" --shielded-secure-boot --shielded-vtpm `
     --reservation-affinity none | Out-Null
-  "created $name ($Machine, $Zone)"
+  "created $name ($Os, $Machine, $Zone)"
 } else {
   G compute instances add-metadata $name --zone $Zone --project $Project --metadata $meta --metadata-from-file $metaFiles | Out-Null
   "metadata updated on $name ($exists)"
-  if ($UpdateAgent -and $exists -eq 'RUNNING') { G compute ssh $name --zone $Zone --project $Project --command 'sudo google_metadata_script_runner startup' | Out-Null; 'agent restarted' }
+  if ($UpdateAgent -and $exists -eq 'RUNNING') {
+    if ($Os -eq 'windows') { 'windows: the idle agent adopts the new runner-agent from metadata within ~60 s' }
+    else { G compute ssh $name --zone $Zone --project $Project --command 'sudo google_metadata_script_runner startup' | Out-Null; 'agent restarted' }
+  }
 }
 G compute instances add-iam-policy-binding $name --zone $Zone --project $Project --member "serviceAccount:$sa" --role $role | Out-Null
 "self-suspend role bound on $name"
