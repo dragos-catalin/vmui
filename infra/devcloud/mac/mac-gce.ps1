@@ -12,6 +12,7 @@
   pwsh -NoProfile -File infra/devcloud/mac/mac-gce.ps1 -Provision         # SA, firewall, NAT, VM + data disk
   pwsh -NoProfile -File infra/devcloud/mac/mac-gce.ps1 -Start | -Stop | -Status
   pwsh -NoProfile -File infra/devcloud/mac/mac-gce.ps1 -Tunnel            # localhost:10022/5900/5930 like the local VM
+  # or, on the tailnet (taild1532d): vnc://vmui-mac.taild1532d.ts.net:5900, ssh -p 10022 vmui-mac.taild1532d.ts.net
   pwsh -NoProfile -File infra/devcloud/mac/mac-gce.ps1 -Snapshot          # data-disk snapshot (also weekly schedule)
   pwsh -NoProfile -File infra/devcloud/mac/mac-gce.ps1 -UpdateHost        # push startup script + boot-mac.sh, re-run
   pwsh -NoProfile -File infra/devcloud/mac/mac-gce.ps1 -Delete            # VM only; the data disk is kept (asks)
@@ -21,8 +22,10 @@ param(
   [string]$Machine = 'c4-standard-16', [int]$DataGb = 300, [string]$Bucket = 'dragos-devcloud-mac', [string]$Prefix = 'v1',
   [string]$Disk = 'mac-tahoe.qcow2', [int]$RamMb = 32768, [int]$Cores = 8, [int]$Threads = 16, [int]$IdleMin = 15,
   [string]$WslDistro = 'Ubuntu-24.04', [string]$WslVmDir = '/home/dragos/OSX-KVM',
+  # personal tailnet the host joins when secret devcloud-mac-tailscale-authkey exists ('' = IAP only)
+  [string]$Tailnet = 'taild1532d',
   [switch]$Upload, [switch]$Provision, [switch]$Start, [switch]$Stop, [switch]$Status, [switch]$Tunnel,
-  [switch]$Snapshot, [switch]$UpdateHost, [switch]$Delete
+  [switch]$Snapshot, [switch]$UpdateHost, [switch]$Delete, [switch]$Force
 )
 $ErrorActionPreference = 'Stop'
 $here = $PSScriptRoot
@@ -107,6 +110,12 @@ if ($Provision) {
     "created $Name ($Machine, $Zone, nested)"
   }
   G compute instances add-iam-policy-binding $Name --zone $Zone --project $Project --member "serviceAccount:$sa" --role $role | Out-Null
+  # Tailscale (optional): the startup script joins when this secret exists (OAuth client secret,
+  # auth_keys for tag:devcloud-mac only); the label tells vmui to offer the tailnet name.
+  if ($Tailnet -and (Q secrets describe devcloud-mac-tailscale-authkey --project $Project --format='value(name)')) {
+    G secrets add-iam-policy-binding devcloud-mac-tailscale-authkey --project $Project --member "serviceAccount:$sa" --role roles/secretmanager.secretAccessor | Out-Null
+    G compute instances add-labels $Name --zone $Zone --project $Project --labels "tailnet=$Tailnet" | Out-Null
+  }
   # weekly data-disk snapshot, 4 kept
   if (-not (Q compute resource-policies describe devcloud-mac-weekly --region $region --project $Project --format='value(name)')) {
     G compute resource-policies create snapshot-schedule devcloud-mac-weekly --project $Project --region $region `
@@ -134,8 +143,18 @@ if ($Start) {
   G compute instances start $Name --zone $Zone --project $Project | Out-Null; "started $Name - macOS boots in ~1-2 min; then -Tunnel"; exit 0
 }
 if ($Stop) {
-  # clean guest shutdown first (ACPI), then stop the host
-  & gcloud compute ssh $Name --zone $Zone --project $Project --tunnel-through-iap --command 'sudo systemctl stop vmui-mac.service' 2>$null | Out-Null
+  # clean guest shutdown first (ACPI), then stop the host. A SUSPENDED instance is resumed first:
+  # `instances stop` on it discards the suspended RAM = hard power-off of macOS (2026-10-17).
+  $st = (Q compute instances describe $Name --zone $Zone --project $Project --format='value(status)')
+  if ($st -eq 'TERMINATED') { "$Name already stopped"; exit 0 }
+  if ($st -eq 'SUSPENDED') { G compute instances resume $Name --zone $Zone --project $Project | Out-Null; "resumed $Name for a clean shutdown" }
+  $ok = $false
+  for ($i = 0; $i -lt 6 -and -not $ok; $i++) {
+    & gcloud compute ssh $Name --zone $Zone --project $Project --tunnel-through-iap --command 'sudo systemctl stop vmui-mac.service' 2>$null | Out-Null
+    $ok = ($LASTEXITCODE -eq 0)
+    if (-not $ok) { Start-Sleep 10 }
+  }
+  if (-not $ok -and -not $Force) { throw "could not reach $Name to shut macOS down cleanly; re-run with -Force to power off anyway" }
   G compute instances stop $Name --zone $Zone --project $Project | Out-Null; "stopped $Name"; exit 0
 }
 if ($Snapshot) {
