@@ -30,6 +30,10 @@ do
   if [ -f "$_gc_candidate" ]; then
     # Only assign vars that are not already set in the environment.
     while IFS='=' read -r _gc_k _gc_v; do
+      # The file is edited on Windows and is usually CRLF; a trailing CR breaks
+      # `export` ("invalid variable name") and would end up inside the password.
+      _gc_k="${_gc_k%$'\r'}"
+      _gc_v="${_gc_v%$'\r'}"
       case "$_gc_k" in ''|\#*) continue ;; esac
       _gc_k="${_gc_k// /}"
       [ -n "${!_gc_k:-}" ] && continue
