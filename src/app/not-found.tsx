@@ -1,22 +1,32 @@
 import { Button } from "@/components/ui/button";
-import { SearchX } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Home } from "lucide-react";
+import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("errors");
+  return { title: t("notFoundTitle") };
+}
 
 export default async function NotFound() {
   const t = await getTranslations("errors");
   return (
-    <div className="mx-auto mt-16 flex w-full max-w-md flex-col items-center gap-4 text-center">
-      <div className="grid size-12 place-items-center rounded-full bg-[color-mix(in_oklch,var(--color-danger)_12%,transparent)] text-[var(--color-danger)]">
-        <SearchX className="size-6" aria-hidden="true" />
-      </div>
-      <div className="space-y-1">
-        <h1 className="text-lg font-semibold tracking-tight">{t("notFoundTitle")}</h1>
-        <p className="text-sm text-muted">{t("notFoundHint")}</p>
-      </div>
-      <Button asChild variant="secondary">
-        <Link href="/">{t("home")}</Link>
-      </Button>
+    <div className="mx-auto flex min-h-[60dvh] w-full max-w-md flex-col justify-center px-4">
+      <h1 className="sr-only">{t("notFoundTitle")}</h1>
+      <EmptyState
+        illustration="search"
+        title={t("notFoundTitle")}
+        description={t("notFoundHint")}
+        action={
+          <Button asChild>
+            <Link href="/">
+              <Home className="size-4" aria-hidden /> {t("home")}
+            </Link>
+          </Button>
+        }
+      />
     </div>
   );
 }

@@ -148,7 +148,7 @@ pub fn run(app: AppHandle) {
                     if let Ok(v) = serde_json::from_slice::<Value>(&p.payload) {
                         let app = app.clone();
                         let seen = seen.clone();
-                        std::thread::spawn(move || handle(&app, v, &seen));
+                        tauri::async_runtime::spawn_blocking(move || handle(&app, v, &seen));
                     }
                 }
                 Ok(_) => {}

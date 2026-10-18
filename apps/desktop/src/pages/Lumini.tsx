@@ -5,14 +5,14 @@ import { tx } from "../i18n";
 import { HealthDot, LightControls, useLights, type LightsApi } from "../light-ui";
 import { cn } from "../lib";
 import { roomId, stateColor, type LightDevice } from "../lights";
-import { Card, Empty } from "../ui";
+import { Card, confirmDialog, Empty, ErrorState, Loading, PageHeader, StaleBadge } from "../ui";
 
 /** Every registry light grouped by room (+ custom groups), with scenes, undo and the day/night profile. */
 export function Lumini() {
   const { t } = useTranslation();
   const lights = useLights();
   const d = lights.data;
-  if (!d) return <div className="text-sm text-dim">{lights.error ? t("lights.down", { error: lights.error }) : t("common.loading")}</div>;
+  if (!d) return lights.error ? <ErrorState title={t("lights.downTitle")} error={lights.error} onRetry={() => void lights.refresh()} /> : <Loading />;
 
   const devices = d.devices.filter((x) => x.enabled);
   const rooms = Array.from(new Set([...d.rooms.map(roomId), ...devices.map((x) => x.room)])).filter((r) => devices.some((x) => x.room === r));
@@ -20,26 +20,22 @@ export function Lumini() {
 
   return (
     <div className="grid gap-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t("nav.lumini")}</h1>
-          <p className="text-sm text-muted mt-1">
-            {t("lights.summary", { on: onCount, total: devices.length })}
-            {" · "}{d.pcOnline ? t("lights.pcOnline") : t("lights.pcOffline")}
-            {d.haOnline === false ? ` · ${t("lights.haOffline")}` : ""}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
+      <PageHeader title={<>{t("nav.lumini")} {lights.error && <StaleBadge error={lights.error} />}</>}
+        sub={<>
+          {t("lights.summary", { on: onCount, total: devices.length })}
+          {" · "}{d.pcOnline ? t("lights.pcOnline") : t("lights.pcOffline")}
+          {d.haOnline === false ? ` · ${t("lights.haOffline")}` : ""}
+        </>}
+        actions={<>
           <button type="button" className="btn" onClick={() => void lights.set("all", { on: true })}><Lightbulb className="size-4" />{t("lights.allOn")}</button>
           <button type="button" className="btn" onClick={() => void lights.set("all", { on: false })}><LightbulbOff className="size-4" />{t("lights.allOff")}</button>
           <button type="button" className="btn ghost" disabled={lights.busy === "undo"} onClick={() => void lights.op({ op: "undo" }, { ok: t("lights.undone") }).catch(() => undefined)}><Undo2 className="size-4" />{t("common.undo")}</button>
           <button type="button" className="btn ghost sm" aria-label={t("common.refresh")} onClick={() => void lights.refresh()}><RefreshCw className="size-3.5" /></button>
-        </div>
-      </div>
+        </>} />
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_300px]">
         <div className="grid content-start gap-5">
-          {rooms.length === 0 && <Empty text={t("lights.empty")} />}
+          {rooms.length === 0 && <Empty text={t("lights.empty")} illustration="lights" />}
           {rooms.map((r) => <RoomCard key={r} room={r} devices={devices.filter((x) => x.room === r)} lights={lights} />)}
           {d.groups.filter((g) => g.kind !== "room").map((g) => {
             const members = new Set(g.members ?? []);
@@ -75,7 +71,7 @@ function Chip({ d }: { d: LightDevice }) {
   const c = stateColor(d.state);
   return (
     <span className="inline-flex items-center gap-2 rounded-full border border-border px-2.5 py-1 text-xs">
-      <span className="size-2.5 rounded-full border border-border-2 bg-bg-2" style={c ? { background: c } : undefined} aria-hidden />{d.name}
+      <span className="size-2.5 shrink-0 rounded-full border border-border-2 bg-bg-2" style={c ? { background: c } : undefined} aria-hidden />{d.name}
     </span>
   );
 }
@@ -90,9 +86,9 @@ function RoomCard({ room, devices, lights }: { room: string; devices: LightDevic
       <ul className="grid gap-2">
         {devices.map((x) => (
           <li key={x.id} className="rounded-xl border border-border px-3 py-2.5">
-            <div className="mb-2 flex items-center gap-2">
-              <span className="text-sm font-medium truncate">{x.name}</span>
-              <span className="text-[11px] text-dim">{tx(`lights.transport.${x.transport}`, x.transport)}</span>
+            <div className="mb-2 flex min-w-0 items-center gap-2">
+              <span className="min-w-0 text-sm font-medium truncate" title={x.name}>{x.name}</span>
+              <span className="shrink-0 text-xs text-muted">{tx(`lights.transport.${x.transport}`, x.transport)}</span>
               <span className="ml-auto"><HealthDot d={x} ble={lights.ble[x.address.toUpperCase()]} /></span>
             </div>
             <LightControls d={x} lights={lights} compact />
@@ -117,15 +113,15 @@ function Scenes({ lights }: { lights: LightsApi }) {
   };
   return (
     <Card title={t("lights.scenes")} sub={t("lights.scenesSub")}>
-      {scenes.length === 0 ? <div className="text-sm text-dim">{t("lights.noScenes")}</div> : (
+      {scenes.length === 0 ? <div className="text-sm text-muted">{t("lights.noScenes")}</div> : (
         <ul className="grid gap-1.5">
           {scenes.map((s) => (
             <li key={s.id} className="flex items-center gap-2">
-              <button type="button" className="btn sm flex-1 justify-start" onClick={() => void lights.op({ op: "scene_apply", id: s.id }, { key: `scene:${s.id}`, ok: t("lights.sceneApplied", { name: s.name }) }).catch(() => undefined)} disabled={lights.busy === `scene:${s.id}`}>
+              <button type="button" className="btn sm min-w-0 flex-1 justify-start" title={s.name} onClick={() => void lights.op({ op: "scene_apply", id: s.id }, { key: `scene:${s.id}`, ok: t("lights.sceneApplied", { name: s.name }) }).catch(() => undefined)} disabled={lights.busy === `scene:${s.id}`}>
                 <Play className="size-3.5" />{s.name}
               </button>
               <button type="button" className="btn ghost sm hover:text-down" aria-label={t("lights.sceneDelete", { name: s.name })}
-                onClick={() => { if (confirm(t("lights.sceneDeleteConfirm", { name: s.name }))) void lights.op({ op: "scene_delete", id: s.id }).catch(() => undefined); }}>
+                onClick={() => void confirmDialog({ title: t("lights.sceneDeleteConfirm", { name: s.name }), confirm: t("common.delete"), danger: true }).then((ok) => ok && lights.op({ op: "scene_delete", id: s.id }).catch(() => undefined))}>
                 <Trash2 className="size-3.5" />
               </button>
             </li>

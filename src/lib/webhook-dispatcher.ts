@@ -61,8 +61,8 @@ function bodyFor(hook: WebhookRow, e: BusEvent): unknown {
       "@type": "MessageCard",
       "@context": "https://schema.org/extensions",
       themeColor: "0078D4",
-      summary: "vmui event",
-      title: "vmui",
+      summary: "Vatra event",
+      title: "Vatra",
       text,
     };
   }

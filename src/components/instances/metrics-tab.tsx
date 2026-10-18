@@ -4,7 +4,7 @@ import { Alert, Badge, Button, PageSection, SkeletonCard, ToggleGroup } from "@/
 import type { MetricSeries, MetricsHistory } from "@/lib/providers/types";
 import { getMetricsHistoryAction } from "@/server/actions/metrics";
 import { RefreshCw } from "lucide-react";
-import { motion } from "motion/react";
+import * as Mo from "motion/react-m";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState, useTransition } from "react";
 
@@ -92,14 +92,14 @@ export function MetricsTab({ accountId, providerInstanceId, enabled = true }: Pr
         {data && (
           <div className="grid gap-4 sm:grid-cols-2">
             {data.series.map((s, i) => (
-              <motion.div
+              <Mo.div
                 key={s.id}
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.2, delay: Math.min(i, 12) * 0.03 }}
               >
                 <SeriesChart series={s} />
-              </motion.div>
+              </Mo.div>
             ))}
           </div>
         )}
@@ -162,7 +162,7 @@ function SeriesChart({ series }: { series: MetricSeries }) {
         </defs>
         {points.length > 1 ? (
           <>
-            <motion.path
+            <Mo.path
               key={path}
               d={`${path} L${w},${h} L0,${h} Z`}
               fill={`url(#grad-${series.id})`}
@@ -170,7 +170,7 @@ function SeriesChart({ series }: { series: MetricSeries }) {
               animate={{ opacity: 1 }}
               transition={{ duration: 0.3 }}
             />
-            <motion.path
+            <Mo.path
               key={`stroke-${path}`}
               d={path}
               fill="none"

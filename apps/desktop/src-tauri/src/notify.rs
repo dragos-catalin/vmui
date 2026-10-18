@@ -8,11 +8,16 @@ use crate::stack;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
-use std::sync::Mutex;
-use std::time::Duration;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter};
 
 static SHOWN: Mutex<Option<HashMap<String, u64>>> = Mutex::new(None);
+/// Bumped on every (re)connect; a reader from an abandoned connection stops at its next line.
+static GEN: AtomicU64 = AtomicU64::new(0);
+/// The Pi sends `: ping` every 25 s; 60 s of silence means a half-open connection.
+const SILENCE: Duration = Duration::from_secs(60);
 
 pub fn run(app: AppHandle) {
     #[cfg(windows)]
@@ -20,17 +25,34 @@ pub fn run(app: AppHandle) {
         stack::log(&format!("notify: aumid: {e}"));
     }
     loop {
-        if let Err(e) = follow(&app) {
-            stack::log(&format!("notify: stream ended: {e}"));
+        let gen = GEN.fetch_add(1, Ordering::SeqCst) + 1;
+        let seen = Arc::new(Mutex::new(Instant::now()));
+        let (a, s) = (app.clone(), seen.clone());
+        let reader = std::thread::spawn(move || {
+            if let Err(e) = follow(&a, gen, &s) {
+                stack::log(&format!("notify: stream ended: {e}"));
+            }
+        });
+        // ureq has no per-read timeout (recv_body is a total budget), so watch the reader instead
+        loop {
+            std::thread::sleep(Duration::from_secs(5));
+            if reader.is_finished() {
+                break;
+            }
+            if seen.lock().unwrap().elapsed() > SILENCE {
+                stack::log("notify: no data for 60 s, reconnecting");
+                break; // the stuck reader is abandoned; GEN makes it exit when it wakes
+            }
         }
         std::thread::sleep(Duration::from_secs(5));
     }
 }
 
-fn follow(app: &AppHandle) -> anyhow::Result<()> {
-    let a: ureq::Agent = ureq::Agent::config_builder().timeout_global(None).build().into();
+fn follow(app: &AppHandle, gen: u64, seen: &Mutex<Instant>) -> anyhow::Result<()> {
+    let a: ureq::Agent = ureq::Agent::config_builder().timeout_connect(Some(Duration::from_secs(10))).timeout_recv_response(Some(Duration::from_secs(20))).build().into();
     let url = format!("{}/api/notify/stream?k={}", stack::VMUI_PI, stack::vmui_token());
     let r = a.get(&url).call()?;
+    *seen.lock().unwrap() = Instant::now();
     let mut rd = BufReader::new(r.into_body().into_reader());
     let mut event = String::new();
     let mut data = String::new();
@@ -40,6 +62,10 @@ fn follow(app: &AppHandle) -> anyhow::Result<()> {
         if rd.read_line(&mut line)? == 0 {
             anyhow::bail!("eof");
         }
+        if GEN.load(Ordering::SeqCst) != gen {
+            anyhow::bail!("superseded");
+        }
+        *seen.lock().unwrap() = Instant::now();
         let l = line.trim_end();
         if let Some(v) = l.strip_prefix("event: ") {
             event = v.to_string();
@@ -128,13 +154,13 @@ fn register_aumid(_app: &AppHandle) -> anyhow::Result<()> {
     use winreg::enums::HKEY_CURRENT_USER;
     use winreg::RegKey;
     let (k, _) = RegKey::predef(HKEY_CURRENT_USER).create_subkey(format!("Software\\Classes\\AppUserModelId\\{APP_ID}"))?;
-    k.set_value("DisplayName", &"vmui")?;
+    k.set_value("DisplayName", &"Vatra")?;
     let dir = std::env::temp_dir().join("vmui-toast");
     std::fs::create_dir_all(&dir)?;
     let icon = dir.join("app.png");
     std::fs::write(&icon, include_bytes!("../icons/128x128.png"))?;
     k.set_value("IconUri", &icon.to_string_lossy().to_string())?;
-    k.set_value("IconBackgroundColor", &"FF0B0F1A")?;
+    k.set_value("IconBackgroundColor", &"FF110B07")?;
     let wide: Vec<u16> = APP_ID.encode_utf16().chain(std::iter::once(0)).collect();
     let hr = unsafe { windows_sys::Win32::UI::Shell::SetCurrentProcessExplicitAppUserModelID(wide.as_ptr()) };
     if hr < 0 {
@@ -206,8 +232,8 @@ fn toast(app: &AppHandle, c: &Value) -> anyhow::Result<()> {
                 } else {
                     let r = act(&id2, aid);
                     let text = match &r {
-                        Ok(v) if v["ok"].as_bool() == Some(true) => v["message"].as_str().unwrap_or("gata").to_string(),
-                        Ok(v) => v["error"].as_str().unwrap_or("nu a mers").to_string(),
+                        Ok(v) if v["ok"].as_bool() == Some(true) => v["message"].as_str().map(str::to_string).unwrap_or_else(|| crate::i18n::t("actDone")),
+                        Ok(v) => v["error"].as_str().map(str::to_string).unwrap_or_else(|| crate::i18n::t("actFailed")),
                         Err(e) => e.to_string(),
                     };
                     let _ = app2.emit("toast", json!({"kind": if r.is_ok() {"ok"} else {"error"}, "text": text}));
@@ -222,7 +248,7 @@ fn toast(app: &AppHandle, c: &Value) -> anyhow::Result<()> {
 fn open_url(app: &AppHandle, url: &str) {
     use tauri_plugin_opener::OpenerExt;
     if let Err(e) = app.opener().open_url(url, None::<&str>) {
-        let _ = app.emit("toast", json!({"kind":"error","text":format!("nu pot deschide {url}: {e}")}));
+        let _ = app.emit("toast", json!({"kind":"error","text":crate::i18n::tf("cantOpen", &[("url", url), ("error", &e.to_string())])}));
     }
 }
 

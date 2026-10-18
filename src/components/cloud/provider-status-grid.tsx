@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { ExternalLink } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
 
 export type ProviderStatusState = "ok" | "incident" | "unknown";
@@ -32,7 +32,7 @@ export function ProviderStatusGrid({ statuses }: { statuses: ProviderStatusItem[
   return (
     <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 3xl:grid-cols-4">
       {statuses.map((s, i) => (
-        <motion.li
+        <m.li
           key={s.id}
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
@@ -55,7 +55,7 @@ export function ProviderStatusGrid({ statuses }: { statuses: ProviderStatusItem[
             </span>
             <ExternalLink className="size-4 shrink-0 text-muted" aria-hidden />
           </a>
-        </motion.li>
+        </m.li>
       ))}
     </ul>
   );

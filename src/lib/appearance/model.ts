@@ -12,14 +12,15 @@ import { z } from "zod";
 export const THEMES = ["light", "dark", "system"] as const;
 export type Theme = (typeof THEMES)[number];
 
-export const ACCENTS = ["indigo", "violet", "rose", "orange", "amber", "emerald", "teal", "sky", "custom"] as const;
+export const ACCENTS = ["ember", "indigo", "violet", "rose", "orange", "amber", "emerald", "teal", "sky", "custom"] as const;
 export type Accent = (typeof ACCENTS)[number];
 /** Hue (oklch, degrees) for each preset; `custom` uses `accentHue`. */
 export const ACCENT_HUE: Record<Exclude<Accent, "custom">, number> = {
+  ember: 48,
   indigo: 265,
   violet: 300,
   rose: 350,
-  orange: 45,
+  orange: 60,
   amber: 75,
   emerald: 150,
   teal: 185,
@@ -37,14 +38,16 @@ export type Vibe = (typeof VIBES)[number];
 
 export const appearanceSchema = z.object({
   theme: z.enum(THEMES).default("system"),
-  accent: z.enum(ACCENTS).default("indigo"),
+  accent: z.enum(ACCENTS).default("ember"),
   /** 0–360, only read when accent === "custom". */
-  accentHue: z.number().min(0).max(360).default(265),
+  accentHue: z.number().min(0).max(360).default(48),
   surface: z.enum(SURFACES).default("glass"),
   density: z.enum(DENSITIES).default("comfortable"),
   vibe: z.enum(VIBES).default("default"),
   /** Overrides the OS setting when set; null = follow `prefers-reduced-motion`. */
   reducedMotion: z.boolean().nullable().default(null),
+  /** Opt-in: neutrals warm up when house lights are on or after sunset ([data-ambient="warm"]). */
+  ambient: z.boolean().default(false),
 });
 export type Appearance = z.infer<typeof appearanceSchema>;
 export const APPEARANCE_DEFAULTS: Appearance = appearanceSchema.parse({});
@@ -77,13 +80,14 @@ export function appearanceAttributes(a: Appearance): Record<string, string> {
     "data-density": a.density,
     "data-vibe": a.vibe,
     ...(a.reducedMotion === null ? {} : { "data-motion": a.reducedMotion ? "reduce" : "full" }),
+    ...(a.ambient ? { "data-ambient": "auto" } : {}),
     style: `--accent-h:${accentHueOf(a)}`,
   };
 }
 
 /** Vibes are presets: picking one also sets accent + surface so the three switchers stay coherent. */
 export const VIBE_PRESET: Record<Vibe, Partial<Pick<Appearance, "accent" | "surface">>> = {
-  default: { accent: "indigo", surface: "glass" },
+  default: { accent: "ember", surface: "glass" },
   cyberpunk: { accent: "rose", surface: "glass" },
   cockpit: { accent: "amber", surface: "flat" },
   strategy: { accent: "amber", surface: "glass" },

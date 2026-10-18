@@ -20,7 +20,7 @@ import {
     type ColumnDef as TanColumnDef,
     type Row as TanRow,
 } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, ArrowUpDown, Search } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, RotateCw, Search, TriangleAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
 import * as React from "react";
 import { Button } from "./button";
@@ -59,18 +59,19 @@ export function DataTableColumnHeader<TData extends RowData, TValue>({
   if (!column.getCanSort()) return <span className={className}>{title}</span>;
   const sorted = column.getIsSorted();
   const Icon = sorted === "asc" ? ArrowUp : sorted === "desc" ? ArrowDown : ArrowUpDown;
+  // The visible title stays the accessible name; the th carries aria-sort, the hint says what a click does.
   return (
     <button
       type="button"
       onClick={column.getToggleSortingHandler()}
-      aria-label={sorted === "asc" ? t("sortDescending") : t("sortAscending")}
       className={cn(
-        "-ml-2 inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] px-2 font-medium text-muted transition-colors hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+        "-ml-2 inline-flex min-h-7 items-center gap-1 rounded-[var(--radius-sm)] px-2 text-left font-medium text-fg-muted transition-colors hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
         sorted && "text-fg",
         className,
       )}
     >
       {title}
+      <span className="sr-only">, {sorted === "asc" ? t("sortDescending") : t("sortAscending")}</span>
       <Icon className={cn("size-3.5", !sorted && "opacity-60")} aria-hidden />
     </button>
   );
@@ -87,6 +88,9 @@ export interface DataTableProps<TData extends RowData> {
   columns: AnyColumnDef<TData>[];
   data: TData[];
   loading?: boolean;
+  /** Load failure: renders an error panel instead of rows; `onRetry` adds a retry button. */
+  error?: React.ReactNode;
+  onRetry?: () => void;
   emptyState?: React.ReactNode;
   getRowId?: (row: TData, index: number) => string;
   onRowClick?: (row: TData) => void;
@@ -94,7 +98,10 @@ export interface DataTableProps<TData extends RowData> {
   pageSize?: number;
   toolbar?: React.ReactNode;
   searchable?: boolean;
+  /** Header sticks inside the table's own scroll box (capped at `maxHeight`), never to the page. */
   stickyHeader?: boolean;
+  /** CSS max-height of the scroll box when `stickyHeader` is on, e.g. "70dvh". Default 70dvh. */
+  maxHeight?: string;
   dense?: boolean;
   rowActions?: (row: TData) => React.ReactNode;
   className?: string;
@@ -104,6 +111,8 @@ export function DataTable<TData extends RowData>({
   columns,
   data,
   loading = false,
+  error,
+  onRetry,
   emptyState,
   getRowId,
   onRowClick,
@@ -112,6 +121,7 @@ export function DataTable<TData extends RowData>({
   toolbar,
   searchable = false,
   stickyHeader = true,
+  maxHeight = "70dvh",
   dense = false,
   rowActions,
   className,
@@ -135,7 +145,7 @@ export function DataTable<TData extends RowData>({
 
   const rows = table.getRowModel().rows;
   const filteredCount = table.getFilteredRowModel().rows.length;
-  const paginated = data.length > pageSize;
+  const paginated = filteredCount > pageSize;
   const pageIndex = table.state.pagination?.pageIndex ?? 0;
   const from = filteredCount === 0 ? 0 : pageIndex * pageSize + 1;
   const to = Math.min(filteredCount, (pageIndex + 1) * pageSize);
@@ -148,11 +158,14 @@ export function DataTable<TData extends RowData>({
         <div className="flex flex-wrap items-center gap-2">
           {searchable && (
             <div className="relative w-full sm:w-64">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden />
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-fg-muted" aria-hidden />
               <Input
                 type="search"
                 value={globalFilter}
-                onChange={(e) => setGlobalFilter(e.target.value)}
+                onChange={(e) => {
+                  setGlobalFilter(e.target.value);
+                  table.setPageIndex(0);
+                }}
                 placeholder={t("search")}
                 aria-label={t("search")}
                 className="pl-8"
@@ -163,12 +176,37 @@ export function DataTable<TData extends RowData>({
         </div>
       )}
 
-      {loading ? (
+      {error ? (
+        <EmptyState
+          compact
+          tone="error"
+          icon={<TriangleAlert />}
+          title={t("loadFailed")}
+          description={typeof error === "string" ? error : undefined}
+          action={
+            onRetry ? (
+              <Button variant="outline" size="sm" onClick={onRetry}>
+                <RotateCw className="size-3.5" aria-hidden />
+                {t("retry")}
+              </Button>
+            ) : undefined
+          }
+        />
+      ) : loading ? (
         <SkeletonTable rows={Math.min(pageSize, 8)} cols={Math.min(colCount, 6)} />
       ) : (
-        <div className="min-w-0 max-w-full overflow-x-auto rounded-[var(--radius-lg)] border border-border">
+        <div
+          role="region"
+          aria-label={t("scrollRegion")}
+          tabIndex={0}
+          className={cn(
+            "min-w-0 max-w-full rounded-[var(--radius-lg)] border border-border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+            stickyHeader ? "overflow-auto" : "overflow-x-auto",
+          )}
+          style={stickyHeader ? { maxHeight } : undefined}
+        >
           <table className="w-full text-sm">
-            <thead className={cn("text-xs text-muted", stickyHeader && "sticky top-0 z-[1] bg-surface/95 backdrop-blur")}>
+            <thead className={cn("text-xs text-fg-muted", stickyHeader && "sticky top-0 z-[1] bg-surface")}>
               {table.getHeaderGroups().map((hg) => (
                 <tr key={hg.id} className="border-b border-border">
                   {hg.headers.map((h) => {
@@ -196,7 +234,7 @@ export function DataTable<TData extends RowData>({
               {rows.length === 0 ? (
                 <tr>
                   <td colSpan={colCount} className="p-3">
-                    {emptyState ?? <EmptyState compact title={t("noResults")} />}
+                    {emptyState ?? <EmptyState compact bare title={t("noResults")} />}
                   </td>
                 </tr>
               ) : (
@@ -217,7 +255,7 @@ export function DataTable<TData extends RowData>({
                         : undefined
                     }
                     className={cn(
-                      "border-b border-border transition-colors last:border-b-0 hover:bg-bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary",
+                      "border-b border-border transition-colors last:border-b-0 hover:bg-bg-muted/60 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
                       onRowClick && "cursor-pointer",
                     )}
                   >
@@ -240,7 +278,7 @@ export function DataTable<TData extends RowData>({
       )}
 
       {!loading && paginated && (
-        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-fg-muted">
           <span className="tabular-nums">{t("showing", { from, to, total: filteredCount })}</span>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>

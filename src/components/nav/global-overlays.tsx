@@ -8,7 +8,8 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { CommandPalette } from "./command-palette";
-import { PALETTE_EVENT, toggleSidebarRail } from "./shell-events";
+import { startNavProgress } from "./nav-progress";
+import { isEditableTarget, PALETTE_EVENT, toggleSidebarRail } from "./shell-events";
 import { ShortcutsDialog } from "./shortcuts-dialog";
 
 /**
@@ -23,6 +24,9 @@ import { ShortcutsDialog } from "./shortcuts-dialog";
  *   T            → toggle theme
  *   [            → collapse / expand the sidebar rail
  *   G then I/A/L/S → go to instances/accounts/log/settings
+ *
+ * Single-key shortcuts never fire while focus is in a text field or a composite widget
+ * (combobox, listbox, grid, menu, slider) — WCAG 2.1.4.
  */
 export function GlobalOverlays() {
   const router = useRouter();
@@ -32,13 +36,6 @@ export function GlobalOverlays() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const goPrefix = useRef<{ at: number } | null>(null);
-
-  const isTypingTarget = (el: EventTarget | null) => {
-    if (!(el instanceof HTMLElement)) return false;
-    if (el.isContentEditable) return true;
-    const tag = el.tagName;
-    return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
-  };
 
   const syncNow = useCallback(() => {
     start(async () => {
@@ -59,6 +56,10 @@ export function GlobalOverlays() {
   }, []);
 
   useEffect(() => {
+    const go = (href: string) => {
+      startNavProgress(href);
+      router.push(href);
+    };
     function onKey(e: KeyboardEvent) {
       // ⌘K / Ctrl+K: always open palette, even when typing.
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -66,7 +67,9 @@ export function GlobalOverlays() {
         setPaletteOpen((p) => !p);
         return;
       }
-      if (isTypingTarget(e.target)) return;
+      if (isEditableTarget(e.target) || isEditableTarget(document.activeElement)) return;
+      // An open modal (dialog/sheet/menu) owns the keyboard.
+      if (document.querySelector('[role="dialog"][data-state="open"],[role="alertdialog"][data-state="open"]')) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
 
       // 'go to' two-key sequence: G then I/A/L/S
@@ -75,19 +78,19 @@ export function GlobalOverlays() {
         switch (e.key.toLowerCase()) {
           case "i":
             e.preventDefault();
-            router.push("/");
+            go("/");
             return;
           case "a":
             e.preventDefault();
-            router.push("/accounts");
+            go("/accounts");
             return;
           case "l":
             e.preventDefault();
-            router.push("/activity");
+            go("/activity");
             return;
           case "s":
             e.preventDefault();
-            router.push("/settings");
+            go("/settings");
             return;
         }
       }
@@ -104,7 +107,7 @@ export function GlobalOverlays() {
         case "n":
         case "N":
           e.preventDefault();
-          router.push("/instances/new");
+          go("/instances/new");
           return;
         case "r":
         case "R":

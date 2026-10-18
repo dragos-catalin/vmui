@@ -12,7 +12,7 @@ import {
     type InstanceSnapshotRow,
 } from "@/server/actions/snapshots";
 import { Camera, RefreshCw, Rocket, Trash2 } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
@@ -234,7 +234,7 @@ function SnapshotList({
           const isDeleting = deletingId === r.id;
           const isRestoring = restoringId === r.id;
           return (
-            <motion.li
+            <m.li
               key={r.id}
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
@@ -280,7 +280,7 @@ function SnapshotList({
               >
                 <Trash2 className="h-3.5 w-3.5" aria-hidden />
               </Button>
-            </motion.li>
+            </m.li>
           );
         })}
       </ul>

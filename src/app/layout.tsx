@@ -1,11 +1,14 @@
 import { AppearanceProvider } from "@/components/appearance/appearance-provider";
 import { ThemedToaster } from "@/components/appearance/themed-toaster";
+import { SPLASH_BOOT_SCRIPT, Splash } from "@/components/brand/splash";
+import { AmbientWarmth } from "@/components/home/ambient-warmth";
 import { IncidentBanner } from "@/components/incident-banner";
 import { ContextRailHost, ContextRailProvider } from "@/components/nav/context-rail";
 import { GlobalOverlays } from "@/components/nav/global-overlays";
 import { MobileNav } from "@/components/nav/mobile-nav";
 import { NavProgress } from "@/components/nav/nav-progress";
 import { Sidebar } from "@/components/nav/sidebar";
+import { SkipLink } from "@/components/nav/skip-link";
 import { Topbar } from "@/components/nav/topbar";
 import { UserMenu } from "@/components/nav/user-menu";
 import { PullToRefresh } from "@/components/pwa/pull-to-refresh";
@@ -28,9 +31,11 @@ import { ensureSchedulerRunning } from "@/lib/scheduler";
 import { startWebhookDispatcher } from "@/lib/webhook-dispatcher";
 import type { Metadata, Viewport } from "next";
 import { NextIntlClientProvider } from "next-intl";
-import { getLocale } from "next-intl/server";
-import { headers } from "next/headers";
+import { getLocale, getTranslations } from "next-intl/server";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import "@fontsource-variable/inter/wght.css";
+import "@fontsource-variable/inter-tight/wght.css";
 import "./globals.css";
 
 // Module-load side effects run in every `next build` page-data worker too
@@ -47,28 +52,23 @@ if (process.env.NEXT_PHASE !== "phase-production-build") {
 }
 
 export const metadata: Metadata = {
-  title: "vmui — multi-cloud VM control",
-  description: "A beautiful interface to manage virtual machines across cloud providers.",
+  title: { default: "Vatra", template: "%s · Vatra" },
+  description: "Vatra — home & machines. One calm place for the house and the machines.",
   manifest: "/manifest.webmanifest",
-  applicationName: "vmui",
+  applicationName: "Vatra",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "vmui",
+    title: "Vatra",
   },
-  icons: {
-    icon: [
-      { url: "/icons/icon-192.svg", type: "image/svg+xml", sizes: "192x192" },
-      { url: "/icons/icon-512.svg", type: "image/svg+xml", sizes: "512x512" },
-    ],
-    apple: "/icons/icon-512.svg",
-  },
+  openGraph: { title: "Vatra", description: "home & machines · casă și mașini", type: "website" },
 };
 
 export const viewport: Viewport = {
+  // Brand bg tokens (vatra-theme.css bg) as hex: browser chrome cannot read CSS variables.
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fbfbfd" },
-    { media: "(prefers-color-scheme: dark)", color: "#14151f" },
+    { media: "(prefers-color-scheme: light)", color: "#fdf9f6" },
+    { media: "(prefers-color-scheme: dark)", color: "#110b07" },
   ],
   width: "device-width",
   initialScale: 1,
@@ -101,22 +101,36 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const bare = path.startsWith("/invite/") || path.startsWith("/sign-in") || path.startsWith("/sign-up");
   const appearance = await resolveAppearance();
   const { style: _accentStyle, ...htmlAttrs } = appearanceAttributes(appearance);
+  const railCookie = (await cookies()).get("vmui_sidebar")?.value;
+  const initialCollapsed = railCookie === "1" ? true : railCookie === "0" ? false : undefined;
+  const tShell = await getTranslations("shell");
   return (
-    <html lang={locale} suppressHydrationWarning {...htmlAttrs} style={{ ["--accent-h" as string]: String(accentHueOf(appearance)) }}>
-      <body className="min-h-screen antialiased">
+    <html
+      lang={locale}
+      suppressHydrationWarning
+      {...htmlAttrs}
+      {...(initialCollapsed === undefined ? {} : { "data-sidebar": initialCollapsed ? "rail" : "full" })}
+      style={{ ["--accent-h" as string]: String(accentHueOf(appearance)) }}
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: SPLASH_BOOT_SCRIPT }} />
+      </head>
+      <body className="min-h-dvh antialiased">
+        <SkipLink />
         <NextIntlClientProvider>
           <AppearanceProvider initial={appearance}>
             <QueryProvider>
               <TooltipProvider delayDuration={300}>
                 <ConfirmProvider>
                   <NavProgress />
+                  {!bare && <Splash label={tShell("splash")} />}
                   <PullToRefresh>
                     {bare ? (
-                      <main className="grid min-h-dvh place-items-center px-4 py-10">{children}</main>
+                      <main className="grid min-h-dvh place-items-center overflow-x-clip px-4 py-10">{children}</main>
                     ) : (
                     <ContextRailProvider>
                       <div className="flex min-h-dvh">
-                        <Sidebar compact={familyOnly} />
+                        <Sidebar compact={familyOnly} initialCollapsed={initialCollapsed} />
                         <div className="flex min-w-0 flex-1 flex-col">
                           <Topbar user={<UserMenuSlot />} compact={familyOnly} />
                           <div className="flex min-w-0 flex-1">
@@ -137,6 +151,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   <ServiceWorkerRegister />
                   <VoiceCommander />
                   <RealtimeListener />
+                  <AmbientWarmth />
                 </ConfirmProvider>
               </TooltipProvider>
             </QueryProvider>

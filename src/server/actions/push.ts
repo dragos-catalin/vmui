@@ -66,7 +66,7 @@ export async function unsubscribePushAction(input: { endpoint: string }) {
 export async function testPushAction(input: { topics: PushTopic[] }) {
   await requireRole("viewer");
   const r = await sendPush((input.topics[0] ?? "state") as PushTopic, {
-    title: "vmui test",
+    title: "Vatra test",
     body: "If you see this, push notifications are working.",
     url: "/",
     tag: "test",

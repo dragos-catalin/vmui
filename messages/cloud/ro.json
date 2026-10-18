@@ -93,7 +93,7 @@
     },
     "probe": {
       "title": "Credențiale și chei",
-      "description": "O singură cheie privată folosită de vmui pentru a colecta metrici cockpit și a transmite jurnalele cloud-init pentru fiecare instanță din acest cont. Stocată criptat cu cheia ta master.",
+      "description": "O singură cheie privată folosită de Vatra pentru a colecta metrici cockpit și a transmite jurnalele cloud-init pentru fiecare instanță din acest cont. Stocată criptat cu cheia ta master.",
       "configured": "Cheie probe configurată",
       "configuredHint": "pregătită pentru metrici live",
       "replace": "Înlocuiește",
@@ -101,6 +101,7 @@
       "privateKey": "Cheie privată (PEM)",
       "passphrase": "Parolă cheie (opțional)",
       "defaultUser": "Utilizator implicit (opțional)",
+      "defaultUserPlaceholder": "ubuntu / ec2-user / root",
       "save": "Salvează cheia",
       "uploaded": "Cheie probe încărcată",
       "removed": "Cheie probe eliminată",
@@ -109,7 +110,7 @@
     },
     "policies": {
       "title": "Politici",
-      "description": "Limite aplicate fiecărei instanțe create sau terminate prin vmui pentru acest cont."
+      "description": "Limite aplicate fiecărei instanțe create sau terminate prin Vatra pentru acest cont."
     },
     "defaultTags": {
       "title": "Etichete implicite",
@@ -222,7 +223,7 @@
       },
       "guide": {
         "title": "Creează un service principal Azure",
-        "description": "Credențiale fără interacțiune pentru vmui — nu e nevoie de login interactiv.",
+        "description": "Credențiale fără interacțiune pentru Vatra — nu e nevoie de login interactiv.",
         "intro": "Rulează în Azure Cloud Shell sau cu Azure CLI instalat local:",
         "outro": "CLI-ul afișează <code>appId</code> (= client ID), <code>password</code> (= client secret) și <code>tenant</code>. Folosește Reader în loc de Contributor dacă vrei doar listare read-only.",
         "docs": "Documentația Microsoft"
@@ -245,8 +246,8 @@
       },
       "guide": {
         "title": "Creează un service account GCP",
-        "description": "Un fișier cu cheia JSON este tot ce are nevoie vmui.",
-        "outro": "Folosește <code>roles/compute.instanceAdmin.v1</code> în loc de <code>compute.viewer</code> dacă vrei ca vmui să pornească, oprească sau repornească VM-uri.",
+        "description": "Un fișier cu cheia JSON este tot ce are nevoie Vatra.",
+        "outro": "Folosește <code>roles/compute.instanceAdmin.v1</code> în loc de <code>compute.viewer</code> dacă vrei ca Vatra să pornească, oprească sau repornească VM-uri.",
         "docs": "Documentația Google Cloud"
       }
     },
@@ -261,14 +262,14 @@
         "description": "Creează un token în consola DigitalOcean cu drepturi de <strong>citire și scriere</strong>. Tokenul este criptat AES-256-GCM și stocat local.",
         "name": "Nume afișat",
         "namePlaceholder": "Echipa mea DigitalOcean",
-        "nameHint": "Afișat în vmui. Nu trebuie să coincidă cu numele echipei din DO.",
+        "nameHint": "Afișat în Vatra. Nu trebuie să coincidă cu numele echipei din DO.",
         "token": "Personal Access Token",
         "tokenHint": "Din Console → API → Tokens/Keys → Generate New Token. Recomandat Read+Write.",
         "defaultRegion": "Regiune implicită"
       },
       "guide": {
         "title": "Obține un PAT DigitalOcean",
-        "description": "Droplets, volume, snapshot-uri, firewall-uri, IP-uri flotante, VPC-uri, load balancere, baze de date gestionate, Spaces și DOKS apar toate în vmui.",
+        "description": "Droplets, volume, snapshot-uri, firewall-uri, IP-uri flotante, VPC-uri, load balancere, baze de date gestionate, Spaces și DOKS apar toate în Vatra.",
         "step1": {
           "title": "Deschide consola DigitalOcean"
         },
@@ -276,7 +277,7 @@
           "title": "Creează un Personal Access Token nou",
           "body": "Navighează la <strong>API → Tokens/Keys → Generate New Token</strong>. Dă-i un nume (de ex. <code>vmui</code>), setează o expirare (90 de zile e un implicit rezonabil) și bifează atât <strong>Read</strong> cât și <strong>Write</strong> pentru ciclul complet de viață.",
           "link": "API → Tokens/Keys",
-          "note": "Dacă vrei ca vmui doar să observe (fără pornire/oprire, fără creare), debifează Write."
+          "note": "Dacă vrei ca Vatra doar să observe (fără pornire/oprire, fără creare), debifează Write."
         },
         "step3": {
           "title": "Copiază tokenul (afișat o singură dată)",
@@ -284,11 +285,11 @@
         },
         "step4": {
           "title": "Alege o regiune implicită",
-          "body": "Alege regiunea pe care o folosești cel mai des. Poți adăuga alte regiuni mai târziu din pagina contului — vmui le sincronizează pe toate în paralel."
+          "body": "Alege regiunea pe care o folosești cel mai des. Poți adăuga alte regiuni mai târziu din pagina contului — Vatra le sincronizează pe toate în paralel."
         },
         "step5": {
           "title": "Lipește tokenul",
-          "body": "Revino la tabul <strong>Personal Access Token</strong> și lipește valoarea. vmui îl verifică și stochează o copie criptată local."
+          "body": "Revino la tabul <strong>Personal Access Token</strong> și lipește valoarea. Vatra îl verifică și stochează o copie criptată local."
         }
       }
     },
@@ -330,7 +331,7 @@
         },
         "step5": {
           "title": "Lipește-l",
-          "body": "Treci la tabul <strong>Token API</strong>. vmui verifică tokenul apelând <code>/servers</code> și stochează o copie criptată local."
+          "body": "Treci la tabul <strong>Token API</strong>. Vatra verifică tokenul apelând <code>/servers</code> și stochează o copie criptată local."
         }
       }
     },
@@ -345,7 +346,7 @@
         "description": "Generează o cheie API IAM în consola Scaleway. Credențialele sunt criptate AES-256-GCM și stocate local.",
         "name": "Nume afișat",
         "namePlaceholder": "Proiectul meu Scaleway",
-        "nameHint": "Afișat în vmui — nu trebuie să coincidă cu numele proiectului Scaleway.",
+        "nameHint": "Afișat în Vatra — nu trebuie să coincidă cu numele proiectului Scaleway.",
         "secretKey": "Cheie secretă",
         "secretKeyHint": "Secret în format UUID din Console → IAM → API Keys → Create API key.",
         "projectId": "ID proiect",
@@ -376,12 +377,12 @@
           "note": "Secretul se vede o singură dată — salvează-l într-un manager de parole. Dacă îl pierzi, generează altă cheie."
         },
         "step4": {
-          "title": "Permisiunile de care are nevoie vmui",
+          "title": "Permisiunile de care are nevoie Vatra",
           "body": "Pentru funcționalitate completă acordă utilizatorului IAM setul de permisiuni <strong>AppleSiliconFullAccess</strong>. Pentru sincronizare read-only e suficient <strong>AppleSiliconReadOnly</strong>."
         },
         "step5": {
           "title": "Lipește-le în tabul Cheie API",
-          "body": "Revino la tabul <strong>Cheie API</strong> și lipește Secret key și ID-ul proiectului. vmui le verifică și stochează o copie criptată local."
+          "body": "Revino la tabul <strong>Cheie API</strong> și lipește Secret key și ID-ul proiectului. Vatra le verifică și stochează o copie criptată local."
         }
       }
     },
@@ -423,7 +424,7 @@
         "title": "Conectare cu chei de acces",
         "name": "Nume prietenos",
         "namePlaceholder": "AWS personal",
-        "nameHint": "Doar o etichetă afișată în vmui.",
+        "nameHint": "Doar o etichetă afișată în Vatra.",
         "accessKeyId": "Access Key ID",
         "accessKeyIdHint": "Începe cu AKIA (pe termen lung) sau ASIA (temporar). Din IAM → Users → Security credentials → Create access key.",
         "secretAccessKey": "Secret Access Key",
@@ -431,7 +432,7 @@
         "sessionToken": "Token de sesiune",
         "sessionTokenHint": "Necesar doar pentru credențiale temporare (AWS SSO / STS / asumare de rol).",
         "defaultRegion": "Regiune implicită",
-        "defaultRegionHint": "Regiunea interogată implicit de vmui. Hosturile dedicate macOS au disponibilitate regională limitată — <code>us-east-1</code> și <code>us-west-2</code> sunt cele mai sigure."
+        "defaultRegionHint": "Regiunea interogată implicit de Vatra. Hosturile dedicate macOS au disponibilitate regională limitată — <code>us-east-1</code> și <code>us-west-2</code> sunt cele mai sigure."
       },
       "guide": {
         "pick": {
@@ -441,14 +442,14 @@
             "title": "A · Utilizator IAM (personal)",
             "subtitle": "Chei de acces statice, pe termen lung",
             "s1": "Ideal pentru conturi personale sau sandbox.",
-            "s2": "vmui folosește cheia de acces direct.",
+            "s2": "Vatra folosește cheia de acces direct.",
             "s3": "Aproximativ 5 minute."
           },
           "b": {
             "title": "B · AWS SSO / Identity Center",
             "subtitle": "Credențiale temporare prin login în browser",
             "s1": "Ideal pentru conturi de firmă.",
-            "s2": "Te autentifici în browser; vmui importă credențialele temporare.",
+            "s2": "Te autentifici în browser; Vatra importă credențialele temporare.",
             "s3": "Aproximativ 3 minute dacă SSO e deja configurat."
           }
         },
@@ -463,13 +464,13 @@
             "body": "Ultima comandă afișează <code>AccessKeyId</code> și <code>SecretAccessKey</code>. Copiază-le pe ambele."
           },
           "step3": {
-            "title": "Alege cum le dai lui vmui",
+            "title": "Alege cum le dai lui Vatra",
             "cliLabel": "Recomandat: configurează CLI-ul",
             "cliBody": "Apoi mergi la tabul <strong>Profil AWS CLI</strong> și apasă <strong>Importă</strong>.",
             "pasteLabel": "Sau: lipește direct",
             "pasteBody": "Treci la tabul <strong>Chei de acces</strong> și lipește-le acolo."
           },
-          "note": "Pentru securitate mai strictă, înlocuiește <code>AmazonEC2FullAccess</code> cu o politică personalizată care acordă doar acțiunile de care are nevoie vmui (RunInstances, StartInstances, StopInstances, DescribeInstances etc.)."
+          "note": "Pentru securitate mai strictă, înlocuiește <code>AmazonEC2FullAccess</code> cu o politică personalizată care acordă doar acțiunile de care are nevoie Vatra (RunInstances, StartInstances, StopInstances, DescribeInstances etc.)."
         },
         "b": {
           "title": "Calea B — AWS SSO / IAM Identity Center",
@@ -479,16 +480,16 @@
           },
           "step2": {
             "title": "Autentifică-te (la fiecare sesiune)",
-            "body": "Tokenurile durează implicit cam 8 h. Rulează din nou când vmui spune că credențialele au expirat."
+            "body": "Tokenurile durează implicit cam 8 h. Rulează din nou când Vatra spune că credențialele au expirat."
           },
           "step3": {
-            "title": "Importă în vmui",
+            "title": "Importă în Vatra",
             "body": "Deschide tabul <strong>Profil AWS CLI</strong> — profilul <code>vmui-sso</code> apare cu insigna <badge>SSO</badge>. Apasă <strong>Importă</strong>."
           },
           "note": "Dacă nu ai IAM Identity Center configurat, administratorul AWS trebuie să îl activeze în contul de management. Folosește Calea A până atunci."
         },
         "perms": {
-          "title": "Permisiunile de care are nevoie vmui",
+          "title": "Permisiunile de care are nevoie Vatra",
           "full": "Pentru funcționalitate completă (listare, pornire, oprire, repornire, terminare, creare, alocare de hosturi dedicate Mac), cea mai simplă politică este:",
           "least": "Pentru privilegii minime, acțiunile necesare sunt:"
         }
@@ -496,7 +497,7 @@
     },
     "localKvm": {
       "title": "Host KVM local",
-      "description": "Conectează o distribuție WSL2 cu QEMU/KVM sau un guest Hyper-V nativ. Alege tipul de guest — vmui controlează ciclul de viață prin QMP sau Hyper-V.",
+      "description": "Conectează o distribuție WSL2 cu QEMU/KVM sau un guest Hyper-V nativ. Alege tipul de guest — Vatra controlează ciclul de viață prin QMP sau Hyper-V.",
       "connected": "Host KVM local conectat",
       "guestKind": "Tip de guest",
       "namePlaceholder": "{kind} local",
@@ -535,8 +536,10 @@
       "fields": {
         "name": "Nume afișat",
         "hostLabel": "Etichetă host",
+        "hostLabelPlaceholder": "pc-acasă · WSL2 Ubuntu",
         "hostLabelHint": "Afișată în lista de instanțe drept host pentru acest VM.",
         "distro": "Numele distribuției WSL",
+        "distroPlaceholder": "Ubuntu-24.04",
         "distroHint": "Numele afișat de wsl --list (sensibil la majuscule).",
         "vmDir": "Directorul VM",
         "vmDirHint": "Cale Linux absolută. Trebuie să conțină {script} (sincronizat din repo la pornire).",
@@ -548,6 +551,7 @@
         "threads": "Fire vCPU",
         "ramMb": "RAM (MiB)",
         "osUsername": "Utilizator guest",
+        "osUsernamePlaceholder": "devuser",
         "osUsernameHint": "Inclus în instalarea nesupravegheată. Litere mici, cifre, _ și - (max. 32). Lasă gol pentru implicit.",
         "osPassword": "Parolă guest",
         "osPasswordPlaceholder": "parola-guest-ului",

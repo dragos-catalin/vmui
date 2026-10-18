@@ -1,9 +1,15 @@
 import { Alert, Button, EmptyState, PageHeader, PageShell } from "@/components/ui";
 import { LayoutDashboard, WifiOff } from "lucide-react";
+import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 
 export const dynamic = "force-static";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("observe.offline");
+  return { title: t("title") };
+}
 
 export default async function OfflinePage() {
   const t = await getTranslations("observe.offline");
@@ -11,7 +17,7 @@ export default async function OfflinePage() {
     <PageShell width="prose">
       <PageHeader title={t("title")} description={t("description")} icon={<WifiOff />} />
       <EmptyState
-        icon={<WifiOff />}
+        illustration="offline"
         title={t("empty.title")}
         description={t("empty.description")}
         action={

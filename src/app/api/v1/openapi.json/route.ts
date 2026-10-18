@@ -3,7 +3,7 @@ import "server-only";
 const SPEC = {
   openapi: "3.1.0",
   info: {
-    title: "vmui public API",
+    title: "Vatra public API",
     version: "1.0.0",
     description:
       "Authenticated bearer-token API for vmui. Create keys at /settings/api-keys.",

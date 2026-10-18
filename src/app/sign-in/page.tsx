@@ -2,10 +2,16 @@ import { AuthCard, AuthDivider } from "@/components/auth/auth-card";
 import { SignInForm } from "@/components/auth/sign-in-form";
 import { SignInWithPasskeyButton } from "@/components/auth/sign-in-with-passkey-button";
 import { userCount } from "@/lib/auth";
+import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("auth.meta");
+  return { title: t("signIn") };
+}
 
 export default async function SignInPage() {
   const n = await userCount();

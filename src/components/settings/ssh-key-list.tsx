@@ -52,8 +52,8 @@ export function SshKeyList({ keys }: { keys: KeyRow[] }) {
         header: t("columns.name"),
         cell: ({ row }) => (
           <div className="min-w-0">
-            <span className="block truncate font-medium">{row.original.name}</span>
-            {row.original.notes && <span className="block truncate text-xs text-fg-muted">{row.original.notes}</span>}
+            <span className="block truncate font-medium" title={row.original.name}>{row.original.name}</span>
+            {row.original.notes && <span className="block truncate text-xs text-fg-muted" title={row.original.notes}>{row.original.notes}</span>}
           </div>
         ),
       },

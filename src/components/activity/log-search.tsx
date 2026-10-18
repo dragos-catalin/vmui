@@ -3,7 +3,7 @@
 import { Badge, Button, EmptyState, Input } from "@/components/ui";
 import type { LogSearchFacets, LogSearchRow } from "@/server/queries/logs";
 import { FileText, Search, X } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useFormatter, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -100,7 +100,7 @@ export function LogSearch({ rows, total, facets, matched, query, accountNames, p
           ))}
         </aside>
 
-        <motion.section
+        <m.section
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2 }}
@@ -109,7 +109,7 @@ export function LogSearch({ rows, total, facets, matched, query, accountNames, p
         >
           {rows.length === 0 ? (
             <div className="p-3">
-              <EmptyState compact icon={<FileText />} title={t("empty.title")} description={t("empty.description")} />
+              <EmptyState illustration="search" compact icon={<FileText />} title={t("empty.title")} description={t("empty.description")} />
             </div>
           ) : (
             <ol className="divide-y divide-border">
@@ -146,7 +146,7 @@ export function LogSearch({ rows, total, facets, matched, query, accountNames, p
               </Button>
             </div>
           )}
-        </motion.section>
+        </m.section>
       </div>
       <p className="text-xs text-fg-muted">{t("matches", { count: total })}</p>
     </div>

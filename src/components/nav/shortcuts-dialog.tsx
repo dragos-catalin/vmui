@@ -40,10 +40,10 @@ export function ShortcutsDialog({
           {SHORTCUTS.map((s) => (
             <li
               key={s.keys}
-              className="flex items-center justify-between rounded-[var(--radius-md)] border border-border bg-bg-muted px-3 py-2"
+              className="flex items-center justify-between gap-2 rounded-[var(--radius-md)] border border-border bg-bg-muted px-3 py-2"
             >
-              <span className="text-muted">{t(s.desc)}</span>
-              <Kbd className="bg-surface">{s.keys}</Kbd>
+              <span className="min-w-0 text-fg-muted">{t(s.desc)}</span>
+              <Kbd className="shrink-0 bg-surface">{s.keys}</Kbd>
             </li>
           ))}
         </ul>

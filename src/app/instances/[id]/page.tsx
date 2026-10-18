@@ -6,6 +6,7 @@ import { CodaiEnvironmentCard } from "@/components/instances/codai-environment-c
 import { ConsoleLinkButton } from "@/components/instances/console-link-button";
 import { ConsoleLogsCard } from "@/components/instances/console-logs-card";
 import { InstanceActions } from "@/components/instances/instance-actions";
+import { InstanceHero } from "@/components/instances/instance-hero";
 import { instanceLabel } from "@/components/instances/instance-label";
 import { InstanceSnapshotsCard } from "@/components/instances/instance-snapshots-card";
 import { parseInstanceSpecs } from "@/components/instances/instance-specs";
@@ -222,7 +223,7 @@ export default async function InstanceDetailPage({ params }: PageProps) {
 
   return (
     <PageShell>
-      <div style={{ viewTransitionName: `inst-${instance.id.replace(/[^a-zA-Z0-9_-]/g, "-")}` }}>
+      <InstanceHero instanceId={instance.id}>
         <PageHeader
           title={label}
           icon={<Icon />}
@@ -242,13 +243,13 @@ export default async function InstanceDetailPage({ params }: PageProps) {
                 {t("back")}
               </Link>
               <span aria-hidden>/</span>
-              <span aria-current="page" className="truncate text-fg">
+              <span aria-current="page" className="truncate text-fg" title={label}>
                 {label}
               </span>
             </nav>
           }
           actions={
-            <div className="flex w-[calc(100vw-2rem)] max-w-full min-w-0 flex-wrap gap-2 sm:w-auto">
+            <div className="flex w-full min-w-0 flex-wrap gap-2 sm:w-auto">
               <InstanceActions instance={instance} />
               <Suspense fallback={null}>
                 <ConsoleLinkButton providerId={instance.provider as ProviderId} region={instance.region} providerInstanceId={instance.providerInstanceId} />
@@ -274,7 +275,7 @@ export default async function InstanceDetailPage({ params }: PageProps) {
             </div>
           }
         />
-      </div>
+      </InstanceHero>
 
       <StatGrid cols={4}>
         <Stat label={t("stats.vcpu")} value={specs.vcpu ?? t("stats.unknown")} icon={<Cpu />} hint={specs.vcpu == null ? t("stats.notReported") : undefined} />

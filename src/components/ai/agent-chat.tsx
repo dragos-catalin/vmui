@@ -5,7 +5,8 @@ import { Alert, Badge, Button, EmptyState, PageHeader, PageSection, PageShell, S
 import { cn } from "@/lib/utils";
 import { askAgentAction, checkOllamaAction } from "@/server/actions/ai";
 import { Bot, ChevronDown, Eraser, RefreshCw, Send, User, Wrench } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence } from "motion/react";
+import * as Mo from "motion/react-m";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, useTransition } from "react";
 
@@ -121,9 +122,9 @@ export function AgentChat() {
           ) : null}
           <AnimatePresence initial={false}>
             {msgs.map((m, i) => (
-              <motion.div key={i} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+              <Mo.div key={i} initial={{ y: 6 }} animate={{ y: 0 }} transition={{ duration: 0.2 }}>
                 <Bubble m={m} />
-              </motion.div>
+              </Mo.div>
             ))}
           </AnimatePresence>
           {pending && (

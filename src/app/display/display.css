@@ -4,8 +4,8 @@
 .display-root,
 .display-root body {
   margin: 0;
-  background: oklch(0.12 0.02 260);
-  color: oklch(0.95 0.02 80);
+  background: oklch(0.155 0.014 55);
+  color: oklch(0.95 0.014 70);
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
@@ -20,12 +20,20 @@
 }
 
 .dk {
-  --accent: #f2b85a;
-  --cool: oklch(0.72 0.1 220);
-  --ivory: oklch(0.95 0.02 80);
-  --muted: oklch(0.82 0.02 80 / 0.72);
-  --plate: color-mix(in oklch, oklch(0.1 0.02 260) 55%, transparent);
-  --hair: oklch(0.95 0.02 80 / 0.14);
+  /* Vatra hearth palette (brand/BRAND.md): warm neutrals h55, ember h48, amber lit h78 */
+  --bg: oklch(0.155 0.014 55);
+  --surface-1: oklch(0.21 0.018 55);
+  --surface-2: oklch(0.24 0.018 55);
+  --surface-3: oklch(0.27 0.018 55);
+  --ember: oklch(0.7 0.16 48);
+  --lit: oklch(0.84 0.13 78);
+  /* --accent is overridden inline by the user-chosen settings.accent */
+  --accent: var(--color-lit, var(--lit));
+  --cool: oklch(0.74 0.1 262);
+  --ivory: oklch(0.95 0.014 70);
+  --muted: oklch(0.76 0.02 65);
+  --plate: color-mix(in oklch, var(--surface-1) 62%, transparent);
+  --hair: oklch(0.95 0.014 70 / 0.14);
   --night: 1;
   position: fixed;
   inset: 0;
@@ -36,7 +44,7 @@
 .dk-night {
   position: absolute;
   inset: 0;
-  background: #000;
+  background: oklch(0 0 0);
   opacity: calc(1 - var(--night));
   transition: opacity 2s linear;
   pointer-events: none;
@@ -78,8 +86,9 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(120% 80% at 70% 0%, oklch(0.24 0.05 260) 0%, transparent 60%),
-    linear-gradient(180deg, oklch(0.14 0.03 265), oklch(0.09 0.02 255));
+    radial-gradient(90% 60% at 85% -10%, color-mix(in oklch, var(--ember) 16%, transparent) 0%, transparent 60%),
+    radial-gradient(60% 50% at -10% 100%, color-mix(in oklch, var(--lit) 10%, transparent) 0%, transparent 60%),
+    linear-gradient(180deg, var(--surface-1), var(--bg));
 }
 .dk-veil {
   position: absolute;
@@ -131,7 +140,7 @@
 
 .plate {
   /* no backdrop-filter: the photo behind it moves every frame */
-  background: color-mix(in oklch, oklch(0.1 0.02 260) 72%, transparent);
+  background: color-mix(in oklch, var(--surface-1) 80%, transparent);
   border: 1px solid var(--hair);
   border-radius: 28px;
   padding: 26px 30px;
@@ -188,7 +197,7 @@
   gap: 22px;
   padding: 14px 24px;
   border-radius: 22px;
-  background: color-mix(in oklch, oklch(0.1 0.02 260) 62%, transparent);
+  background: color-mix(in oklch, var(--surface-1) 72%, transparent);
   border: 1px solid var(--hair);
   box-shadow: 0 20px 50px -24px oklch(0 0 0 / 0.7);
   text-align: right;
@@ -228,7 +237,7 @@
   width: 400px;
   padding: 14px;
   border-radius: 22px;
-  background: color-mix(in oklch, oklch(0.1 0.02 260) 62%, transparent);
+  background: color-mix(in oklch, var(--surface-1) 72%, transparent);
   border: 1px solid var(--hair);
   box-shadow: 0 20px 50px -24px oklch(0 0 0 / 0.7);
   pointer-events: none;
@@ -289,17 +298,38 @@
   align-content: end;
 }
 .clock .time {
-  font-size: 232px;
+  /* 232 px on the Nest Hub (1024x600); fluid elsewhere so it never runs into the caption */
+  font-size: clamp(72px, min(22.6vw, 38vh), 232px);
   font-weight: 200;
   line-height: 0.9;
   letter-spacing: -0.04em;
   text-shadow: 0 6px 40px oklch(0 0 0 / 0.55);
 }
 .clock .date {
-  font-size: 30px;
+  font-size: clamp(18px, 2.9vw, 30px);
   color: var(--muted);
   margin: 12px 0 0 12px;
   text-shadow: 0 2px 16px oklch(0 0 0 / 0.6);
+}
+/* The photo caption shares the bottom edge with the clock: keep it in the right half and,
+   when the clock column is wide, lift it above the clock's baseline row. */
+.clock .caption {
+  max-width: min(44%, 30rem);
+}
+.clock > div:first-child {
+  max-width: 54%;
+}
+@media (max-aspect-ratio: 4/3), (max-width: 700px) {
+  .clock > div:first-child {
+    max-width: none;
+  }
+  .clock .caption {
+    position: static;
+    max-width: none;
+    text-align: left;
+    margin: 14px 0 0 12px;
+    font-size: 14px;
+  }
 }
 .clock .side {
   position: absolute;
@@ -617,7 +647,7 @@
   width: 720px;
   max-height: 520px;
   border-radius: 32px;
-  background: color-mix(in oklch, oklch(0.12 0.02 260) 80%, transparent);
+  background: color-mix(in oklch, var(--surface-2) 88%, transparent);
   border: 1px solid var(--hair);
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
@@ -733,10 +763,75 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: oklch(0.7 0.2 145);
+  background: oklch(0.72 0.15 150);
 }
 .chip.off i {
-  background: oklch(0.65 0.2 25);
+  background: oklch(0.66 0.19 25);
+}
+
+/* loading: the Vatra mark "thinking" instead of a spinner */
+.dk-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 18px;
+  font-size: 18px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ivory);
+}
+/* branded "not paired" state (bad / missing ?k token) */
+.dk-forbidden {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  padding: 48px;
+  text-align: center;
+  color: var(--ivory);
+  font-size: 20px;
+}
+.dk-forbidden svg,
+.dk-forbidden .vt-mark {
+  color: var(--ivory);
+}
+.dk-forbidden p {
+  margin: 0;
+  max-width: 36ch;
+  text-wrap: balance;
+}
+.dk-forbidden-title {
+  font-size: 32px;
+  font-weight: 600;
+}
+/* small idle mark in the clock view corner */
+.dk-mark {
+  position: absolute;
+  left: 48px;
+  top: 28px;
+  color: var(--muted);
+  opacity: 0.8;
+  pointer-events: none;
+}
+.sheet button.b.sheet-close {
+  height: 48px;
+  min-width: 48px;
+  padding: 0;
+  font-size: 20px;
+}
+/* the Hub is touch-only, but a keyboard (debug, desktop preview) still needs a visible focus */
+.dk button:focus-visible,
+.dk input:focus-visible,
+.sheet:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+.sheet:focus {
+  outline: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

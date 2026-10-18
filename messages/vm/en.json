@@ -66,7 +66,7 @@
       "terraform": "Terraform",
       "copy": "copy",
       "copied": "copied",
-      "disclaimer": "These snippets are best-effort starting points — vmui does not round-trip them. Always review before applying."
+      "disclaimer": "These snippets are best-effort starting points — Vatra does not round-trip them. Always review before applying."
     }
   },
   "menu": {
@@ -354,7 +354,7 @@
     "title": "codai environment",
     "description": "Make this VM a codai Environment: installs the codaid daemon over SSH and enrols it (BYO, free).",
     "hint": "Nothing is linked yet. Provisioning installs codaid, which only opens an outbound WebSocket to relay.codai.ro — no inbound ports.",
-    "notConfigured": "Add a codai API key first so vmui can create the environment for you.",
+    "notConfigured": "Add a codai API key first so Vatra can create the environment for you.",
     "configure": "Configure codai",
     "unsupported": "codaid's installer runs on Linux and macOS guests only.",
     "provision": "Provision codai environment",
@@ -366,7 +366,7 @@
     "refreshed": "codai status refreshed",
     "unlink": "Unlink",
     "unlinkConfirm": "Unlink this VM from its codai environment?",
-    "unlinkHint": "Only vmui forgets the link. The environment and the daemon on the VM are untouched; manage them from codai.",
+    "unlinkHint": "Only Vatra forgets the link. The environment and the daemon on the VM are untouched; manage them from codai.",
     "unlinked": "Unlinked from codai",
     "slug": "Slug",
     "environmentId": "Environment",
@@ -377,7 +377,7 @@
     "newProject": "Create new project…",
     "projectName": "New project name",
     "environmentName": "Environment name",
-    "whatHappens": "vmui will create the environment in codai, mint a one-time token, run the codaid installer on the VM over SSH (needs sudo for /usr/local/bin and systemd) and wait up to 5 minutes for the daemon to enrol.",
+    "whatHappens": "Vatra will create the environment in codai, mint a one-time token, run the codaid installer on the VM over SSH (needs sudo for /usr/local/bin and systemd) and wait up to 5 minutes for the daemon to enrol.",
     "state": {
       "notLinked": "Not linked",
       "pending": "Pending",
@@ -515,7 +515,7 @@
     "bootScriptOption": "{name} ({kind})",
     "bootScriptHint": "AWS uses <code>UserData</code>, Azure uses <code>userData</code>, GCP uses <code>startup-script</code> metadata.",
     "whatNextTitle": "What happens next",
-    "whatNextBody": "vmui calls <code>RunInstances</code> on AWS, tags the resource <code>vmui:managed=true</code> and starts polling. For macOS, a Dedicated Host is allocated first if none is available (24-hour minimum billing).",
+    "whatNextBody": "Vatra calls <code>RunInstances</code> on AWS, tags the resource <code>vmui:managed=true</code> and starts polling. For macOS, a Dedicated Host is allocated first if none is available (24-hour minimum billing).",
     "launch": "Launch instance",
     "launched": "Instance launched",
     "estimated": "Estimated cost",
@@ -648,7 +648,7 @@
   "new": {
     "back": "Dashboard",
     "title": "Launch a new instance",
-    "description": "Pick an account, template and size. vmui handles the cloud-specific plumbing.",
+    "description": "Pick an account, template and size. Vatra handles the cloud-specific plumbing.",
     "noAccountsTitle": "Connect a cloud account first",
     "noAccountsDescription": "Instances are launched into one of your connected accounts.",
     "connectAccount": "Connect account"

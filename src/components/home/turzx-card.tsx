@@ -7,6 +7,7 @@ import { Field, SettingsPanel, Subsection } from "@/components/ui/settings-panel
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { useInterval, useInView } from "@/hooks/use-poll";
 import { NOTIFY_APPS, TURZX_BG_SOURCES, TURZX_SKINS, TURZX_VIEW_META, type OptionField, type TurzxBgSource, type TurzxSkin, type TurzxViewId } from "@/lib/turzx/catalog";
 import type { Pomodoro, TurzxBackground, TurzxSettings, TurzxViewConfig } from "@/lib/turzx/settings";
 import { cn } from "@/lib/utils";
@@ -14,13 +15,15 @@ import { pomodoroAction, saveTurzxSettingsAction } from "@/server/actions/home";
 import { ArrowDown, ArrowUp, BellRing, ChevronDown, ChevronUp, Coffee, Image as ImageIcon, MonitorSmartphone, Play, Square } from "lucide-react";
 import { useTranslations } from "next-intl";
 import * as React from "react";
-import { toast } from "sonner";
+import { DEVICE_ACCENTS } from "./accent-swatches";
+import { useHomeAction } from "./use-home-action";
 
-const ACCENTS = ["#7c9cff", "#34d399", "#f472b6", "#fbbf24", "#a78bfa", "#22d3ee", "#fb923c"];
 const MIN_DWELL = 5;
-const CHIP = "rounded-lg border px-2.5 py-1 text-xs transition";
+const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+const CHIP = `min-h-6 rounded-lg border px-2.5 py-1 text-xs transition ${FOCUS}`;
 const CHIP_ON = "border-primary bg-primary/15 text-fg";
 const CHIP_OFF = "border-border text-muted hover:text-fg";
+const MIRROR_MS = 2500;
 
 /** Label above a group of toggle buttons. A `<label>` would forward clicks to the first chip, so this is a plain block. */
 function Group({ label, hint, children, className }: { label: React.ReactNode; hint?: React.ReactNode; children: React.ReactNode; className?: string }) {
@@ -35,45 +38,53 @@ function Group({ label, hint, children, className }: { label: React.ReactNode; h
 
 /** View manager for the 3.5" Turzx desk screen driven by turzx/turzx.py. */
 /** What the panel shows right now: the renderer writes its last pushed frame
- *  once a second, /api/turzx/mirror serves it. Refreshes only while visible. */
+ *  once a second, /api/turzx/mirror serves it. Refreshes every 2.5 s, only
+ *  while the card is on screen and the browser tab is visible. */
 function LiveMirror() {
   const t = useTranslations("turzx");
+  const [ref, inView] = useInView<HTMLDivElement>();
   const [tick, setTick] = React.useState(() => Date.now());
   const [ok, setOk] = React.useState(true);
   const [big, setBig] = React.useState(false);
-  React.useEffect(() => {
-    const id = setInterval(() => {
-      if (document.visibilityState !== "visible") return;
+  const fails = React.useRef(0);
+  useInterval(
+    () => {
       setTick(Date.now());
-      setOk((o) => o || Date.now() % 10000 < 1000); // after a failure, retry roughly every 10 s
-    }, 1000);
-    return () => clearInterval(id);
-  }, []);
+      // after a failure, retry every 4th tick (~10 s)
+      if (!ok && ++fails.current % 4 === 0) setOk(true);
+    },
+    inView ? MIRROR_MS : null,
+  );
   return (
     <Subsection
       title={t("mirror.title")}
       className="space-y-3"
       action={
-        <button type="button" className="rounded-md px-1.5 py-0.5 text-xs text-primary hover:bg-[var(--color-bg-muted)]" onClick={() => setBig((b) => !b)} aria-pressed={big}>
+        <button type="button" className={cn("min-h-6 rounded-md px-1.5 py-0.5 text-xs text-primary-text hover:bg-bg-muted", FOCUS)} onClick={() => setBig((b) => !b)} aria-pressed={big}>
           {big ? t("mirror.zoomOut") : t("mirror.zoomIn")}
         </button>
       }
     >
-      {ok ? (
-        // eslint-disable-next-line @next/next/no-img-element -- dynamic PNG, no optimisation wanted
-        <img
-          src={`/api/turzx/mirror?t=${tick}`}
-          alt={t("mirror.alt")}
-          width={big ? 960 : 480}
-          height={big ? 640 : 320}
-          className="h-auto max-w-full rounded-lg border border-border bg-black"
-          style={{ imageRendering: big ? "pixelated" : "auto" }}
-          onError={() => setOk(false)}
-          onLoad={() => setOk(true)}
-        />
-      ) : (
-        <p className="text-sm text-muted break-words">{t("mirror.offline")}</p>
-      )}
+      <div ref={ref}>
+        {ok ? (
+          // eslint-disable-next-line @next/next/no-img-element -- dynamic PNG, no optimisation wanted
+          <img
+            src={`/api/turzx/mirror?t=${tick}`}
+            alt={t("mirror.alt")}
+            width={big ? 960 : 480}
+            height={big ? 640 : 320}
+            className="h-auto max-w-full rounded-lg border border-border bg-bg-muted"
+            style={{ imageRendering: big ? "pixelated" : "auto" }}
+            onError={() => setOk(false)}
+            onLoad={() => {
+              fails.current = 0;
+              setOk(true);
+            }}
+          />
+        ) : (
+          <p className="break-words text-sm text-muted">{t("mirror.offline")}</p>
+        )}
+      </div>
     </Subsection>
   );
 }
@@ -81,9 +92,10 @@ function LiveMirror() {
 export function TurzxCard({ initial, pomodoro, defaultOpen = false }: { initial: TurzxSettings; pomodoro: Pomodoro; defaultOpen?: boolean }) {
   const t = useTranslations("turzx");
   const [s, setS] = React.useState<TurzxSettings>(initial);
-  const [busy, setBusy] = React.useState(false);
   const [open, setOpen] = React.useState<string | null>(null);
   const dirty = JSON.stringify(s) !== JSON.stringify(initial);
+  const saveAction = useHomeAction(saveTurzxSettingsAction, { success: t("saved"), error: t("saveFailed"), refresh: true });
+  const busy = saveAction.pending;
   const setNotify = (patch: Partial<TurzxSettings["notify"]>) => setS((p) => ({ ...p, notify: { ...p.notify, ...patch } }));
 
   const setView = (id: string, patch: Partial<TurzxViewConfig>) => setS((p) => ({ ...p, views: p.views.map((v) => (v.id === id ? { ...v, ...patch } : v)) }));
@@ -97,13 +109,7 @@ export function TurzxCard({ initial, pomodoro, defaultOpen = false }: { initial:
       return { ...p, views: next };
     });
 
-  const save = async () => {
-    setBusy(true);
-    const r = await saveTurzxSettingsAction(s);
-    setBusy(false);
-    if (!r.ok) toast.error(r.error ?? t("saveFailed"));
-    else toast.success(t("saved"));
-  };
+  const save = () => void saveAction.run(s);
 
   const enabledCount = s.views.filter((v) => v.enabled).length;
   const cycleSec = s.views.filter((v) => v.enabled).reduce((a, v) => a + v.dwellSec, 0);
@@ -131,7 +137,7 @@ export function TurzxCard({ initial, pomodoro, defaultOpen = false }: { initial:
                 <li key={v.id} className={cn("rounded-xl border transition", v.enabled ? "border-primary/40 bg-primary/5" : "border-border opacity-70")}>
                   <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 py-2">
                     <Switch checked={v.enabled} onCheckedChange={(on) => setView(v.id, { enabled: on })} aria-label={t("views.enabled", { name })} className="shrink-0" />
-                    <button type="button" className="min-w-0 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]" onClick={() => setOpen(isOpen ? null : v.id)} aria-expanded={isOpen}>
+                    <button type="button" className={cn("min-w-0 rounded-md text-left", FOCUS)} title={name} onClick={() => setOpen(isOpen ? null : v.id)} aria-expanded={isOpen}>
                       <span className="flex min-w-0 items-center gap-1.5">
                         <span className="min-w-0 truncate text-sm font-medium leading-tight">{name}</span>
                         {v.background?.mode === "photo" && <ImageIcon className="size-3.5 shrink-0 text-muted" aria-label={t("views.ownPhotoBg")} />}
@@ -141,15 +147,15 @@ export function TurzxCard({ initial, pomodoro, defaultOpen = false }: { initial:
                       </span>
                     </button>
                     <div className="flex shrink-0 items-center gap-0.5">
-                      <Button size="icon" variant="ghost" className="shrink-0" aria-label={t("views.moveUp", { name })} onClick={() => move(v.id, -1)} disabled={i === 0}><ArrowUp className="size-4" /></Button>
-                      <Button size="icon" variant="ghost" className="shrink-0" aria-label={t("views.moveDown", { name })} onClick={() => move(v.id, 1)} disabled={i === s.views.length - 1}><ArrowDown className="size-4" /></Button>
+                      <Button size="icon" variant="ghost" className="shrink-0" aria-label={t("views.moveUp", { name })} onClick={() => move(v.id, -1)} disabled={i === 0}><ArrowUp className="size-4" aria-hidden /></Button>
+                      <Button size="icon" variant="ghost" className="shrink-0" aria-label={t("views.moveDown", { name })} onClick={() => move(v.id, 1)} disabled={i === s.views.length - 1}><ArrowDown className="size-4" aria-hidden /></Button>
                       <Button size="icon" variant="ghost" className="shrink-0" onClick={() => setOpen(isOpen ? null : v.id)} aria-label={isOpen ? t("views.collapse") : t("views.configure")} aria-expanded={isOpen}>
-                        {isOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+                        {isOpen ? <ChevronUp className="size-4" aria-hidden /> : <ChevronDown className="size-4" aria-hidden />}
                       </Button>
                     </div>
                   </div>
                   {isOpen && (
-                    <div className="space-y-3 border-t border-[var(--color-border)] px-3 py-3">
+                    <div className="space-y-3 border-t border-border px-3 py-3">
                       <p className="text-xs leading-snug text-muted break-words">{t(`views.${v.id}.description`)}</p>
                       <div className="grid items-start gap-3 sm:grid-cols-2">
                         <Field label={t("views.dwell", { n: v.dwellSec })}>
@@ -179,12 +185,15 @@ export function TurzxCard({ initial, pomodoro, defaultOpen = false }: { initial:
         </Subsection>
 
         <Subsection
-          title={<span className="inline-flex items-center gap-2"><BellRing className="size-3.5 text-primary" aria-hidden /> {t("notify.title")}</span>}
+          title={<span className="inline-flex items-center gap-2"><BellRing className="size-3.5 text-primary-text" aria-hidden /> {t("notify.title")}</span>}
           hint={t("notify.hint")}
-          action={<span onClick={(e) => e.preventDefault()}><Switch checked={s.notify.enabled} onCheckedChange={(v) => setNotify({ enabled: v })} aria-label={t("notify.enabled")} /></span>}
           collapsible
           defaultOpen={false}
         >
+          {/* HM-36: the master switch lives in the body, not inside <summary> (no nested interactive). */}
+          <Field inline label={t("notify.enabled")}>
+            <Switch checked={s.notify.enabled} onCheckedChange={(v) => setNotify({ enabled: v })} aria-label={t("notify.enabled")} />
+          </Field>
           <div className="grid items-start gap-3 sm:grid-cols-2">
             <Field inline label={t("notify.presenceOnly")} hint={t("notify.presenceOnlyHint")}>
               <Switch checked={s.notify.presenceOnly} onCheckedChange={(v) => setNotify({ presenceOnly: v })} aria-label={t("notify.presenceOnlyAria")} />
@@ -262,10 +271,23 @@ export function TurzxCard({ initial, pomodoro, defaultOpen = false }: { initial:
             </Field>
             <Group label={t("screen.accent")} className="sm:col-span-2">
               <div className="flex flex-wrap gap-2">
-                {ACCENTS.map((c) => (
-                  <button key={c} type="button" aria-label={t("screen.accentAria", { color: c })} aria-pressed={s.accent === c} onClick={() => setS({ ...s, accent: c })} className={cn("size-8 shrink-0 rounded-full ring-offset-2 ring-offset-bg transition", s.accent === c && "ring-2 ring-fg")} style={{ background: c }} />
-                ))}
-                <input type="color" value={s.accent} onChange={(e) => setS({ ...s, accent: e.target.value })} aria-label={t("screen.customAccent")} className="size-8 shrink-0 rounded-full border-0 bg-transparent" />
+                {DEVICE_ACCENTS.map((c) => {
+                  const on = s.accent.toLowerCase() === c.hex;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      aria-label={t("screen.accentAria", { color: t(`accents.${c.id}`) })}
+                      title={t(`accents.${c.id}`)}
+                      aria-pressed={on}
+                      onClick={() => setS({ ...s, accent: c.hex })}
+                      // selected = inner ring; keyboard focus = separate outline
+                      className={cn("size-8 shrink-0 rounded-full border-2 transition", FOCUS, on ? "border-fg" : "border-transparent")}
+                      style={{ background: c.css }}
+                    />
+                  );
+                })}
+                <input type="color" value={s.accent} onChange={(e) => setS({ ...s, accent: e.target.value })} aria-label={t("screen.customAccent")} className={cn("size-8 shrink-0 rounded-full border-0 bg-transparent", FOCUS)} />
               </div>
             </Group>
           </div>
@@ -382,26 +404,18 @@ function OptionInput({ view, field, value, onChange }: { view: TurzxViewId; fiel
 
 function PomodoroBar({ p }: { p: Pomodoro }) {
   const t = useTranslations("turzx");
-  const [busy, setBusy] = React.useState(false);
   const [, tick] = React.useState(0);
-  React.useEffect(() => {
-    if (p.phase === "idle") return;
-    const id = setInterval(() => tick((n) => n + 1), 1000);
-    return () => clearInterval(id);
-  }, [p.phase]);
+  useInterval(() => tick((n) => n + 1), p.phase === "idle" ? null : 1000);
+  const action = useHomeAction(pomodoroAction, { error: t("saveFailed"), refresh: true });
+  const busy = action.pending;
   const left = Math.max(0, p.endsAt - Date.now());
   const mm = Math.floor(left / 60_000);
   const ss = Math.floor((left % 60_000) / 1000);
-  const act = async (cmd: "start" | "break" | "stop") => {
-    setBusy(true);
-    const r = await pomodoroAction(cmd);
-    setBusy(false);
-    if (!r.ok) toast.error(r.error ?? t("saveFailed"));
-  };
+  const act = (cmd: "start" | "break" | "stop") => void action.run(cmd);
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] p-3">
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-3">
       <div className="flex min-w-0 items-center gap-3">
-        <Coffee className="size-5 shrink-0 text-primary" aria-hidden />
+        <Coffee className="size-5 shrink-0 text-primary-text" aria-hidden />
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold">
             {t("pomodoro.title")} {p.phase !== "idle" && <span className="font-normal text-muted">{t("pomodoro.round", { n: p.round })}</span>}
@@ -414,9 +428,9 @@ function PomodoroBar({ p }: { p: Pomodoro }) {
         </div>
       </div>
       <div className="flex shrink-0 flex-wrap gap-2">
-        {p.phase !== "work" && <Button size="sm" onClick={() => act("start")} disabled={busy}><Play className="size-3.5" /> {t("pomodoro.startWork")}</Button>}
-        {p.phase === "work" && <Button size="sm" variant="secondary" onClick={() => act("break")} disabled={busy}><Coffee className="size-3.5" /> {t("pomodoro.startBreak")}</Button>}
-        {p.phase !== "idle" && <Button size="sm" variant="ghost" onClick={() => act("stop")} disabled={busy}><Square className="size-3.5" /> {t("pomodoro.stop")}</Button>}
+        {p.phase !== "work" && <Button size="sm" onClick={() => act("start")} disabled={busy}><Play className="size-3.5" aria-hidden /> {t("pomodoro.startWork")}</Button>}
+        {p.phase === "work" && <Button size="sm" variant="secondary" onClick={() => act("break")} disabled={busy}><Coffee className="size-3.5" aria-hidden /> {t("pomodoro.startBreak")}</Button>}
+        {p.phase !== "idle" && <Button size="sm" variant="ghost" onClick={() => act("stop")} disabled={busy}><Square className="size-3.5" aria-hidden /> {t("pomodoro.stop")}</Button>}
       </div>
     </div>
   );

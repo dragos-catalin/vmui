@@ -162,6 +162,7 @@ export default async function CostsPage() {
 
       {rows.length === 0 ? (
         <EmptyState
+          fill
           icon={<Cloud />}
           title={t("empty.title")}
           description={t("empty.description")}

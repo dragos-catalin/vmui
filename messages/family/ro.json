@@ -95,7 +95,7 @@
   },
   "existing": {
     "title": "Adaugă un utilizator existent",
-    "hint": "Conturi care se pot autentifica în vmui, dar nu au încă acces la casă.",
+    "hint": "Conturi care se pot autentifica în Vatra, dar nu au încă acces la casă.",
     "user": "Utilizator",
     "pick": "Alege un utilizator",
     "add": "Adaugă în gospodărie",

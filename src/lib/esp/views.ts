@@ -181,7 +181,7 @@ async function viewTodo(fb: Framebuffer, ctx: ViewContext): Promise<void> {
 async function viewNotes(fb: Framebuffer, ctx: ViewContext): Promise<void> {
   // Notes = the last things the operator did in vmui (audit log), which
   // doubles as a "what did I change" reminder on the desk.
-  band(fb, "Ultimele actiuni", "vmui");
+  band(fb, "Ultimele actiuni", "Vatra");
   const rows = await db.select({ action: auditLog.action, target: auditLog.target, createdAt: auditLog.createdAt }).from(auditLog).orderBy(desc(auditLog.createdAt)).limit(5);
   if (!rows.length) return void textCentered(fb, 34, "nimic");
   let y = 18;

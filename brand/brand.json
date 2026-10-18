@@ -1,0 +1,76 @@
+{
+  "name": "Vatra",
+  "version": "1.0.0",
+  "owner": "Dragos Catalin Vladulescu",
+  "writtenAs": "Vatra",
+  "tagline": { "en": "home & machines", "ro": "casă și mașini" },
+  "previousName": "vmui",
+  "locales": ["en", "ro"],
+  "tokens": {
+    "format": "dtcg-2025.10",
+    "generator": "scripts/tokens.mjs",
+    "sources": [
+      "tokens/primitives.tokens.json",
+      "tokens/semantic.tokens.json",
+      "tokens/typography.tokens.json",
+      "tokens/motion.tokens.json"
+    ],
+    "contrastPairs": "contrast-pairs.json"
+  },
+  "mark": {
+    "generator": "scripts/mark.mjs",
+    "opticalSizes": {
+      "master": ">=64px",
+      "small": "24-48px",
+      "micro": "<=20px"
+    },
+    "motion": "scripts/motion.mjs"
+  },
+  "fonts": [
+    {
+      "family": "Inter Variable",
+      "role": "ui",
+      "licence": "OFL-1.1",
+      "package": "@fontsource-variable/inter",
+      "subsets": ["latin", "latin-ext"],
+      "verifiedGlyphs": { "date": null, "mode": "union", "result": null }
+    },
+    {
+      "family": "Inter Tight Variable",
+      "role": "display",
+      "licence": "OFL-1.1",
+      "package": "@fontsource-variable/inter-tight",
+      "subsets": ["latin", "latin-ext"],
+      "verifiedGlyphs": { "date": null, "mode": "union", "result": null }
+    }
+  ],
+  "outputs": {
+    "css": "dist/css/vatra-theme.css",
+    "motionCss": "dist/css/vatra-motion.css",
+    "icons": "dist/",
+    "motion": "dist/motion/"
+  },
+  "platforms": ["web", "pwa", "windows", "tray"],
+  "consumers": [
+    {
+      "surface": "web app (Next.js)",
+      "path": "src/app/globals.css",
+      "imports": "brand/dist/css/vatra-theme.css + vatra-motion.css"
+    },
+    {
+      "surface": "web icons",
+      "path": "src/app/{favicon.ico,icon.svg,apple-icon.png,opengraph-image.png}",
+      "imports": "dist/web/*"
+    },
+    {
+      "surface": "PWA",
+      "path": "public/manifest.webmanifest + public/icons/*",
+      "imports": "dist/web/*"
+    },
+    {
+      "surface": "desktop (Tauri)",
+      "path": "apps/desktop/src/app.css + src-tauri/icons/*",
+      "imports": "dist/css/* + dist/tauri/* + dist/tray/*"
+    }
+  ]
+}

@@ -55,7 +55,14 @@
     "rowsPerPage": "Rânduri pe pagină",
     "sortAscending": "Sortează crescător",
     "sortDescending": "Sortează descrescător",
-    "actions": "Acțiuni"
+    "actions": "Acțiuni",
+    "confirm": "Confirmă",
+    "actionFailed": "Acțiunea a eșuat",
+    "typeToConfirm": "Scrie <code>{phrase}</code> ca să confirmi",
+    "loadFailed": "Nu s-a putut încărca",
+    "noData": "Fără date",
+    "trend": "Tendință",
+    "scrollRegion": "Conținut derulabil"
   },
   "home": {
     "title": "Acasă",
@@ -63,6 +70,7 @@
     "openHa": "Home Assistant",
     "haDown": "Home Assistant nu răspunde",
     "haDownHint": "{error}. Se arată ultima configurație cunoscută; comenzile vor eșua până revine.",
+    "haNotConfigured": "Home Assistant nu e configurat încă: adaugă <code>HA_URL</code> și <code>HA_TOKEN</code> în <code>.private/credentials.env</code>. Până atunci se arată ultima configurație cunoscută.",
     "noAccess": {
       "title": "Nu ai acces la această casă",
       "hint": "Roagă proprietarul să te adauge în familie și să îți acorde camere."
@@ -101,7 +109,11 @@
     "quick": {
       "label": "Acțiuni rapide",
       "ambilight": "Ambilight",
-      "mode": { "movie": "Film", "music": "Muzică", "off": "Cameră caldă" },
+      "mode": {
+        "movie": "Film",
+        "music": "Muzică",
+        "off": "Cameră caldă"
+      },
       "modeApplied": "{name} pornit",
       "water": "Apă",
       "waterProgress": "{ml} / {target} ml",
@@ -110,7 +122,8 @@
       "armFor": "Auto-deschidere {n} min",
       "armed": "Interfonul se deschide automat {n} min",
       "deskButton": "Buton birou",
-      "failed": "Nu a mers"
+      "failed": "Nu a mers",
+      "addMl": "+{ml} ml"
     },
     "vitals": {
       "bedroom": "Dormitor",
@@ -125,7 +138,7 @@
     },
     "rooms": {
       "bedroom": "Dormitor",
-      "living_room": "Living",
+      "living_room": "Sufragerie",
       "kitchen": "Bucătărie",
       "office": "Birou",
       "viewOnly": "doar vizualizare"
@@ -142,7 +155,13 @@
       "open": "deschis",
       "closed": "închis",
       "off": "oprit",
+      "on": "pornit",
       "unavailable": "indisponibil"
+    },
+    "error": {
+      "title": "Casa nu s-a putut încărca",
+      "hint": "Home Assistant sau baza de date n-a răspuns la timp. Dispozitivele tale merg în continuare; încearcă din nou peste câteva clipe.",
+      "retry": "Încearcă din nou"
     }
   }
 }

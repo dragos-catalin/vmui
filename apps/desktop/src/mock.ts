@@ -40,6 +40,7 @@ const handlers: Record<string, Handler> = {
   vmui_send: async ({ method, path, body }) => { const p = String(path); const r = await fetch(`${VMUI}${p}${p.includes("?") ? "&" : "?"}k=${K}`, { method: String(method), headers: { "content-type": "application/json" }, body: JSON.stringify(body) }); if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json().catch(() => ({ ok: true })); },
   app_info: () => ({ root: "E:\\gh\\vmui", vmui: VMUI, haUrl: "", displayUrl: `${VMUI}/display?k=${K}`, version: "mock" }),
   lang_get: () => lang,
+  app_ready: () => true,
   lang_set: ({ lang: l }) => { lang = l === "en" ? "en" : "ro"; },
   lights_get: () => lights,
   lights_op: ({ body }) => { calls.push({ cmd: "lights_op:body", args: body }); return { ok: true }; },

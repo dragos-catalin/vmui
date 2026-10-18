@@ -14,7 +14,7 @@ import {
     type RecipeResult,
 } from "@/server/actions/recipes";
 import { Eye, Play, RefreshCw, StopCircle } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -103,24 +103,24 @@ export function RecipesGrid() {
 
   return (
     <>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 3xl:grid-cols-4">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-2 xl:grid-cols-3 3xl:grid-cols-4">
         {RECIPES.map((r, i) => {
           const Icon = r.icon;
           const list = previews[r.id];
           return (
-            <motion.article
+            <m.article
               key={r.id}
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.2, delay: i * 0.03 }}
-              className="surface card-hover flex flex-col gap-3 p-4"
+              className="surface card-hover flex min-w-0 flex-col gap-3 p-4"
             >
-              <header className="flex items-start justify-between gap-2">
+              <header className="flex flex-wrap items-start justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-2">
                   <span className={`grid size-9 shrink-0 place-items-center rounded-[var(--radius-md)] bg-bg-muted ${TONE_TEXT[r.tone]}`} aria-hidden>
                     <Icon className="size-4" />
                   </span>
-                  <h3 className="truncate text-sm font-semibold">{t(`items.${r.id}.label`)}</h3>
+                  <h3 className="min-w-0 break-words text-sm font-semibold">{t(`items.${r.id}.label`)}</h3>
                 </div>
                 <Badge variant={TONE_BADGE[r.tone]}>{t(`tones.${r.tone}`)}</Badge>
               </header>
@@ -141,7 +141,7 @@ export function RecipesGrid() {
                   <Play className="size-4" aria-hidden /> {t("run")}
                 </Button>
               </div>
-            </motion.article>
+            </m.article>
           );
         })}
       </div>

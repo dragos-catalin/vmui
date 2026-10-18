@@ -5,6 +5,7 @@ import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAction } from "@/hooks/use-action";
+import { useInterval } from "@/hooks/use-poll";
 import { ok, type ActionResult } from "@/lib/action-result";
 import {
     createSecretAction,
@@ -212,15 +213,17 @@ function RevealedAlert({ name, value, startedAt, onDismiss }: { name: string; va
   const [left, setLeft] = React.useState(REVEAL_SECONDS);
   const [copied, setCopied] = React.useState(false);
 
-  React.useEffect(() => {
-    setLeft(REVEAL_SECONDS);
-    const id = setInterval(() => {
+  React.useEffect(() => setLeft(REVEAL_SECONDS), [startedAt]);
+  // Keeps ticking in a hidden tab so a revealed secret never outlives its window.
+  useInterval(
+    () => {
       const remaining = Math.max(0, REVEAL_SECONDS - Math.floor((Date.now() - startedAt) / 1000));
       setLeft(remaining);
       if (remaining === 0) onDismiss();
-    }, 250);
-    return () => clearInterval(id);
-  }, [startedAt, onDismiss]);
+    },
+    250,
+    { pauseHidden: false },
+  );
 
   const copy = async () => {
     await navigator.clipboard.writeText(value);

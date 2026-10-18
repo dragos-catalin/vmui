@@ -157,7 +157,7 @@ export function WebhooksCard({ initial }: { initial: WebhookRow[] }) {
         header: t("columns.name"),
         cell: ({ row }) => (
           <span className="flex min-w-0 flex-wrap items-center gap-2">
-            <span className="truncate font-medium">{row.original.name}</span>
+            <span className="truncate font-medium" title={row.original.name}>{row.original.name}</span>
             {row.original.enabled === 0 && <Badge variant="muted">{t("disabledBadge")}</Badge>}
           </span>
         ),
@@ -178,7 +178,14 @@ export function WebhooksCard({ initial }: { initial: WebhookRow[] }) {
         accessorFn: (r) => parseChannels(r.channels).join(" "),
         header: t("columns.channels"),
         enableSorting: false,
-        cell: ({ row }) => <span className="block max-w-[16rem] truncate text-xs text-fg-muted">{parseChannels(row.original.channels).join(", ") || "—"}</span>,
+        cell: ({ row }) => {
+          const list = parseChannels(row.original.channels).join(", ");
+          return (
+            <span className="block max-w-[16rem] truncate text-xs text-fg-muted" title={list || undefined}>
+              {list || "—"}
+            </span>
+          );
+        },
       },
       {
         accessorKey: "lastStatus",
@@ -294,7 +301,7 @@ export function WebhooksCard({ initial }: { initial: WebhookRow[] }) {
                         onClick={() => toggleChannel(c)}
                         aria-pressed={on}
                         className={cn(
-                          "min-h-10 rounded-full border px-3 font-mono text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                          "min-h-10 rounded-full border px-3 font-mono text-2xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                           on
                             ? "border-primary bg-[color-mix(in_oklch,var(--color-primary)_15%,transparent)] text-primary"
                             : "border-border text-fg-muted hover:text-fg",
@@ -355,7 +362,7 @@ export function WebhooksCard({ initial }: { initial: WebhookRow[] }) {
                 <li key={h.id} className="flex items-baseline gap-2 rounded-[var(--radius-sm)] bg-bg-muted px-2 py-1 font-mono">
                   <span className={cn("shrink-0", h.status === "ok" ? "text-success" : "text-danger")}>{h.status}</span>
                   <span className="shrink-0 text-fg-muted">{format.dateTime(new Date(h.createdAt), { dateStyle: "short", timeStyle: "short" })}</span>
-                  <span className="min-w-0 truncate">{h.message ?? ""}</span>
+                  <span className="min-w-0 truncate" title={h.message ?? undefined}>{h.message ?? ""}</span>
                 </li>
               ))}
             </ul>

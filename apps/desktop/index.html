@@ -4,10 +4,59 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>vmui</title>
+    <meta name="color-scheme" content="dark light" />
+    <title>Vatra</title>
+    <!-- Critical CSS: brand background + the splash, painted before any JS (DK-40). Colours are the
+         generated Vatra tokens as hex (bg / fg / ember / amber) because nothing else is loaded yet. -->
+    <style>
+        html, body { margin: 0; height: 100%; background: #110b07; color-scheme: dark; }
+        #splash { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; align-content: center; gap: 20px;
+            background: #110b07; color: #f5ede5; --vt-flame: #ec7b38; --vt-core: #f9bf60; --vt-track: #382e28; }
+        @media (prefers-color-scheme: light) {
+            html, body { background: #fdf9f6; color-scheme: light; }
+            #splash { background: #fdf9f6; color: #20120c; --vt-flame: #bc4f00; --vt-core: #efb146; --vt-track: #e5dcd7; }
+        }
+        #splash .vt-mark { width: 72px; height: 72px; overflow: visible; transform-origin: center; will-change: transform; }
+        #splash .vt-progress { width: 72px; height: 2px; border-radius: 1px; background: var(--vt-track); overflow: hidden; }
+        #splash .vt-progress::after { content: ""; display: block; width: 40%; height: 100%; border-radius: 1px; background: var(--vt-flame);
+            animation: vt-load 1100ms cubic-bezier(0.65, 0, 0.35, 1) infinite; }
+        @keyframes vt-load { from { transform: translateX(-100%) } to { transform: translateX(250%) } }
+        /* intro, copied from brand/dist/css/vatra-motion.css */
+        .vt-mark .vt-puff, .vt-mark .vt-flame, .vt-mark .vt-core { transform-box: fill-box; }
+        .vt-mark .vt-puff { transform-origin: center; }
+        .vt-mark .vt-flame, .vt-mark .vt-core { transform-origin: 50% 100%; }
+        @keyframes vt-draw { from { stroke-dashoffset: 101 } to { stroke-dashoffset: 0 } }
+        @keyframes vt-ignite { 0% { transform: scale(0); opacity: 0 } 60% { transform: scale(1.12, 1.18); opacity: 1 } 100% { transform: scale(1); opacity: 1 } }
+        @keyframes vt-pop { from { transform: translateY(40%) scale(0); opacity: 0 } to { transform: none; opacity: var(--vt-op, 1) } }
+        .vt-mark[data-state="intro"] .vt-roof, .vt-mark[data-state="intro"] .vt-walls { stroke-dasharray: 101 101; animation: vt-draw 633ms cubic-bezier(0.65, 0, 0.35, 1) both; }
+        .vt-mark[data-state="intro"] .vt-walls { animation-delay: 138ms; }
+        .vt-mark[data-state="intro"] .vt-flame, .vt-mark[data-state="intro"] .vt-core { animation: vt-ignite 368ms cubic-bezier(0.16, 1, 0.3, 1) 633ms both; }
+        .vt-mark[data-state="intro"] .vt-puff { animation: vt-pop 260ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+        .vt-mark[data-state="intro"] .vt-p1 { animation-delay: 897ms; }
+        .vt-mark[data-state="intro"] .vt-p2 { animation-delay: 989ms; }
+        .vt-mark[data-state="intro"] .vt-p3 { animation-delay: 1081ms; }
+        @media (prefers-reduced-motion: reduce) {
+            #splash *, #splash *::after { animation: none !important; }
+        }
+    </style>
 </head>
 
 <body>
+    <div id="splash" aria-hidden="true">
+        <!-- master geometry from src/brand/vatra-geometry.ts, same fit as VatraMark -->
+        <svg class="vt-mark" data-state="intro" viewBox="0 0 48 48" focusable="false">
+            <g transform="translate(0.51 3.01) scale(0.9789)">
+                <path class="vt-roof" pathLength="100" d="M6 28.5 L24 13 L30.2 18.34 V9.5 H37 V24.19 L42 28.5" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+                <path class="vt-walls" pathLength="100" d="M11 31 V39.5 Q11 42 13.5 42 H34.5 Q37 42 37 39.5 V31" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+                <path class="vt-flame" fill="var(--vt-flame)" d="M24 37.8 C21.148 37.8 19.4 35.9 19.4 33.3 C19.4 30.2 21.6 29.1 23.1 25.8 C26.9 27.9 28.6 30.7 28.6 33.5 C28.6 36.1 26.76 37.8 24 37.8 Z" />
+                <path class="vt-core" fill="var(--vt-core)" d="M24 37 C22.6 37 21.7 36 21.7 34.7 C21.7 33.1 22.9 32.4 23.5 30.7 C25.3 31.8 26.3 33.3 26.3 34.8 C26.3 36.1 25.3 37 24 37 Z" />
+                <circle class="vt-puff vt-p1" cx="34.2" cy="4" r="2.3" fill="currentColor" fill-opacity="0.95" />
+                <circle class="vt-puff vt-p2" cx="37.8" cy="1.4" r="1.72" fill="currentColor" fill-opacity="0.7" />
+                <circle class="vt-puff vt-p3" cx="40.7" cy="-1.7" r="1.29" fill="currentColor" fill-opacity="0.45" />
+            </g>
+        </svg>
+        <div class="vt-progress"></div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
 </body>

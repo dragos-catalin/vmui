@@ -1,9 +1,10 @@
 "use client";
 
-import { DonutCard, HeatmapGrid } from "@/components/charts";
+import { HeatmapGrid } from "@/components/charts/heatmap";
+import { DonutCard } from "./lazy-charts";
 import { Badge, Stat, StatGrid } from "@/components/ui";
 import { CheckCircle2, XCircle } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useFormatter, useTranslations } from "next-intl";
 
 export interface StatusBoardProps {
@@ -25,7 +26,7 @@ export function StatusBoard(p: StatusBoardProps) {
   const format = useFormatter();
   return (
     <div className="space-y-6">
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.2 }}
@@ -38,7 +39,7 @@ export function StatusBoard(p: StatusBoardProps) {
         <p className="text-xs text-fg-muted">
           {t("generatedAt", { when: format.dateTime(new Date(p.generatedAt), { dateStyle: "medium", timeStyle: "short" }) })}
         </p>
-      </motion.div>
+      </m.div>
 
       <StatGrid cols={4}>
         <Stat label={t("stats.instances")} value={p.totalInstances} />

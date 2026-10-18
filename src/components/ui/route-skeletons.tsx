@@ -19,7 +19,7 @@ function range(n: number): number[] {
 function SkeletonHeader() {
   return (
     <div className="flex items-center gap-3">
-      <Skeleton className="size-10 rounded-[var(--radius-md)]" />
+      <Skeleton className="size-9 rounded-[var(--radius-md)]" />
       <div className="space-y-2">
         <Skeleton className="h-7 w-56" />
         <Skeleton className="h-3 w-80 max-w-[70vw]" />
@@ -30,7 +30,7 @@ function SkeletonHeader() {
 
 function SkeletonForm({ fields }: { fields: number }) {
   return (
-    <div className="surface space-y-5 p-6">
+    <div className="surface space-y-5 p-4 sm:p-5">
       {range(fields).map((i) => (
         <div key={i} className="space-y-2">
           <Skeleton className="h-3 w-28" />
@@ -56,7 +56,7 @@ export async function PageSkeleton({ header, stats, table, cards, list, form, na
       <span className="sr-only">{t("loading")}</span>
       {header ? <SkeletonHeader /> : null}
       {stats ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
           {range(stats).map((i) => (
             <SkeletonStat key={i} />
           ))}
@@ -64,13 +64,13 @@ export async function PageSkeleton({ header, stats, table, cards, list, form, na
       ) : null}
       {table ? <SkeletonTable rows={table.rows} cols={table.cols} /> : null}
       {cards ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {range(cards).map((i) => (
             <SkeletonCard key={i} />
           ))}
         </div>
       ) : null}
-      {list ? <SkeletonList rows={list} className="surface p-4" /> : null}
+      {list ? <SkeletonList rows={list} className="surface p-4 sm:p-5" /> : null}
       {form ? <SkeletonForm fields={form} /> : null}
     </div>
   );

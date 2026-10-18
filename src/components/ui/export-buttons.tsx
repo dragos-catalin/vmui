@@ -40,22 +40,22 @@ function download(blob: Blob, name: string): void {
 
 export function ExportButtons({ filename, rows }: ExportButtonsProps) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <Button
-        variant="ghost"
+        variant="outline"
         size="sm"
         onClick={() => download(new Blob([toCsv(rows)], { type: "text/csv" }), `${filename}.csv`)}
       >
-        <Download className="h-3.5 w-3.5" /> CSV
+        <Download className="size-4" aria-hidden /> CSV
       </Button>
       <Button
-        variant="ghost"
+        variant="outline"
         size="sm"
         onClick={() =>
           download(new Blob([JSON.stringify(rows, null, 2)], { type: "application/json" }), `${filename}.json`)
         }
       >
-        <Download className="h-3.5 w-3.5" /> JSON
+        <Download className="size-4" aria-hidden /> JSON
       </Button>
     </div>
   );

@@ -2,7 +2,7 @@
 
 import { ProviderTile } from "@/components/cloud/provider-tile";
 import { Badge } from "@/components/ui";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 
@@ -20,7 +20,7 @@ export function IdleHintList({ hints }: { hints: IdleHint[] }) {
   return (
     <ul className="grid gap-2">
       {hints.map((h, i) => (
-        <motion.li
+        <m.li
           key={h.instanceId}
           initial={i < MAX_ANIMATED ? { opacity: 0, y: 6 } : false}
           animate={{ opacity: 1, y: 0 }}
@@ -38,7 +38,7 @@ export function IdleHintList({ hints }: { hints: IdleHint[] }) {
             <Badge variant="warning">{t("badge")}</Badge>
             <span className="shrink-0 text-right text-sm tabular-nums text-muted">{t("avgCpu", { pct: h.averageCpuPct.toFixed(1) })}</span>
           </Link>
-        </motion.li>
+        </m.li>
       ))}
     </ul>
   );

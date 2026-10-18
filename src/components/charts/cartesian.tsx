@@ -1,5 +1,6 @@
 "use client";
 
+import { useReducedMotionConfig } from "motion/react";
 import { useFormatter } from "next-intl";
 import * as React from "react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ReferenceDot, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
@@ -41,7 +42,8 @@ function useAxes<T extends object>(props: CartesianChartProps<T>) {
   const format = useFormatter();
   const tick = AXIS_TICK(theme);
   const xAxis = (
-    <XAxis dataKey={props.x as string} tick={tick} tickLine={false} axisLine={{ stroke: theme.grid }} tickFormatter={props.xFormatter} minTickGap={24} />
+    // padding.left + tickMargin keep the first date label clear of the lowest Y label in the corner.
+    <XAxis dataKey={props.x as string} tick={tick} tickLine={false} axisLine={{ stroke: theme.grid }} tickFormatter={props.xFormatter} minTickGap={24} tickMargin={6} padding={{ left: 12, right: 8 }} />
   );
   const yAxis = (
     <YAxis
@@ -72,16 +74,17 @@ function useAxes<T extends object>(props: CartesianChartProps<T>) {
       ))}
     </>
   );
-  return { theme, xAxis, yAxis, grid, tooltip, legend, extras };
+  const animate = !useReducedMotionConfig() && props.data.length <= 200;
+  return { theme, xAxis, yAxis, grid, tooltip, legend, extras, animate };
 }
 
 function cardProps<T extends object>(p: CartesianChartProps<T>) {
-  const { title, description, action, height, loading, emptyTitle, className } = p;
-  return { title, description, action, height, loading, emptyTitle, className, empty: p.data.length === 0 };
+  const { title, description, action, height, loading, emptyTitle, error, onRetry, className } = p;
+  return { title, description, action, height, loading, emptyTitle, error, onRetry, className, empty: p.data.length === 0 };
 }
 
 export function AreaChartCard<T extends object>(props: CartesianChartProps<T>) {
-  const { theme, xAxis, yAxis, grid, tooltip, legend, extras } = useAxes(props);
+  const { theme, xAxis, yAxis, grid, tooltip, legend, extras, animate } = useAxes(props);
   const gradId = React.useId();
   return (
     <ChartCard {...cardProps(props)}>
@@ -115,7 +118,7 @@ export function AreaChartCard<T extends object>(props: CartesianChartProps<T>) {
               fill={`url(#${gradId}-${s.key})`}
               dot={false}
               activeDot={{ r: 3 }}
-              isAnimationActive={props.data.length <= 200}
+              isAnimationActive={animate}
               animationDuration={300}
               connectNulls
             />
@@ -129,7 +132,7 @@ export function AreaChartCard<T extends object>(props: CartesianChartProps<T>) {
 }
 
 export function LineChartCard<T extends object>(props: CartesianChartProps<T>) {
-  const { theme, xAxis, yAxis, grid, tooltip, legend, extras } = useAxes(props);
+  const { theme, xAxis, yAxis, grid, tooltip, legend, extras, animate } = useAxes(props);
   return (
     <ChartCard {...cardProps(props)}>
       <div role="img" aria-label={props.ariaLabel} className="h-full w-full">
@@ -149,7 +152,7 @@ export function LineChartCard<T extends object>(props: CartesianChartProps<T>) {
               strokeWidth={1.75}
               dot={false}
               activeDot={{ r: 3 }}
-              isAnimationActive={props.data.length <= 200}
+              isAnimationActive={animate}
               animationDuration={300}
               connectNulls
             />
@@ -163,7 +166,7 @@ export function LineChartCard<T extends object>(props: CartesianChartProps<T>) {
 }
 
 export function BarChartCard<T extends object>(props: CartesianChartProps<T> & { horizontal?: boolean }) {
-  const { theme, xAxis, yAxis, grid, tooltip, legend, extras } = useAxes(props);
+  const { theme, xAxis, yAxis, grid, tooltip, legend, extras, animate } = useAxes(props);
   return (
     <ChartCard {...cardProps(props)}>
       <div role="img" aria-label={props.ariaLabel} className="h-full w-full">
@@ -181,7 +184,7 @@ export function BarChartCard<T extends object>(props: CartesianChartProps<T> & {
               stackId={props.stacked ? "stack" : undefined}
               fill={toneColor(theme, s.tone, i)}
               radius={props.stacked ? 0 : [4, 4, 0, 0]}
-              isAnimationActive={props.data.length <= 200}
+              isAnimationActive={animate}
               animationDuration={300}
             />
           ))}

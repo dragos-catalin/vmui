@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuthMark } from "@/components/auth/auth-card";
 import { translateAuthError } from "@/components/auth/auth-errors";
 import { AuthField, PasswordInput } from "@/components/auth/auth-field";
 import { Alert } from "@/components/ui/alert";
@@ -17,6 +18,7 @@ const ROLES = ["admin", "operator", "viewer"] as const;
 export function SignUpForm({ firstUser }: { firstUser: boolean }) {
   const t = useTranslations("auth");
   const [state, action, pending] = useActionState(signUpAction, initial);
+  useAuthMark(pending, pending ? null : (state?.error ?? null));
   const error = translateAuthError(t, state?.error);
   return (
     <form action={action} className="space-y-4">

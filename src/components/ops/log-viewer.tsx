@@ -2,6 +2,7 @@
 
 import { Button, Input } from "@/components/ui";
 import { cn } from "@/lib/utils";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { ArrowDownToLine, Check, Copy, Search, WrapText } from "lucide-react";
 import { useTranslations } from "next-intl";
 import * as React from "react";
@@ -31,10 +32,13 @@ export interface LogViewerProps {
 const TONE: Record<NonNullable<ReturnType<NonNullable<LogViewerProps["lineTone"]>>>, string> = {
   default: "",
   muted: "text-fg-muted",
-  success: "text-success",
-  warning: "text-warning",
-  danger: "text-danger",
+  success: "text-[color-mix(in_oklch,var(--color-success)_75%,var(--color-fg))]",
+  warning: "text-warning-text",
+  danger: "text-[color-mix(in_oklch,var(--color-danger)_80%,var(--color-fg))]",
 };
+
+/** Line height of `text-xs leading-relaxed` (12px * 1.625). */
+const LINE_PX = 19.5;
 
 function highlight(line: string, q: string): React.ReactNode {
   if (!q) return line;
@@ -58,6 +62,11 @@ function highlight(line: string, q: string): React.ReactNode {
   return parts;
 }
 
+/**
+ * Streaming log panel. Rows are virtualised (TanStack Virtual), so a 50k-line build log costs the same
+ * as a 50-line one. The log region is `aria-live="off"`: an unbounded stream would flood a screen reader;
+ * only search results are announced, through a separate status region.
+ */
 export function LogViewer({
   lines,
   text,
@@ -86,10 +95,22 @@ export function LogViewer({
     return all.map((line, i) => ({ line, i })).filter(({ line }) => line.toLowerCase().includes(q));
   }, [all, query]);
 
+  const virtualizer = useVirtualizer({
+    count: visible.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => LINE_PX,
+    overscan: 24,
+  });
+
   React.useEffect(() => {
-    if (!autoScroll || !scrollRef.current) return;
-    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [all.length, autoScroll, visible.length]);
+    // Remeasure when wrapping toggles: row heights change.
+    virtualizer.measure();
+  }, [wrap, virtualizer]);
+
+  React.useEffect(() => {
+    if (!autoScroll || visible.length === 0) return;
+    virtualizer.scrollToIndex(visible.length - 1, { align: "end" });
+  }, [visible.length, autoScroll, virtualizer]);
 
   async function copy() {
     try {
@@ -102,13 +123,20 @@ export function LogViewer({
   }
 
   const matchCount = query ? visible.length : 0;
+  const items = virtualizer.getVirtualItems();
 
   return (
     <div className={cn("surface flex min-w-0 flex-col overflow-hidden", className)}>
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
-        {title && <span className="min-w-0 truncate text-xs font-semibold">{title}</span>}
+        {title && (
+          <span className="min-w-0 truncate text-xs font-semibold" title={typeof title === "string" ? title : undefined}>
+            {title}
+          </span>
+        )}
         <span className="text-xs tabular-nums text-fg-muted">{t("lines", { count: all.length })}</span>
-        {query && <span className="text-xs tabular-nums text-fg-muted">{t("matches", { count: matchCount })}</span>}
+        <span role="status" className={cn("text-xs tabular-nums text-fg-muted", !query && "sr-only")}>
+          {query ? t("matches", { count: matchCount }) : ""}
+        </span>
         <div className="ml-auto flex flex-wrap items-center gap-1.5">
           {searchable && (
             <div className="relative">
@@ -165,19 +193,37 @@ export function LogViewer({
       <div
         ref={scrollRef}
         role="log"
-        aria-live="polite"
+        aria-live="off"
         aria-busy={loading || undefined}
-        className={cn("overflow-auto bg-bg-muted/40 p-3 font-mono text-xs leading-relaxed [scrollbar-width:thin]", height)}
+        aria-label={typeof title === "string" ? title : undefined}
+        tabIndex={0}
+        className={cn(
+          "overflow-auto bg-bg-muted/40 p-3 font-mono text-xs leading-relaxed [scrollbar-width:thin] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
+          height,
+        )}
       >
         {all.length === 0 ? (
           <p className="text-fg-muted">{loading ? t("waiting") : (emptyLabel ?? t("empty"))}</p>
         ) : (
-          <ol className={cn("min-w-0", wrap ? "whitespace-pre-wrap break-all" : "whitespace-pre")}>
-            {visible.map(({ line, i }) => (
-              <li key={i} className={cn("tabular-nums", TONE[lineTone?.(line, i) ?? "default"])}>
-                {highlight(line, query)}
-              </li>
-            ))}
+          <ol
+            className={cn("relative min-w-0", wrap ? "whitespace-pre-wrap break-all" : "w-max min-w-full whitespace-pre")}
+            style={{ height: virtualizer.getTotalSize() }}
+          >
+            {items.map((vi) => {
+              const row = visible[vi.index];
+              if (!row) return null;
+              return (
+                <li
+                  key={row.i}
+                  data-index={vi.index}
+                  ref={virtualizer.measureElement}
+                  className={cn("absolute left-0 top-0 w-full tabular-nums", TONE[lineTone?.(row.line, row.i) ?? "default"])}
+                  style={{ transform: `translateY(${vi.start}px)` }}
+                >
+                  {highlight(row.line, query) || "\u00a0"}
+                </li>
+              );
+            })}
           </ol>
         )}
         {loading && all.length > 0 && <span className="pulse-dot mt-1 inline-block size-1.5 rounded-full bg-primary" aria-hidden />}

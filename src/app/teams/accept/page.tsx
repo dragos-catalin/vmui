@@ -2,11 +2,17 @@ import { Alert, Button, PageHeader, PageShell } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth";
 import { acceptInvitationAction } from "@/server/actions/teams";
 import { MailCheck } from "lucide-react";
+import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("govern.accept");
+  return { title: t("title") };
+}
 
 type ErrorKey = "missing" | "notFound" | "accepted" | "expired" | "generic";
 

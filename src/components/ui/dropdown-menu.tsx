@@ -13,9 +13,9 @@ export const DropdownMenuSub = DropdownMenuPrimitive.Sub;
 export const DropdownMenuRadioGroup = DropdownMenuPrimitive.RadioGroup;
 
 const contentClass =
-  "z-50 min-w-44 overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-1 text-sm shadow-xl backdrop-blur-md " +
-  "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 " +
-  "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95";
+  "z-[var(--z-modal)] min-w-44 overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-1 text-sm shadow-[var(--shadow-md)] backdrop-blur-md " +
+  "data-[state=open]:animate-in data-[state=closed]:animate-out " +
+  "";
 
 export const DropdownMenuContent = React.forwardRef<
   React.ComponentRef<typeof DropdownMenuPrimitive.Content>,
@@ -81,7 +81,7 @@ export const DropdownMenuCheckboxItem = React.forwardRef<
   >
     <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
       <DropdownMenuPrimitive.ItemIndicator>
-        <Check className="h-3.5 w-3.5" />
+        <Check className="h-3.5 w-3.5" aria-hidden />
       </DropdownMenuPrimitive.ItemIndicator>
     </span>
     {children}
@@ -100,7 +100,7 @@ export const DropdownMenuRadioItem = React.forwardRef<
   >
     <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
       <DropdownMenuPrimitive.ItemIndicator>
-        <Circle className="h-2 w-2 fill-current" />
+        <Circle className="h-2 w-2 fill-current" aria-hidden />
       </DropdownMenuPrimitive.ItemIndicator>
     </span>
     {children}
@@ -118,7 +118,7 @@ export const DropdownMenuSubTrigger = React.forwardRef<
     {...props}
   >
     {children}
-    <ChevronRight className="ml-auto h-4 w-4 opacity-60" />
+    <ChevronRight className="ml-auto h-4 w-4 opacity-60" aria-hidden />
   </DropdownMenuPrimitive.SubTrigger>
 ));
 DropdownMenuSubTrigger.displayName = "DropdownMenuSubTrigger";
@@ -129,7 +129,7 @@ export const DropdownMenuLabel = ({
   ...props
 }: React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Label> & { inset?: boolean }) => (
   <DropdownMenuPrimitive.Label
-    className={cn("px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted", inset && "pl-7", className)}
+    className={cn("px-2.5 py-1.5 text-2xs font-semibold uppercase tracking-wider text-fg-muted", inset && "pl-7", className)}
     {...props}
   />
 );
@@ -145,5 +145,5 @@ export const DropdownMenuSeparator = ({
 );
 
 export const DropdownMenuShortcut = ({ className, ...props }: React.HTMLAttributes<HTMLSpanElement>) => (
-  <span className={cn("ml-auto text-[11px] tracking-widest text-muted", className)} {...props} />
+  <span className={cn("ml-auto text-2xs tracking-widest text-fg-muted", className)} {...props} />
 );

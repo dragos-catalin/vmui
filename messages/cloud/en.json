@@ -93,7 +93,7 @@
     },
     "probe": {
       "title": "Credentials & keys",
-      "description": "One private key used by vmui to collect cockpit metrics and stream cloud-init logs for every instance in this account. Stored encrypted with your master key.",
+      "description": "One private key used by Vatra to collect cockpit metrics and stream cloud-init logs for every instance in this account. Stored encrypted with your master key.",
       "configured": "Probe key configured",
       "configuredHint": "ready for live metrics",
       "replace": "Replace",
@@ -101,6 +101,7 @@
       "privateKey": "Private key (PEM)",
       "passphrase": "Passphrase (optional)",
       "defaultUser": "Default user (optional)",
+      "defaultUserPlaceholder": "ubuntu / ec2-user / root",
       "save": "Save key",
       "uploaded": "Probe key uploaded",
       "removed": "Probe key removed",
@@ -109,7 +110,7 @@
     },
     "policies": {
       "title": "Policies",
-      "description": "Guard-rails applied to every instance created or terminated through vmui for this account."
+      "description": "Guard-rails applied to every instance created or terminated through Vatra for this account."
     },
     "defaultTags": {
       "title": "Default tags",
@@ -222,7 +223,7 @@
       },
       "guide": {
         "title": "Create an Azure service principal",
-        "description": "Headless credentials for vmui — no interactive login needed.",
+        "description": "Headless credentials for Vatra — no interactive login needed.",
         "intro": "Run in Azure Cloud Shell or with the Azure CLI installed locally:",
         "outro": "The CLI prints <code>appId</code> (= client ID), <code>password</code> (= client secret) and <code>tenant</code>. Use Reader instead of Contributor if you only want read-only listing.",
         "docs": "Microsoft docs"
@@ -245,8 +246,8 @@
       },
       "guide": {
         "title": "Create a GCP service account",
-        "description": "A JSON key file is all vmui needs.",
-        "outro": "Use <code>roles/compute.instanceAdmin.v1</code> instead of <code>compute.viewer</code> if you want vmui to start, stop or reboot VMs.",
+        "description": "A JSON key file is all Vatra needs.",
+        "outro": "Use <code>roles/compute.instanceAdmin.v1</code> instead of <code>compute.viewer</code> if you want Vatra to start, stop or reboot VMs.",
         "docs": "Google Cloud docs"
       }
     },
@@ -261,14 +262,14 @@
         "description": "Create a token in the DigitalOcean console with <strong>read & write</strong> scopes. The token is encrypted with AES-256-GCM and stored locally.",
         "name": "Display name",
         "namePlaceholder": "My DigitalOcean team",
-        "nameHint": "Shown in vmui. Does not need to match your DO team name.",
+        "nameHint": "Shown in Vatra. Does not need to match your DO team name.",
         "token": "Personal Access Token",
         "tokenHint": "From Console → API → Tokens/Keys → Generate New Token. Read+Write recommended.",
         "defaultRegion": "Default region"
       },
       "guide": {
         "title": "Get a DigitalOcean PAT",
-        "description": "Droplets, volumes, snapshots, firewalls, floating IPs, VPCs, load balancers, managed databases, Spaces and DOKS all surface in vmui.",
+        "description": "Droplets, volumes, snapshots, firewalls, floating IPs, VPCs, load balancers, managed databases, Spaces and DOKS all surface in Vatra.",
         "step1": {
           "title": "Open the DigitalOcean console"
         },
@@ -276,7 +277,7 @@
           "title": "Create a new Personal Access Token",
           "body": "Navigate to <strong>API → Tokens/Keys → Generate New Token</strong>. Give it a name (e.g. <code>vmui</code>), set an expiration (90 days is a sensible default), and tick both <strong>Read</strong> and <strong>Write</strong> scopes for full lifecycle.",
           "link": "API → Tokens/Keys",
-          "note": "If you only want vmui to observe (no power on/off, no create), uncheck Write."
+          "note": "If you only want Vatra to observe (no power on/off, no create), uncheck Write."
         },
         "step3": {
           "title": "Copy the token (shown once)",
@@ -284,11 +285,11 @@
         },
         "step4": {
           "title": "Pick a default region",
-          "body": "Choose the region you most often use. You can add more regions later from the account page — vmui syncs all of them in parallel."
+          "body": "Choose the region you most often use. You can add more regions later from the account page — Vatra syncs all of them in parallel."
         },
         "step5": {
           "title": "Paste the token",
-          "body": "Switch back to the <strong>Personal Access Token</strong> tab and paste the value. vmui verifies it and stores an encrypted copy locally."
+          "body": "Switch back to the <strong>Personal Access Token</strong> tab and paste the value. Vatra verifies it and stores an encrypted copy locally."
         }
       }
     },
@@ -330,7 +331,7 @@
         },
         "step5": {
           "title": "Paste it",
-          "body": "Switch to the <strong>API token</strong> tab. vmui verifies the token by calling <code>/servers</code> and stores an encrypted copy locally."
+          "body": "Switch to the <strong>API token</strong> tab. Vatra verifies the token by calling <code>/servers</code> and stores an encrypted copy locally."
         }
       }
     },
@@ -345,7 +346,7 @@
         "description": "Generate an IAM API key in the Scaleway console. Credentials are encrypted with AES-256-GCM and stored locally.",
         "name": "Display name",
         "namePlaceholder": "My Scaleway project",
-        "nameHint": "Shown in vmui — does not need to match your Scaleway project name.",
+        "nameHint": "Shown in Vatra — does not need to match your Scaleway project name.",
         "secretKey": "Secret key",
         "secretKeyHint": "UUID-format secret from Console → IAM → API Keys → Create API key.",
         "projectId": "Project ID",
@@ -376,12 +377,12 @@
           "note": "You only see the secret once — save it to a password manager. If you lose it, just generate another key."
         },
         "step4": {
-          "title": "Permissions vmui needs",
+          "title": "Permissions Vatra needs",
           "body": "For full functionality grant the IAM user the <strong>AppleSiliconFullAccess</strong> permission set. For read-only sync, <strong>AppleSiliconReadOnly</strong> is enough."
         },
         "step5": {
           "title": "Paste them in the API key tab",
-          "body": "Switch back to the <strong>API key</strong> tab and paste the Secret key and Project ID. vmui verifies them and stores an encrypted copy locally."
+          "body": "Switch back to the <strong>API key</strong> tab and paste the Secret key and Project ID. Vatra verifies them and stores an encrypted copy locally."
         }
       }
     },
@@ -423,7 +424,7 @@
         "title": "Connect with access keys",
         "name": "Friendly name",
         "namePlaceholder": "Personal AWS",
-        "nameHint": "Just a label shown in vmui.",
+        "nameHint": "Just a label shown in Vatra.",
         "accessKeyId": "Access Key ID",
         "accessKeyIdHint": "Starts with AKIA (long-term) or ASIA (temporary). From IAM → Users → Security credentials → Create access key.",
         "secretAccessKey": "Secret Access Key",
@@ -431,7 +432,7 @@
         "sessionToken": "Session token",
         "sessionTokenHint": "Required only for temporary credentials (AWS SSO / STS / role assumption).",
         "defaultRegion": "Default region",
-        "defaultRegionHint": "The region vmui queries by default. macOS dedicated hosts have limited regional availability — <code>us-east-1</code> and <code>us-west-2</code> are the safest."
+        "defaultRegionHint": "The region Vatra queries by default. macOS dedicated hosts have limited regional availability — <code>us-east-1</code> and <code>us-west-2</code> are the safest."
       },
       "guide": {
         "pick": {
@@ -441,14 +442,14 @@
             "title": "A · IAM user (personal)",
             "subtitle": "Static long-term access keys",
             "s1": "Best for personal or sandbox accounts.",
-            "s2": "vmui uses the access key directly.",
+            "s2": "Vatra uses the access key directly.",
             "s3": "About 5 minutes."
           },
           "b": {
             "title": "B · AWS SSO / Identity Center",
             "subtitle": "Temporary credentials via browser login",
             "s1": "Best for company accounts.",
-            "s2": "You log in via browser; vmui imports the temporary credentials.",
+            "s2": "You log in via browser; Vatra imports the temporary credentials.",
             "s3": "About 3 minutes if SSO is already set up."
           }
         },
@@ -463,13 +464,13 @@
             "body": "The last command prints <code>AccessKeyId</code> and <code>SecretAccessKey</code>. Copy both."
           },
           "step3": {
-            "title": "Pick how to feed them to vmui",
+            "title": "Pick how to feed them to Vatra",
             "cliLabel": "Recommended: configure the CLI",
             "cliBody": "Then go to the <strong>AWS CLI profile</strong> tab and click <strong>Import</strong>.",
             "pasteLabel": "Or: paste directly",
             "pasteBody": "Switch to the <strong>Access keys</strong> tab and paste them there."
           },
-          "note": "For tighter security, replace <code>AmazonEC2FullAccess</code> with a custom policy granting only the actions vmui needs (RunInstances, StartInstances, StopInstances, DescribeInstances, etc.)."
+          "note": "For tighter security, replace <code>AmazonEC2FullAccess</code> with a custom policy granting only the actions Vatra needs (RunInstances, StartInstances, StopInstances, DescribeInstances, etc.)."
         },
         "b": {
           "title": "Path B — AWS SSO / IAM Identity Center",
@@ -479,16 +480,16 @@
           },
           "step2": {
             "title": "Log in (every session)",
-            "body": "Tokens last about 8h by default. Re-run this when vmui says credentials expired."
+            "body": "Tokens last about 8h by default. Re-run this when Vatra says credentials expired."
           },
           "step3": {
-            "title": "Import in vmui",
+            "title": "Import in Vatra",
             "body": "Open the <strong>AWS CLI profile</strong> tab — your <code>vmui-sso</code> profile appears with an <badge>SSO</badge> badge. Click <strong>Import</strong>."
           },
           "note": "If you do not have IAM Identity Center set up, your AWS administrator needs to enable it in the management account. Use Path A in the meantime."
         },
         "perms": {
-          "title": "Permissions vmui needs",
+          "title": "Permissions Vatra needs",
           "full": "For full functionality (list, start, stop, reboot, terminate, create, allocate Mac dedicated hosts), the simplest policy is:",
           "least": "For least-privilege, the minimum actions are:"
         }
@@ -496,7 +497,7 @@
     },
     "localKvm": {
       "title": "Local KVM host",
-      "description": "Connect a WSL2 distro running QEMU/KVM or a native Hyper-V guest. Pick a guest kind — vmui drives lifecycle through QMP or Hyper-V.",
+      "description": "Connect a WSL2 distro running QEMU/KVM or a native Hyper-V guest. Pick a guest kind — Vatra drives lifecycle through QMP or Hyper-V.",
       "connected": "Local KVM host connected",
       "guestKind": "Guest kind",
       "namePlaceholder": "Local {kind}",
@@ -535,8 +536,10 @@
       "fields": {
         "name": "Display name",
         "hostLabel": "Host label",
+        "hostLabelPlaceholder": "home-pc · WSL2 Ubuntu",
         "hostLabelHint": "Shown in the instances list as the host for this VM.",
         "distro": "WSL distro name",
+        "distroPlaceholder": "Ubuntu-24.04",
         "distroHint": "Name shown by wsl --list (case-sensitive).",
         "vmDir": "VM directory",
         "vmDirHint": "Absolute Linux path. Must contain {script} (synced from the repo on launch).",
@@ -548,6 +551,7 @@
         "threads": "vCPU threads",
         "ramMb": "RAM (MiB)",
         "osUsername": "Guest username",
+        "osUsernamePlaceholder": "devuser",
         "osUsernameHint": "Baked into the unattended install. Lowercase, digits, _ and - (max 32). Leave blank for default.",
         "osPassword": "Guest password",
         "osPasswordPlaceholder": "your-guest-password",

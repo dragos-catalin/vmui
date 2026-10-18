@@ -12,7 +12,8 @@ import type { QuietHoursConfig } from "@/lib/quiet-hours";
 import type { KnownHostRow } from "@/server/actions/known-hosts";
 import type { SettingsSnapshot } from "@/server/queries/settings";
 import { Activity, ArrowRight, Cloud, History, House, Key, KeyRound, Palette, Settings as SettingsIcon, ShieldAlert, ShieldCheck, Users } from "lucide-react";
-import { motion } from "motion/react";
+import { AnimatePresence } from "motion/react";
+import * as m from "motion/react-m";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
@@ -40,7 +41,12 @@ export interface SettingsHubProps {
   codai: CodaiSettingsPublic;
 }
 
-const ENTRANCE = { initial: { opacity: 0, y: 6 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.2 } } as const;
+const ENTRANCE = {
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -4, transition: { duration: 0.14, ease: [0.4, 0, 1, 1] } },
+  transition: { duration: 0.22, ease: [0.16, 1, 0.3, 1] },
+} as const;
 
 export function SettingsHub(props: SettingsHubProps) {
   const t = useTranslations("settings");
@@ -53,9 +59,10 @@ export function SettingsHub(props: SettingsHubProps) {
   return (
     <PageShell>
       <PageHeader title={t("title")} description={t("description")} icon={<SettingsIcon />} />
-      <div className="grid gap-4 lg:grid-cols-[14rem_minmax(0,1fr)] lg:items-start">
+      <div className="grid gap-4 lg:grid-cols-[minmax(14rem,16rem)_minmax(0,1fr)] lg:items-start">
         <SettingsNav value={section} onChange={(s) => void setSection(s)} />
-        <motion.div key={section} {...ENTRANCE} className="min-w-0 space-y-4">
+        <AnimatePresence mode="wait" initial={false}>
+        <m.div key={section} {...ENTRANCE} className="min-w-0 space-y-4">
           {section === "general" && <GeneralSection snapshot={props.snapshot} />}
           {section === "security" && <SecuritySection authEnabled={props.authEnabled} />}
           {section === "users" && <UsersSection />}
@@ -68,7 +75,8 @@ export function SettingsHub(props: SettingsHubProps) {
           <div className="2xl:hidden">
             <RelatedLinks />
           </div>
-        </motion.div>
+        </m.div>
+        </AnimatePresence>
       </div>
       {rail}
     </PageShell>
@@ -84,16 +92,18 @@ function RelatedLinks() {
   ];
   return (
     <section aria-label={t("related")} className="surface p-4">
-      <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-fg-muted">{t("related")}</h2>
+      <h2 className="mb-2 text-2xs font-semibold uppercase tracking-wider text-fg-muted">{t("related")}</h2>
       <ul className="space-y-1">
         {links.map(({ href, label, Icon }) => (
           <li key={href}>
             <Link
               href={href}
-              className="flex min-h-10 items-center gap-2 rounded-[var(--radius-md)] px-2 text-sm text-fg-muted transition-colors hover:bg-bg-muted hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="flex min-h-10 items-center gap-2 rounded-[var(--radius-md)] px-2 text-sm text-fg-muted transition-colors hover:bg-bg-muted hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               <Icon className="size-4 shrink-0" aria-hidden />
-              <span className="min-w-0 flex-1 truncate">{label}</span>
+              <span className="min-w-0 flex-1 truncate" title={label}>
+                {label}
+              </span>
               <ArrowRight className="size-3.5 shrink-0 opacity-60" aria-hidden />
             </Link>
           </li>
@@ -172,10 +182,10 @@ function GeneralSection({ snapshot: s }: { snapshot: SettingsSnapshot }) {
       </PageSection>
 
       <PageSection title={t("telemetry.title")} description={t("telemetry.description")}>
-        <StatGrid cols={3}>
-          <Stat label={t("telemetry.accounts")} value={format.number(s.counts.accounts)} icon={<Cloud />} />
-          <Stat label={t("telemetry.instances")} value={format.number(s.counts.instances)} icon={<Activity />} />
-          <Stat label={t("telemetry.auditEntries")} value={format.number(s.counts.auditEntries)} icon={<History />} />
+        <StatGrid cols={3} className="grid-cols-3 gap-2 sm:gap-3">
+          <Stat compact label={t("telemetry.accounts")} value={format.number(s.counts.accounts)} icon={<Cloud />} />
+          <Stat compact label={t("telemetry.instances")} value={format.number(s.counts.instances)} icon={<Activity />} />
+          <Stat compact label={t("telemetry.auditEntries")} value={format.number(s.counts.auditEntries)} icon={<History />} />
         </StatGrid>
       </PageSection>
 
@@ -192,7 +202,9 @@ function GeneralSection({ snapshot: s }: { snapshot: SettingsSnapshot }) {
           <Field
             className="sm:col-span-2"
             label={t("pwa.push")}
-            hint={t.rich("pwa.pushHint", { code: (chunks) => <code className="font-mono break-words">{chunks}</code> })}
+            hint={t.rich("pwa.pushHint", {
+              code: (chunks) => <code className="my-0.5 inline-block max-w-full break-all align-baseline font-mono leading-normal">{chunks}</code>,
+            })}
           >
             <PushManager />
           </Field>
@@ -205,8 +217,8 @@ function GeneralSection({ snapshot: s }: { snapshot: SettingsSnapshot }) {
             <li key={p.id} className="flex min-h-10 items-center justify-between gap-3 py-2">
               <div className="flex min-w-0 items-center gap-2">
                 <Cloud className="size-4 shrink-0 text-fg-muted" aria-hidden />
-                <span className="truncate font-medium">{p.label}</span>
-                <code className="hidden text-[11px] text-fg-muted sm:inline">{p.id}</code>
+                <span className="truncate font-medium" title={p.label}>{p.label}</span>
+                <code className="hidden text-2xs text-fg-muted sm:inline">{p.id}</code>
               </div>
               {p.available ? <Badge variant="success">{t("providers.available")}</Badge> : <Badge variant="muted">{t("providers.soon")}</Badge>}
             </li>
@@ -228,7 +240,7 @@ function AppearanceSummary() {
   const localeName = new Intl.DisplayNames([locale], { type: "language" }).of(locale) ?? locale;
   return (
     <PageSection title={t("title")} description={t("description")}>
-      <Alert tone="info" icon={<Palette />} className="mb-3">
+      <Alert tone="neutral" icon={<Palette />} className="mb-3">
         {t("hint")}
       </Alert>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -278,11 +290,13 @@ function Shortcuts() {
       <ul className="grid gap-2 text-sm sm:grid-cols-2 xl:grid-cols-3">
         {rows.map((r) => (
           <li key={r.label} className="flex min-h-10 items-center justify-between gap-3 rounded-[var(--radius-md)] border border-border bg-bg-muted px-3 py-2">
-            <span className="min-w-0 truncate text-fg-muted">{r.label}</span>
+            <span className="min-w-0 truncate text-fg-muted" title={r.label}>
+              {r.label}
+            </span>
             <span className="flex shrink-0 items-center gap-1">
               {r.keys.map((k, i) => (
                 <React.Fragment key={k}>
-                  {i > 0 && r.keys[0] === "G" && <span className="text-[10px] text-fg-muted">{t("then")}</span>}
+                  {i > 0 && r.keys[0] === "G" && <span className="text-2xs text-fg-muted">{t("then")}</span>}
                   <Kbd>{k}</Kbd>
                 </React.Fragment>
               ))}

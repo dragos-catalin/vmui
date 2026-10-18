@@ -2,7 +2,7 @@
 
 import { Button, DataTable, EmptyState, type ColumnDef } from "@/components/ui";
 import { Download, Play, TerminalSquare } from "lucide-react";
-import { motion } from "motion/react";
+import * as Mo from "motion/react-m";
 import { useFormatter, useTranslations } from "next-intl";
 import Link from "next/link";
 import * as React from "react";
@@ -73,7 +73,7 @@ export function RecordingsTable({ rows }: { rows: RecordingItem[] }) {
   );
 
   return (
-    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+    <Mo.div initial={{ y: 6 }} animate={{ y: 0 }} transition={{ duration: 0.2 }}>
       <DataTable
         columns={columns}
         data={rows}
@@ -89,13 +89,13 @@ export function RecordingsTable({ rows }: { rows: RecordingItem[] }) {
               </Link>
             </Button>
             <Button size="icon" variant="ghost" asChild>
-              <a href={`/api/recordings/${r.id}`} download aria-label={t("download")}>
+              <a href={`/api/recordings/${r.id}`} download aria-label={t("download")} title={t("download")}>
                 <Download className="size-4" aria-hidden />
               </a>
             </Button>
           </>
         )}
       />
-    </motion.div>
+    </Mo.div>
   );
 }

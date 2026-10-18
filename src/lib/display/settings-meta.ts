@@ -47,6 +47,8 @@ export const displaySettingsSchema = z.object({
   /** Seconds of no touch before the home screen returns to the idle slideshow. */
   idleAfterSec: z.number().min(10).max(600).default(45),
   accent: z.string().regex(/^#[0-9a-fA-F]{6}$/).default("#f2b85a"),
+  /** Tick sound + short vibration on kiosk taps. */
+  tapFeedback: z.boolean().default(false),
   /** Cast target and whether vmui keeps re-casting when the Hub drops it. */
   cast: z.object({
     device: z.string().default("Bedroom Smart Display"),
@@ -70,5 +72,6 @@ export const DISPLAY_DEFAULTS: DisplaySettings = {
   nightDim: 0.35,
   idleAfterSec: 45,
   accent: "#f2b85a",
+  tapFeedback: false,
   cast: { device: "Bedroom Smart Display", keepAlive: true, respectPlayback: true },
 };

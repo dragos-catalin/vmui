@@ -8,7 +8,7 @@ import { ok, type ActionResult } from "@/lib/action-result";
 import type { CatalogTemplate } from "@/lib/catalog";
 import { saveCatalogTemplateAction } from "@/server/actions/catalog";
 import { Copy, ExternalLink, FileCode2, Save } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -41,7 +41,7 @@ export function CatalogCard({ template, index = 0 }: { template: CatalogTemplate
 
   return (
     <>
-      <motion.article
+      <m.article
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.2, delay: Math.min(index, 12) * 0.03 }}
@@ -87,7 +87,7 @@ export function CatalogCard({ template, index = 0 }: { template: CatalogTemplate
             <FileCode2 className="size-4" aria-hidden /> {t("view")}
           </Button>
         </div>
-      </motion.article>
+      </m.article>
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent title={template.name} description={template.description} className="md:w-[640px]">

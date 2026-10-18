@@ -5,7 +5,7 @@ import { tx } from "../i18n";
 import { HealthDot, LightControls, StripPreview, useLights, type LightsApi } from "../light-ui";
 import { api, cn, toast } from "../lib";
 import { bisectNext, COLOR_ORDERS, normMac, roomId, slugFor, TRANSPORTS, withSegmentStarts, type Calibration, type ColorOrder, type Discovered, type LightDevice, type LightsPayload, type Rgb, type Segment } from "../lights";
-import { Card, Dialog, Empty, Row, Slider, Switch } from "../ui";
+import { Card, confirmDialog, Dialog, Empty, ErrorState, Loading, PageHeader, Row, Slider, Switch } from "../ui";
 
 type Filter = { room: string; transport: string; health: string };
 const ALL = "*";
@@ -18,7 +18,7 @@ export function Dispozitive() {
   const [f, setF] = React.useState<Filter>({ room: ALL, transport: ALL, health: ALL });
   const [scan, setScan] = React.useState(false);
   const d = lights.data;
-  if (!d) return <div className="text-sm text-dim">{lights.error ? t("lights.down", { error: lights.error }) : t("common.loading")}</div>;
+  if (!d) return lights.error ? <ErrorState title={t("lights.downTitle")} error={lights.error} onRetry={() => void lights.refresh()} /> : <Loading />;
 
   const rooms = Array.from(new Set([...d.rooms.map(roomId), ...d.devices.map((x) => x.room)]));
   const shown = d.devices.filter((x) => (f.room === ALL || x.room === f.room) && (f.transport === ALL || x.transport === f.transport) && (f.health === ALL || x.health === f.health));
@@ -26,13 +26,7 @@ export function Dispozitive() {
 
   return (
     <div className="grid gap-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t("nav.dispozitive")}</h1>
-          <p className="text-sm text-muted mt-1">{t("dev.sub", { n: d.devices.length })}</p>
-        </div>
-        <Toolbar lights={lights} onScan={() => setScan(true)} />
-      </div>
+      <PageHeader title={t("nav.dispozitive")} sub={t("dev.sub", { n: d.devices.length })} actions={<Toolbar lights={lights} onScan={() => setScan(true)} />} />
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[300px_1fr]">
         <Card className="content-start self-start">
@@ -41,7 +35,7 @@ export function Dispozitive() {
             <FilterSelect label={t("dev.transport")} value={f.transport} onChange={(transport) => setF({ ...f, transport })} options={TRANSPORTS.map((r) => [r, tx(`lights.transport.${r}`, r)])} />
             <FilterSelect label={t("dev.health")} value={f.health} onChange={(health) => setF({ ...f, health })} options={["ok", "degraded", "offline", "unknown"].map((r) => [r, tx(`lights.health.${r}`, r)])} />
           </div>
-          {shown.length === 0 ? <Empty text={t("dev.noneMatch")} /> : (
+          {shown.length === 0 ? <Empty text={t("dev.noneMatch")} illustration="search" /> : (
             <ul className="grid gap-1" aria-label={t("nav.dispozitive")}>
               {shown.map((x) => (
                 <li key={x.id}>
@@ -49,8 +43,8 @@ export function Dispozitive() {
                     className={cn("flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-colors", cur?.id === x.id ? "border-border-2 bg-surface-2" : "border-transparent hover:bg-surface")}>
                     <span className={cn("dot", x.health === "ok" ? "text-ok bg-ok" : x.health === "degraded" ? "text-warn bg-warn" : x.health === "offline" ? "text-down bg-down" : "text-dim bg-dim")} aria-hidden />
                     <span className="min-w-0 flex-1">
-                      <span className={cn("block truncate text-sm", !x.enabled && "text-dim line-through")}>{x.name}</span>
-                      <span className="block truncate text-[11px] text-dim">{tx(`rooms.${x.room}`, x.room)} · {tx(`lights.transport.${x.transport}`, x.transport)}{x.segments.length > 1 ? ` · ${t("dev.segCount", { count: x.segments.length })}` : ""}</span>
+                      <span className={cn("block truncate text-sm", !x.enabled && "text-muted line-through")} title={x.name}>{x.name}</span>
+                      <span className="block truncate text-xs text-muted">{tx(`rooms.${x.room}`, x.room)} · {tx(`lights.transport.${x.transport}`, x.transport)}{x.segments.length > 1 ? ` · ${t("dev.segCount", { count: x.segments.length })}` : ""}</span>
                     </span>
                   </button>
                 </li>
@@ -58,7 +52,7 @@ export function Dispozitive() {
             </ul>
           )}
         </Card>
-        {cur ? <Detail key={cur.id} d={cur} rooms={rooms} lights={lights} onDeleted={() => setSel(null)} /> : <Empty text={t("dev.pick")} />}
+        {cur ? <Detail key={cur.id} d={cur} rooms={rooms} lights={lights} onDeleted={() => setSel(null)} /> : <Empty text={t("dev.pick")} illustration="devices" />}
       </div>
 
       {scan && <ScanDialog payload={d} lights={lights} onClose={() => setScan(false)} onAdded={(id) => setSel(id)} />}
@@ -149,8 +143,8 @@ function Detail({ d, rooms, lights, onDeleted }: { d: LightDevice; rooms: string
         </form>
         <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-4">
           <span className="text-xs text-muted">{t("dev.caps")}:</span>
-          {capList(d).map((c) => <span key={c} className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted">{c}</span>)}
-          <button type="button" className="btn ghost sm ml-auto hover:text-down" onClick={() => { if (confirm(t("dev.deleteConfirm", { name: d.name }))) void lights.op({ op: "device_delete", id: d.id }, { ok: t("dev.deleted", { name: d.name }) }).then(onDeleted).catch(() => undefined); }}>
+          {capList(d).map((c) => <span key={c} className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">{c}</span>)}
+          <button type="button" className="btn ghost sm ml-auto hover:text-down" onClick={() => void confirmDialog({ title: t("dev.deleteConfirm", { name: d.name }), confirm: t("dev.delete"), danger: true }).then((ok) => { if (ok) void lights.op({ op: "device_delete", id: d.id }, { ok: t("dev.deleted", { name: d.name }) }).then(onDeleted).catch(() => undefined); })}>
             <Trash2 className="size-3.5" />{t("dev.delete")}
           </button>
         </div>
@@ -231,18 +225,18 @@ function CalibrationEditor({ value, onSave, onPreview }: { value: Calibration; o
   const ch = ["R", "G", "B"];
   return (
     <div className="grid gap-1">
-      <Row label={t("cal.gamma")} hint={t("cal.gammaHint")}><div className="w-56"><Slider value={c.gamma ?? 1} min={0.5} max={3} step={0.05} onChange={(v) => setC({ ...c, gamma: v })} format={(v) => v.toFixed(2)} /></div></Row>
+      <Row label={t("cal.gamma")} hint={t("cal.gammaHint")}><div className="w-full min-w-40 max-w-56"><Slider value={c.gamma ?? 1} min={0.5} max={3} step={0.05} onChange={(v) => setC({ ...c, gamma: v })} format={(v) => v.toFixed(2)} /></div></Row>
       {gains.map((g, i) => (
-        <Row key={i} label={t("cal.gain", { ch: ch[i] })}><div className="w-56"><Slider value={g} min={0} max={2} step={0.01} onChange={(v) => setGain(i, v)} format={(v) => v.toFixed(2)} /></div></Row>
+        <Row key={i} label={t("cal.gain", { ch: ch[i] })}><div className="w-full min-w-40 max-w-56"><Slider value={g} min={0} max={2} step={0.01} onChange={(v) => setGain(i, v)} format={(v) => v.toFixed(2)} /></div></Row>
       ))}
-      <Row label={t("cal.briMin")} hint={t("cal.briMinHint")}><div className="w-56"><Slider value={Math.round((c.briMin ?? 0) * 100)} min={0} max={100} onChange={(v) => setC({ ...c, briMin: Math.min(v / 100, c.briCap ?? 1) })} format={(v) => `${v} %`} /></div></Row>
-      <Row label={t("cal.briCap")} hint={t("cal.briCapHint")}><div className="w-56"><Slider value={Math.round((c.briCap ?? 1) * 100)} min={1} max={100} onChange={(v) => setC({ ...c, briCap: Math.max(v / 100, c.briMin ?? 0) })} format={(v) => `${v} %`} /></div></Row>
+      <Row label={t("cal.briMin")} hint={t("cal.briMinHint")}><div className="w-full min-w-40 max-w-56"><Slider value={Math.round((c.briMin ?? 0) * 100)} min={0} max={100} onChange={(v) => setC({ ...c, briMin: Math.min(v / 100, c.briCap ?? 1) })} format={(v) => `${v} %`} /></div></Row>
+      <Row label={t("cal.briCap")} hint={t("cal.briCapHint")}><div className="w-full min-w-40 max-w-56"><Slider value={Math.round((c.briCap ?? 1) * 100)} min={1} max={100} onChange={(v) => setC({ ...c, briCap: Math.max(v / 100, c.briMin ?? 0) })} format={(v) => `${v} %`} /></div></Row>
       <Row label={t("cal.colorOrder")} hint={t("cal.colorOrderHint")}>
         <select className="input py-1.5 text-xs" aria-label={t("cal.colorOrder")} value={c.colorOrder ?? "RGB"} onChange={(e) => setC({ ...c, colorOrder: e.target.value as ColorOrder })}>
           {COLOR_ORDERS.map((o) => <option key={o} value={o}>{o}</option>)}
         </select>
       </Row>
-      <Row label={t("cal.kelvinOffset")}><div className="w-56"><Slider value={c.kelvinOffset ?? 0} min={-1500} max={1500} step={50} onChange={(v) => setC({ ...c, kelvinOffset: v })} format={(v) => `${v > 0 ? "+" : ""}${v} K`} /></div></Row>
+      <Row label={t("cal.kelvinOffset")}><div className="w-full min-w-40 max-w-56"><Slider value={c.kelvinOffset ?? 0} min={-1500} max={1500} step={50} onChange={(v) => setC({ ...c, kelvinOffset: v })} format={(v) => `${v > 0 ? "+" : ""}${v} K`} /></div></Row>
       <div className="mt-3 flex flex-wrap justify-end gap-2">
         <button type="button" className="btn ghost sm" onClick={() => setC({})}>{t("cal.reset")}</button>
         <button type="button" className="btn sm" onClick={() => onPreview(clean(c))}><Eye className="size-3.5" />{t("cal.preview")}</button>
@@ -296,18 +290,18 @@ function SegmentRow({ d, s, first, last, lights, onMove }: { d: LightDevice; s: 
   return (
     <li className="rounded-xl border border-border px-3 py-2.5">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="w-6 text-center text-xs tabular-nums text-dim">{s.ord + 1}</span>
+        <span className="w-6 text-center text-xs tabular-nums text-muted">{s.ord + 1}</span>
         <input className="input min-w-0 flex-1 py-1.5" aria-label={t("seg.name")} value={name} maxLength={60} onChange={(e) => setName(e.target.value)} onBlur={commitName} onKeyDown={(e) => e.key === "Enter" && commitName()} />
         <label className="flex items-center gap-1.5 text-xs text-muted">
           <input className="input w-20 py-1.5" type="number" min={1} max={5000} aria-label={t("seg.leds")} value={count} onChange={(e) => setCount(Math.max(1, Number(e.target.value) || 1))} onBlur={commitCount} onKeyDown={(e) => e.key === "Enter" && commitCount()} />LED
         </label>
-        <span className="text-[11px] tabular-nums text-dim" title={t("seg.startHint")}>{t("seg.range", { from: s.ledStart, to: s.ledStart + s.ledCount - 1 })}</span>
+        <span className="text-xs tabular-nums text-muted" title={t("seg.startHint")}>{t("seg.range", { from: s.ledStart, to: s.ledStart + s.ledCount - 1 })}</span>
         <label className="flex items-center gap-1.5 text-xs text-muted"><Switch checked={s.reverse} label={t("seg.reverse")} onChange={(v) => void upd({ reverse: v })} />{t("seg.reverse")}</label>
         <button type="button" className="btn ghost sm" aria-label={t("seg.test", { name: s.name })} title={t("seg.testTitle")} onClick={() => void lights.op({ op: "test_pattern", deviceId: d.id, segmentId: s.id, step: s.ledCount }, { key: `test:${s.id}` }).catch(() => undefined)}><Zap className="size-3.5" /></button>
         <button type="button" className="btn ghost sm" aria-label={t("common.moveUp")} disabled={first} onClick={() => onMove(-1)}><ArrowUp className="size-3.5" /></button>
         <button type="button" className="btn ghost sm" aria-label={t("common.moveDown")} disabled={last} onClick={() => onMove(1)}><ArrowDown className="size-3.5" /></button>
         <button type="button" className="btn ghost sm hover:text-down" aria-label={t("seg.delete", { name: s.name })} disabled={first && last}
-          onClick={() => { if (confirm(t("seg.deleteConfirm", { name: s.name }))) void lights.op({ op: "segment_delete", id: s.id }).catch(() => undefined); }}><Trash2 className="size-3.5" /></button>
+          onClick={() => void confirmDialog({ title: t("seg.deleteConfirm", { name: s.name }), confirm: t("common.delete"), danger: true }).then((ok) => ok && lights.op({ op: "segment_delete", id: s.id }).catch(() => undefined))}><Trash2 className="size-3.5" /></button>
       </div>
       <button type="button" className="btn ghost sm mt-1" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         {open ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}{t("seg.calibration")}{Object.keys(s.calibration).length ? ` · ${t("seg.custom")}` : ""}
@@ -390,12 +384,12 @@ function LedWizard({ d, segments, lights, onClose }: { d: LightDevice; segments:
       ) : (
         <div className="grid gap-4">
           <ol className="flex flex-wrap gap-1.5" aria-label={t("dev.segments")}>
-            {segments.map((s, i) => <li key={s.id} className={cn("rounded-full border px-2.5 py-0.5 text-[11px]", i === w.seg ? "border-primary text-fg" : i < w.seg ? "border-ok/50 text-ok" : "border-border text-dim")}>{s.name}{w.counts[i] ? ` · ${w.counts[i]}` : ""}</li>)}
+            {segments.map((s, i) => <li key={s.id} className={cn("rounded-full border px-2.5 py-0.5 text-xs", i === w.seg ? "border-primary text-fg" : i < w.seg ? "border-ok/50 text-ok" : "border-border text-muted")}>{s.name}{w.counts[i] ? ` · ${w.counts[i]}` : ""}</li>)}
           </ol>
           <p className="text-sm text-muted">{t("wizard.explain", { n: w.probe, name: cur?.name ?? "" })}</p>
           <div className="rounded-xl border border-border px-3 py-2.5 text-sm tabular-nums">
             <div>{t("wizard.probe", { n: w.probe, total: w.offset + w.probe })}</div>
-            <div className="text-xs text-dim">{t("wizard.range", { lo: w.lo + 1, hi: w.hi, steps })}</div>
+            <div className="text-xs text-muted">{t("wizard.range", { lo: w.lo + 1, hi: w.hi, steps })}</div>
           </div>
           {!w.sent ? (
             <div className="flex justify-end gap-2">
@@ -453,20 +447,20 @@ function ScanDialog({ payload, lights, onClose, onAdded }: { payload: LightsPayl
   return (
     <Dialog title={t("scan.title")} sub={t("scan.sub")} onClose={onClose}>
       {scanning ? (
-        <div className="flex items-center justify-center gap-3 py-8 text-sm text-muted" role="status"><Radar className="size-5 animate-pulse text-primary" />{t("scan.scanning")}</div>
+        <div className="flex items-center justify-center gap-3 py-8 text-sm text-muted" role="status"><Radar className="size-5 motion-safe:animate-pulse text-primary-text" aria-hidden />{t("scan.scanning")}</div>
       ) : (
         <div className="grid gap-2">
           {err && <p className="text-xs text-warn">{t("scan.failed", { error: err })}</p>}
-          {fresh.length === 0 ? <Empty text={t("scan.none")} /> : fresh.map((i) => (
+          {fresh.length === 0 ? <Empty text={t("scan.none")} illustration="search" /> : fresh.map((i) => (
             <div key={i.mac} className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5">
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-medium truncate">{i.name || t("scan.unnamed")}</div>
-                <div className="text-[11px] text-dim tabular-nums">{i.mac}{i.protocol ? ` · ${i.protocol}` : ""}{i.rssi != null ? ` · ${i.rssi} dBm` : ""}</div>
+                <div className="text-xs text-muted tabular-nums">{i.mac}{i.protocol ? ` · ${i.protocol}` : ""}{i.rssi != null ? ` · ${i.rssi} dBm` : ""}</div>
               </div>
               <button type="button" className="btn primary sm" disabled={lights.busy === `add:${i.mac}`} onClick={() => add(i)}><Plus className="size-3.5" />{t("scan.add")}</button>
             </div>
           ))}
-          {(items?.length ?? 0) > fresh.length && <p className="text-[11px] text-dim">{t("scan.known", { count: (items?.length ?? 0) - fresh.length })}</p>}
+          {(items?.length ?? 0) > fresh.length && <p className="text-xs text-muted">{t("scan.known", { count: (items?.length ?? 0) - fresh.length })}</p>}
         </div>
       )}
       <div className="mt-4 flex justify-end gap-2">

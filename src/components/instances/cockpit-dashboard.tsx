@@ -3,11 +3,12 @@
 import { Alert, Button } from "@/components/ui";
 import { Card, CardContent } from "@/components/ui/card";
 import { Sparkline } from "@/components/ui/sparkline";
+import { useEventSource, usePageVisible } from "@/hooks/use-poll";
 import type { ProbeMetrics } from "@/lib/probe";
 import { cn } from "@/lib/utils";
 import { Activity as ActivityIcon, ArrowDownUp, Clock, Cpu, HardDrive, MemoryStick } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 interface Props {
   instanceId: string;
@@ -104,28 +105,16 @@ export function CockpitDashboard({ instanceId, intervalSec, initial }: Props) {
   const [running, setRunning] = useState(true);
   const interval = intervalSec ?? 10;
 
-  useEffect(() => {
-    if (!running) return;
-    const es = new EventSource(`/api/instances/${instanceId}/probe-stream?interval=${interval}`);
-    es.addEventListener("sample", (ev) => {
-      try {
-        const m = JSON.parse((ev as MessageEvent).data) as ProbeMetrics;
-        setMetrics(m);
-        setDisconnected(false);
-        setHistory((h) =>
-          [...h, { t: m.collectedAt, cpu: m.cpu, mem: m.mem, netIn: m.netIn, netOut: m.netOut }].slice(-60),
-        );
-      } catch {
-        /* */
-      }
-    });
-    es.addEventListener("error", () => {
-      setDisconnected(true);
-    });
-    return () => {
-      es.close();
-    };
-  }, [instanceId, interval, running]);
+  const visible = usePageVisible();
+  useEventSource<ProbeMetrics>(running && visible ? `/api/instances/${instanceId}/probe-stream?interval=${interval}` : null, {
+    events: ["sample"],
+    onMessage: (m) => {
+      setMetrics(m);
+      setDisconnected(false);
+      setHistory((h) => [...h, { t: m.collectedAt, cpu: m.cpu, mem: m.mem, netIn: m.netIn, netOut: m.netOut }].slice(-60));
+    },
+    onError: () => setDisconnected(true),
+  });
 
   const cpuTone: Tone = !metrics ? "ok" : metrics.cpu >= 90 ? "crit" : metrics.cpu >= 70 ? "warn" : "ok";
   const memTone: Tone = !metrics ? "ok" : metrics.mem >= 90 ? "crit" : metrics.mem >= 75 ? "warn" : "ok";

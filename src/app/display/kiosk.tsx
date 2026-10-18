@@ -1,8 +1,11 @@
 "use client";
 
+import { VatraMark } from "@/components/brand/vatra-mark";
+import { useInterval } from "@/hooks/use-poll";
 import type { DisplaySettings, DisplayViewId } from "@/lib/display/settings-meta";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import * as React from "react";
+import { tapFx } from "./kiosk-fx";
 
 /* ------------------------------------------------------------------ types */
 type Ent = { state: string; attributes: Record<string, unknown> };
@@ -14,7 +17,7 @@ type State = {
   now: number;
   haOnline?: boolean;
   haUrl: string | null;
-  display: DisplaySettings;
+  display: DisplaySettings & { tapFeedback?: boolean };
   rooms: Room[];
   devices: Device[];
   entities: Record<string, Ent>;
@@ -36,16 +39,35 @@ type State = {
   hubIdle?: boolean;
   build?: string;
 };
+type Api = (p: string, i?: RequestInit) => Promise<Response>;
 
 const COND: Record<string, string> = { sunny: "☀", "clear-night": "☾", partlycloudy: "⛅", cloudy: "☁", rainy: "🌧", pouring: "🌧", snowy: "🌨", fog: "🌫", lightning: "⛈", "lightning-rainy": "⛈", windy: "💨" };
-const COND_RO: Record<string, string> = { sunny: "senin", "clear-night": "senin", partlycloudy: "parțial noros", cloudy: "noros", rainy: "ploaie", pouring: "ploaie torențială", snowy: "ninsoare", fog: "ceață", lightning: "furtună", "lightning-rainy": "furtună", windy: "vânt" };
-const DAYS = ["duminică", "luni", "marți", "miercuri", "joi", "vineri", "sâmbătă"];
-const MONTHS = ["ianuarie", "februarie", "martie", "aprilie", "mai", "iunie", "iulie", "august", "septembrie", "octombrie", "noiembrie", "decembrie"];
-const ROOM_RO: Record<string, string> = { bedroom: "Dormitor", living_room: "Sufragerie", kitchen: "Bucătărie", office: "Birou" };
+// HA condition → message key (several HA states share one word)
+const COND_KEY = { sunny: "sunny", "clear-night": "clearNight", partlycloudy: "partlyCloudy", cloudy: "cloudy", rainy: "rainy", pouring: "pouring", snowy: "snowy", fog: "fog", lightning: "storm", "lightning-rainy": "storm", windy: "windy" } as const;
+const HVAC = ["off", "cool", "heat", "dry", "fan_only", "auto", "heat_cool"] as const;
+const MEDIA_CMDS = [
+  ["previous_track", "⏮"],
+  ["play_pause", "⏯"],
+  ["next_track", "⏭"],
+  ["volume_down", "🔉"],
+  ["volume_up", "🔊"],
+  ["volume_mute", "🔇"],
+  ["turn_off", "⏻"],
+] as const;
+const SWATCHES = [
+  ["warm", [255, 180, 90]],
+  ["orange", [255, 120, 60]],
+  ["red", [255, 60, 80]],
+  ["purple", [200, 80, 255]],
+  ["blue", [80, 140, 255]],
+  ["teal", [60, 220, 200]],
+  ["green", [120, 255, 120]],
+  ["white", [255, 255, 255]],
+] as const;
+const KIOSK_ROOMS = ["bedroom", "living_room", "kitchen", "office"] as const;
 
 const num = (v: unknown, d = 0) => (typeof v === "number" && Number.isFinite(v) ? v : d);
 const pct = (v: unknown) => Math.max(0, Math.min(1, num(v) / 100));
-const hhmm = (t: number) => new Date(t).toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit" });
 
 function inNight(s: DisplaySettings, now: Date): boolean {
   const [fh, fm] = s.nightFrom.split(":").map(Number);
@@ -56,37 +78,68 @@ function inNight(s: DisplaySettings, now: Date): boolean {
   return from > to ? cur >= from || cur < to : cur >= from && cur < to;
 }
 
+/* Query flags are read once per load (HM-20); kiosk debugging toggles them by reloading. */
+const ParamsContext = React.createContext<URLSearchParams>(new URLSearchParams());
+const useParams = () => React.useContext(ParamsContext);
+/** Tap feedback (MO-09): `?fx=1` or `display.tapFeedback`. */
+const FxContext = React.createContext<() => void>(() => undefined);
+const useTapFx = () => React.useContext(FxContext);
+
+/** Locale-aware time/date/weather words for the kiosk (HM-01). */
+function useKioskText() {
+  const t = useTranslations("nestHub.kiosk");
+  const fmt = useFormatter();
+  const rooms = useTranslations("home.rooms");
+  return React.useMemo(
+    () => ({
+      hhmm: (ms: number) => fmt.dateTime(new Date(ms), { hour: "2-digit", minute: "2-digit" }),
+      dateLong: (d: Date) => fmt.dateTime(d, { weekday: "long", day: "numeric", month: "long" }),
+      dayShort: (d: Date) => fmt.dateTime(d, { weekday: "short" }),
+      dayDate: (d: Date) => fmt.dateTime(d, { weekday: "short", day: "numeric" }),
+      cond: (s?: string) => (s && s in COND_KEY ? t(`cond.${COND_KEY[s as keyof typeof COND_KEY]}`) : (s ?? "")),
+      room: (r: Room) => ((KIOSK_ROOMS as readonly string[]).includes(r.id) ? rooms(r.id as (typeof KIOSK_ROOMS)[number]) : r.name),
+      hvac: (s?: string) => (s && (HVAC as readonly string[]).includes(s) ? t(`hvac.${s as (typeof HVAC)[number]}`) : (s ?? "—")),
+      uptime: (s: number) => (s >= 86400 ? t("upDays", { d: Math.floor(s / 86400), h: Math.floor((s % 86400) / 3600) }) : t("upHours", { h: Math.floor(s / 3600), m: Math.floor((s % 3600) / 60) })),
+      number: (n: number, digits = 0) => fmt.number(n, { minimumFractionDigits: digits, maximumFractionDigits: digits }),
+    }),
+    [t, fmt, rooms],
+  );
+}
+
 /* ------------------------------------------------------------------ root */
 export function Kiosk({ token, deviceToken = "" }: { token: string; deviceToken?: string }) {
   const t = useTranslations("nestHub.kiosk");
+  const params = React.useMemo(() => (typeof window === "undefined" ? new URLSearchParams() : new URLSearchParams(window.location.search)), []);
   const [st, setSt] = React.useState<State | null>(null);
   const [online, setOnline] = React.useState(true);
   const [mode, setMode] = React.useState<"idle" | "home">("idle");
-  React.useEffect(() => {
-    if (!new URLSearchParams(location.search).has("home")) return;
-    setMode("home"); // debug: hold the home screen for a perf sample
-    const id = setInterval(() => (lastTouch.current = Date.now()), 500);
-    return () => clearInterval(id);
-  }, []);
   const [tick, setTick] = React.useState(() => Date.now());
+  const [wait, setWait] = React.useState(3000);
   const lastTouch = React.useRef(Date.now());
   const idleFlag = React.useRef<boolean | null>(null);
   const buildRef = React.useRef<string | null>(null);
+  const inFlight = React.useRef(false);
+  const holdHome = params.has("home"); // debug: hold the home screen for a perf sample
 
-  const api = React.useCallback(
-    (path: string, init?: RequestInit) => fetch(`/api/display/${path}?${token ? `k=${encodeURIComponent(token)}` : `d=${encodeURIComponent(deviceToken)}`}`, { cache: "no-store", ...init }),
-    [token],
+  React.useEffect(() => {
+    if (holdHome) setMode("home");
+  }, [holdHome]);
+  useInterval(() => (lastTouch.current = Date.now()), holdHome ? 500 : null);
+
+  const api = React.useCallback<Api>(
+    (path, init) => fetch(`/api/display/${path}?${token ? `k=${encodeURIComponent(token)}` : `d=${encodeURIComponent(deviceToken)}`}`, { cache: "no-store", ...init }),
+    [token, deviceToken],
   );
 
   // ?perf=1 — 60 s of rAF fps + long tasks + memory, posted once to /api/display/probe (audit_log)
   React.useEffect(() => {
-    if (!new URLSearchParams(window.location.search).has("perf")) return;
+    if (!params.has("perf")) return;
     const frames: number[] = [];
     let last = performance.now();
     let raf = 0;
-    const tickFrame = (t: number) => {
-      frames.push(t - last);
-      last = t;
+    const tickFrame = (ts: number) => {
+      frames.push(ts - last);
+      last = ts;
       raf = requestAnimationFrame(tickFrame);
     };
     raf = requestAnimationFrame(tickFrame);
@@ -112,7 +165,7 @@ export function Kiosk({ token, deviceToken = "" }: { token: string; deviceToken?
       void api("probe", {
         method: "POST",
         headers: { "content-type": "application/json" },
-          body: JSON.stringify({ perf: true, hub: navigator.userAgent.includes("CrKey"), q: location.search, mode: document.querySelector(".dk")?.className ?? mode, secs: 60, frames: frames.length, fps: Math.round(1000 / avg), p50ms: Math.round(p(0.5)), p95ms: Math.round(p(0.95)), maxMs: Math.round(sorted.at(-1) ?? 0), dropped: frames.filter((f) => f > 34).length, longTasks: long, longAt, perSec, heapMB: mem ? Math.round(mem.usedJSHeapSize / 1048576) : null }),
+        body: JSON.stringify({ perf: true, hub: navigator.userAgent.includes("CrKey"), q: location.search, mode: document.querySelector(".dk")?.className ?? "", secs: 60, frames: frames.length, fps: Math.round(1000 / avg), p50ms: Math.round(p(0.5)), p95ms: Math.round(p(0.95)), maxMs: Math.round(sorted.at(-1) ?? 0), dropped: frames.filter((f) => f > 34).length, longTasks: long, longAt, perSec, heapMB: mem ? Math.round(mem.usedJSHeapSize / 1048576) : null }),
       });
     }, 60000);
     return () => {
@@ -120,58 +173,52 @@ export function Kiosk({ token, deviceToken = "" }: { token: string; deviceToken?
       po?.disconnect();
       clearTimeout(done);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- one 60 s sample per load
-  }, [api]);
+  }, [api, params]);
 
-  // poll: 3 s, 10 s in the night window, 2 s while music plays (position bar)
-  React.useEffect(() => {
-    let alive = true;
-    let timer = 0 as unknown as ReturnType<typeof setTimeout>;
-    const loop = async () => {
-      let wait = 3000;
-      try {
-        const r = await api("state");
-        if (!r.ok) throw new Error(String(r.status));
-        const j = (await r.json()) as State;
-        if (!alive) return;
-        // new server build -> pick up the new page (DashCast never reloads on its own)
-        if (j.build && buildRef.current && j.build !== buildRef.current) location.reload();
-        buildRef.current = j.build ?? buildRef.current;
-        setSt(j);
-        setOnline(true);
-        const playing = (j.media ?? []).some((m) => m.state === "playing");
-        wait = playing ? 2000 : inNight(j.display, new Date()) ? 10000 : 3000;
-        // the Hub's own touch is only visible to us through HA (input_boolean.nest_hub_idle)
-        if (j.hubIdle === false && idleFlag.current !== false) {
-          lastTouch.current = Date.now();
-          setMode("home");
-        }
-        idleFlag.current = j.hubIdle ?? null;
-      } catch {
-        if (alive) setOnline(false);
-        wait = 5000;
+  // poll: 3 s, 10 s in the night window, 2 s while music plays (position bar), 5 s after a failure
+  const poll = React.useCallback(async () => {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    try {
+      const r = await api("state");
+      if (!r.ok) throw new Error(String(r.status));
+      const j = (await r.json()) as State;
+      // new server build -> pick up the new page (DashCast never reloads on its own)
+      if (j.build && buildRef.current && j.build !== buildRef.current) location.reload();
+      buildRef.current = j.build ?? buildRef.current;
+      setSt(j);
+      setOnline(true);
+      const playing = (j.media ?? []).some((x) => x.state === "playing");
+      setWait(playing ? 2000 : inNight(j.display, new Date()) ? 10000 : 3000);
+      // the Hub's own touch is only visible to us through HA (input_boolean.nest_hub_idle)
+      if (j.hubIdle === false && idleFlag.current !== false) {
+        lastTouch.current = Date.now();
+        setMode("home");
       }
-      if (alive) timer = setTimeout(loop, wait);
-    };
-    void loop();
-    return () => {
-      alive = false;
-      clearTimeout(timer);
-    };
+      idleFlag.current = j.hubIdle ?? null;
+    } catch {
+      setOnline(false);
+      setWait(5000);
+    } finally {
+      inFlight.current = false;
+    }
   }, [api]);
+  React.useEffect(() => void poll(), [poll]);
+  useInterval(() => void poll(), wait, { pauseHidden: false });
 
   // 1 s clock, also drives the idle timeout
-  React.useEffect(() => {
-    const id = setInterval(() => {
+  useInterval(
+    () => {
       const now = Date.now();
       setTick(now);
       if (mode === "home" && st && now - lastTouch.current > st.display.idleAfterSec * 1000) {
         setMode("idle");
         void api("control", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ type: "idle", on: true }) }).catch(() => undefined);
       }
-    }, 1000);
-    return () => clearInterval(id);
-  }, [mode, st, api]);
+    },
+    1000,
+    { pauseHidden: false },
+  );
 
   const wake = React.useCallback(() => {
     lastTouch.current = Date.now();
@@ -184,31 +231,50 @@ export function Kiosk({ token, deviceToken = "" }: { token: string; deviceToken?
     }
   }, [mode, api]);
 
+  const fxOn = params.get("fx") === "1" || st?.display.tapFeedback === true;
+  const fx = React.useCallback(() => {
+    if (fxOn) tapFx();
+  }, [fxOn]);
+
   const s = st?.display;
   const night = s ? inNight(s, new Date(tick)) : false;
-  const style = { "--accent": s?.accent ?? "#f2b85a", "--dim": String(s?.dim ?? 0.35), "--night": String(night ? (s?.nightDim ?? 0.35) : 1) } as React.CSSProperties;
+  // the accent is device data (#rrggbb from the settings); the fallback is the lit token
+  const style = { "--accent": s?.accent ?? "var(--color-lit)", "--dim": String(s?.dim ?? 0.35), "--night": String(night ? (s?.nightDim ?? 0.35) : 1) } as React.CSSProperties;
 
   if (!st) {
     return (
       <div className="dk" style={style}>
         <div className="dk-flat" />
-        <div className="chip off"><i />{online ? t("loading") : t("offline")}</div>
+        <div className="dk-loading" role="status" aria-live="polite">
+          <VatraMark size={64} state={online ? "thinking" : "error"} label={online ? t("loading") : t("offline")} />
+          <span className="muted">{online ? t("loading") : t("offline")}</span>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className={`dk ${mode}`} style={style} onPointerDown={wake}>
-      <Idle st={st} tick={tick} api={api} active={mode === "idle"} />
-      {mode === "home" && <Home st={st} tick={tick} api={api} onTouch={() => (lastTouch.current = Date.now())} />}
-      <div className="dk-night" />
-      {!online && <div className="chip off"><i />{t("offline")}</div>}
-    </div>
+    <ParamsContext.Provider value={params}>
+      <FxContext.Provider value={fx}>
+        <div className={`dk ${mode}`} style={style} onPointerDown={wake}>
+          <Idle st={st} tick={tick} active={mode === "idle"} />
+          {mode === "home" && <Home st={st} tick={tick} api={api} onTouch={() => (lastTouch.current = Date.now())} />}
+          <div className="dk-night" />
+          {!online && (
+            <div className="chip off" role="status">
+              <i />
+              {t("offline")}
+            </div>
+          )}
+        </div>
+      </FxContext.Provider>
+    </ParamsContext.Provider>
   );
 }
 
 /* ------------------------------------------------------------------ idle rotation */
-function Idle({ st, tick, api, active }: { st: State; tick: number; api: (p: string, i?: RequestInit) => Promise<Response>; active: boolean }) {
+function Idle({ st, tick, active }: { st: State; tick: number; active: boolean }) {
+  const dbg = useParams();
   const views = React.useMemo(() => {
     const enabled = st.display.views.filter((v) => v.enabled);
     const playing = (st.media ?? []).some((m) => m.state === "playing");
@@ -230,15 +296,14 @@ function Idle({ st, tick, api, active }: { st: State; tick: number; api: (p: str
   const since = React.useRef(Date.now());
   const cur = views[idx % Math.max(1, views.length)] ?? views[0];
 
-
   React.useEffect(() => {
     if (!active || !cur) return;
     if (tick - since.current >= cur.dwellSec * 1000 && views.length > 1) {
       setPrev(cur.id);
       setIdx((i) => (i + 1) % views.length);
       since.current = tick;
-      const t = setTimeout(() => setPrev(null), 400);
-      return () => clearTimeout(t);
+      const tm = setTimeout(() => setPrev(null), 400);
+      return () => clearTimeout(tm);
     }
   }, [tick, active, cur, views.length]);
 
@@ -249,7 +314,6 @@ function Idle({ st, tick, api, active }: { st: State; tick: number; api: (p: str
   const media = (st.media ?? []).find((m) => m.state === "playing") ?? st.media?.[0] ?? null;
   const art = media?.art ? (media.art.startsWith("/") ? `${st.haUrl ?? ""}${media.art}` : media.art) : null;
   // perf bisect flags: ?bare=1 photo only (no veil, no view); ?noveil=1; ?notext=1 (view without shadows)
-  const dbg = new URLSearchParams(location.search);
   const bare = dbg.has("bare");
 
   return (
@@ -260,7 +324,7 @@ function Idle({ st, tick, api, active }: { st: State; tick: number; api: (p: str
       {active && !bare && prev && prev !== cur?.id && <div className="dk-view out" key={`out-${prev}`} />}
       {active && !bare && cur && (
         <div className={`dk-view ${cur.id} ${dbg.has("notext") ? "notext" : ""}`} key={cur.id}>
-          <View id={cur.id} st={st} tick={tick} api={api} media={media} art={art} photo={wantPhoto ? shown : undefined} />
+          <View id={cur.id} st={st} tick={tick} media={media} art={art} photo={wantPhoto ? shown : undefined} />
         </div>
       )}
       {active && !bare && cur && cur.id !== "clock" && cur.id !== "weather" && <Strip st={st} tick={tick} />}
@@ -269,12 +333,14 @@ function Idle({ st, tick, api, active }: { st: State; tick: number; api: (p: str
   );
 }
 
-/* two <div>s crossfade; Ken Burns runs on the visible one */
+/* two <img>s crossfade; Ken Burns runs on the visible one */
 function PhotoLayer({ photos, sec, on, onShow }: { photos: Photo[]; sec: number; on: boolean; onShow: (p: Photo | undefined) => void }) {
+  const dbg = useParams();
   const [i, setI] = React.useState(0);
   const [slot, setSlot] = React.useState(0);
   const urls = React.useRef<[string | null, string | null]>([null, null]);
-  const reduced = typeof matchMedia !== "undefined" && (matchMedia("(prefers-reduced-motion: reduce)").matches || new URLSearchParams(location.search).has("nokb"));
+  const reduced = React.useMemo(() => (typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches) || dbg.has("nokb"), [dbg]);
+  const staticCls = dbg.has("static") ? "static" : "";
 
   // Random order that alternates sources (a Met run of eight would otherwise
   // look like one museum), reshuffled only when the pool itself changes.
@@ -289,11 +355,7 @@ function PhotoLayer({ photos, sec, on, onShow }: { photos: Photo[]; sec: number;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on pool identity, not on element order
   }, [photos.map((p) => p.url).join("|")]);
 
-  React.useEffect(() => {
-    if (!order.length) return;
-    const id = setInterval(() => setI((x) => (x + 1) % order.length), sec * 1000);
-    return () => clearInterval(id);
-  }, [order.length, sec]);
+  useInterval(() => setI((x) => (x + 1) % Math.max(1, order.length)), order.length ? sec * 1000 : null, { pauseHidden: false });
 
   const cur = order[i % Math.max(1, order.length)];
   const url = cur?.url ?? null;
@@ -335,7 +397,7 @@ function PhotoLayer({ photos, sec, on, onShow }: { photos: Photo[]; sec: number;
             alt=""
             src={u ?? undefined}
             decoding="async"
-            className={`dk-photo ${vis ? "on" : ""} ${vis && !reduced ? "kb" : ""} ${new URLSearchParams(location.search).has("static") ? "static" : ""}`}
+            className={`dk-photo ${vis ? "on" : ""} ${vis && !reduced ? "kb" : ""} ${staticCls}`}
             style={u ? ({ "--kb": `${sec + 4}s`, "--kbo": `${seed % 2 ? 35 : 65}% ${seed % 3 ? 40 : 60}%` } as React.CSSProperties) : undefined}
           />
         );
@@ -345,30 +407,37 @@ function PhotoLayer({ photos, sec, on, onShow }: { photos: Photo[]; sec: number;
 }
 
 /* ------------------------------------------------------------------ views */
-function View({ id, st, tick, api, media, art, photo }: { id: DisplayViewId; st: State; tick: number; api: (p: string, i?: RequestInit) => Promise<Response>; media: Media | null; art: string | null; photo?: Photo }) {
+function View({ id, st, tick, media, art, photo }: { id: DisplayViewId; st: State; tick: number; media: Media | null; art: string | null; photo?: Photo }) {
   const t = useTranslations("nestHub.kiosk");
+  const k = useKioskText();
   const d = new Date(tick);
   switch (id) {
     case "clock": {
       const w = st.weather;
-      const t = num(w?.attributes.temperature, NaN);
+      const temp = num(w?.attributes.temperature, NaN);
       const inside = Number(st.inside?.temp?.state);
       const next = (st.calendar ?? [])[0];
       return (
         <div className="clock" style={{ display: "contents" }}>
           <div style={{ alignSelf: "end" }}>
-            <div className="time">{hhmm(tick)}</div>
-            <div className="date">{DAYS[d.getDay()]}, {d.getDate()} {MONTHS[d.getMonth()]}{next ? ` · ${typeof next.start === "number" ? hhmm(next.start) : ""} ${next.title}` : ""}</div>
+            <div className="time">{k.hhmm(tick)}</div>
+            <div className="date">{k.dateLong(d)}{next ? ` · ${typeof next.start === "number" ? k.hhmm(next.start) : ""} ${next.title}` : ""}</div>
           </div>
           <div className="side">
-            {Number.isFinite(t) && (
+            {Number.isFinite(temp) && (
               <>
-                <div className="t">{Math.round(t)}°</div>
-                <div className="s">{COND[w?.state ?? ""] ?? ""} {COND_RO[w?.state ?? ""] ?? w?.state}{Number.isFinite(inside) ? ` · ${inside.toFixed(1)}° în dormitor` : ""}</div>
+                <div className="t">{Math.round(temp)}°</div>
+                <div className="s">
+                  <span aria-hidden>{COND[w?.state ?? ""] ?? ""}</span> {k.cond(w?.state)}
+                  {Number.isFinite(inside) ? ` · ${t("insideBedroom", { t: k.number(inside, 1) })}` : ""}
+                </div>
               </>
             )}
           </div>
           {photo && <Caption p={photo} />}
+          <span className="dk-mark" aria-hidden>
+            <VatraMark size={20} state="idle" />
+          </span>
         </div>
       );
     }
@@ -381,22 +450,24 @@ function View({ id, st, tick, api, media, art, photo }: { id: DisplayViewId; st:
           <div className="row" style={{ alignItems: "center", gap: 28 }}>
             <div className="num" style={{ fontSize: 150 }}>{Math.round(num(w?.attributes.temperature))}°</div>
             <div>
-              <div style={{ fontSize: 34, fontWeight: 600 }}>{COND_RO[w?.state ?? ""] ?? w?.state}</div>
-              <div className="muted" style={{ fontSize: 22, marginTop: 6 }}>umiditate {num(w?.attributes.humidity)} % · vânt {Math.round(num(w?.attributes.wind_speed))} km/h · {num(w?.attributes.pressure)} hPa</div>
+              <div style={{ fontSize: 34, fontWeight: 600 }}>{k.cond(w?.state)}</div>
+              <div className="muted" style={{ fontSize: 22, marginTop: 6 }}>
+                {t("weatherLine", { h: num(w?.attributes.humidity), w: Math.round(num(w?.attributes.wind_speed)), p: num(w?.attributes.pressure) })}
+              </div>
             </div>
           </div>
           <div className="plate" style={{ display: "grid", gridTemplateColumns: `repeat(${hours.length + days.length}, 1fr)`, gap: 6, padding: "18px 22px" }}>
             {hours.map((h) => (
               <div key={h.t} style={{ textAlign: "center" }}>
-                <div className="muted" style={{ fontSize: 15 }}>{hhmm(h.t)}</div>
-                <div style={{ fontSize: 26, margin: "4px 0" }}>{COND[h.cond] ?? "·"}</div>
+                <div className="muted" style={{ fontSize: 15 }}>{k.hhmm(h.t)}</div>
+                <div style={{ fontSize: 26, margin: "4px 0" }} title={k.cond(h.cond)}>{COND[h.cond] ?? "·"}</div>
                 <div style={{ fontSize: 22 }}>{Math.round(h.temp)}°</div>
               </div>
             ))}
             {days.map((f) => (
               <div key={f.t} style={{ textAlign: "center", borderLeft: "1px solid var(--hair)" }}>
-                <div className="muted" style={{ fontSize: 15 }}>{DAYS[new Date(f.t).getDay()]?.slice(0, 3)}</div>
-                <div style={{ fontSize: 26, margin: "4px 0" }}>{COND[f.cond] ?? "·"}</div>
+                <div className="muted" style={{ fontSize: 15 }}>{k.dayShort(new Date(f.t))}</div>
+                <div style={{ fontSize: 26, margin: "4px 0" }} title={k.cond(f.cond)}>{COND[f.cond] ?? "·"}</div>
                 <div style={{ fontSize: 20 }}>{Math.round(f.hi)}° <span className="muted">{Math.round(f.lo)}°</span></div>
               </div>
             ))}
@@ -410,24 +481,25 @@ function View({ id, st, tick, api, media, art, photo }: { id: DisplayViewId; st:
       const hum = Number(st.inside?.hum?.state);
       const acs = st.devices.filter((x) => x.kind === "ac" && x.entity).map((x) => ({ d: x, e: st.entities[x.entity!] })).filter((x) => x.e);
       const low = (st.batteries ?? []).filter((b) => b.pct < 25);
+      const presence = h?.presence?.state === "on" ? t("someoneHome") : h?.presence?.state === "unavailable" ? t("presenceOffline") : t("nobodyBedroom");
       return (
         <div style={{ alignContent: "end" }}>
           <div className="plate" style={{ maxWidth: 560, display: "grid", gap: 16 }}>
-            <h2>Casa</h2>
+            <h2>{t("homeTitle")}</h2>
             <div className="row" style={{ gap: 36 }}>
-              <div><div className="num" style={{ fontSize: 72 }}>{Number.isFinite(inside) ? inside.toFixed(1) : "—"}°</div><div className="muted">dormitor{Number.isFinite(hum) ? ` · ${Math.round(hum)} %` : ""}</div></div>
-              <div><div className="num" style={{ fontSize: 72 }} >{h?.lightsOn ?? 0}<span className="muted" style={{ fontSize: 30 }}>/{h?.lightsTotal ?? "–"}</span></div><div className="muted">lumini aprinse</div></div>
+              <div><div className="num" style={{ fontSize: 72 }}>{Number.isFinite(inside) ? k.number(inside, 1) : "—"}°</div><div className="muted">{t("bedroom")}{Number.isFinite(hum) ? ` · ${Math.round(hum)} %` : ""}</div></div>
+              <div><div className="num" style={{ fontSize: 72 }}>{h?.lightsOn ?? 0}<span className="muted" style={{ fontSize: 30 }}>/{h?.lightsTotal ?? "–"}</span></div><div className="muted">{t("lightsOn")}</div></div>
             </div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: 19 }}>
-              <span className={h?.door?.state === "on" ? "accent" : "muted"}>ușa {h?.door?.state === "on" ? "deschisă" : "închisă"}</span>
-              <span className="muted">·</span>
-              <span className={h?.presence?.state === "on" ? "accent" : "muted"}>{h?.presence?.state === "on" ? "cineva acasă" : h?.presence?.state === "unavailable" ? "senzor prezență offline" : "nimeni în dormitor"}</span>
+              <span className={h?.door?.state === "on" ? "accent" : "muted"}>{h?.door?.state === "on" ? t("doorOpen") : t("doorClosed")}</span>
+              <span className="muted" aria-hidden>·</span>
+              <span className={h?.presence?.state === "on" ? "accent" : "muted"}>{presence}</span>
               {acs.map(({ d: dev, e }) =>
                 e ? (
-                  <React.Fragment key={dev.id}><span className="muted">·</span><span className={e.state !== "off" ? "cool" : "muted"}>{dev.name} {e.state === "off" ? "oprit" : `${e.state} ${num(e.attributes.temperature)}°`}</span></React.Fragment>
+                  <React.Fragment key={dev.id}><span className="muted" aria-hidden>·</span><span className={e.state !== "off" ? "cool" : "muted"}>{dev.name} {e.state === "off" ? k.hvac("off") : `${k.hvac(e.state)} ${num(e.attributes.temperature)}°`}</span></React.Fragment>
                 ) : null,
               )}
-              {low.length > 0 && <><span className="muted">·</span><span className="accent">baterie: {low.map((b) => `${b.name} ${b.pct}%`).join(", ")}</span></>}
+              {low.length > 0 && <><span className="muted" aria-hidden>·</span><span className="accent">{t("battery", { list: low.map((b) => `${b.name} ${b.pct}%`).join(", ") })}</span></>}
             </div>
           </div>
           {photo && <Caption p={photo} />}
@@ -464,17 +536,20 @@ function View({ id, st, tick, api, media, art, photo }: { id: DisplayViewId; st:
       return (
         <div style={{ alignContent: "end" }}>
           <div className="plate" style={{ display: "grid", gridTemplateColumns: "auto auto 1fr", gap: 36, alignItems: "center", maxWidth: 820 }}>
-            <Arc v={n.today.calories / Math.max(1, n.targets.calories)} big={String(n.today.calories)} small="kcal" />
-            <Arc v={w.ml / Math.max(1, w.targetMl)} big={String(w.glasses)} small="pahare" cool />
+            <Arc v={n.today.calories / Math.max(1, n.targets.calories)} big={String(n.today.calories)} small={t("kcal")} />
+            <Arc v={w.ml / Math.max(1, w.targetMl)} big={String(w.glasses)} small={t("glasses", { n: w.glasses })} cool />
             <div style={{ display: "grid", gap: 12 }}>
-              <h2 style={{ margin: 0 }}>Nutriție</h2>
-              {(["protein", "carbs", "fats"] as const).map((k) => (
-                <div key={k}>
-                  <div className="row muted" style={{ justifyContent: "space-between", fontSize: 17 }}><span>{k === "protein" ? "proteine" : k === "carbs" ? "carbo" : "grăsimi"}</span><span>{Math.round(n.today[k])} / {n.targets[k]} g</span></div>
-                  <div className="bar" style={{ marginTop: 6 }}><i style={{ "--v": String(Math.min(1, n.today[k] / Math.max(1, n.targets[k]))) } as React.CSSProperties} /></div>
+              <h2 style={{ margin: 0 }}>{t("nutritionTitle")}</h2>
+              {(["protein", "carbs", "fats"] as const).map((key) => (
+                <div key={key}>
+                  <div className="row muted" style={{ justifyContent: "space-between", fontSize: 17 }}><span>{t(`macro.${key}`)}</span><span>{Math.round(n.today[key])} / {n.targets[key]} g</span></div>
+                  <div className="bar" style={{ marginTop: 6 }}><i style={{ "--v": String(Math.min(1, n.today[key] / Math.max(1, n.targets[key]))) } as React.CSSProperties} /></div>
                 </div>
               ))}
-              <div className="muted" style={{ fontSize: 17 }}>{w.ml} ml din {w.targetMl} ml apă{w.underPace ? " · sub ritm" : ""} · {n.today.meals} mese</div>
+              <div className="muted" style={{ fontSize: 17 }}>
+                {t("waterLine", { ml: w.ml, target: w.targetMl })}
+                {w.underPace ? ` · ${t("underPace")}` : ""} · {t("meals", { n: n.today.meals })}
+              </div>
             </div>
           </div>
         </div>
@@ -484,18 +559,22 @@ function View({ id, st, tick, api, media, art, photo }: { id: DisplayViewId; st:
       const hosts = Object.entries(st.pcs ?? {});
       return (
         <div style={{ alignContent: "end", display: "grid", gap: 14 }}>
-          {hosts.slice(0, 2).map(([host, m]) => {
-            const disks = (m.disks as Array<{ drive: string; pct: number; freeGb: number }> | undefined) ?? [];
-            const focus = m.focus as { proc?: string; title?: string } | undefined;
+          {hosts.slice(0, 2).map(([host, mm]) => {
+            const disks = (mm.disks as Array<{ drive: string; pct: number; freeGb: number }> | undefined) ?? [];
+            const focus = mm.focus as { proc?: string; title?: string } | undefined;
             return (
               <div className="plate" key={host} style={{ display: "grid", gridTemplateColumns: "auto auto auto 1fr", gap: 28, alignItems: "center" }}>
-                <Arc v={pct(m.cpu)} big={`${Math.round(num(m.cpu))}`} small="cpu %" />
-                <Arc v={pct(m.gpu)} big={`${Math.round(num(m.gpu))}`} small={`gpu ${Math.round(num(m.gpuTemp))}°`} />
-                <Arc v={pct(m.ram)} big={`${Math.round(num(m.ram))}`} small="ram %" cool />
+                <Arc v={pct(mm.cpu)} big={`${Math.round(num(mm.cpu))}`} small={t("cpuPct")} />
+                <Arc v={pct(mm.gpu)} big={`${Math.round(num(mm.gpu))}`} small={t("gpuTemp", { t: Math.round(num(mm.gpuTemp)) })} />
+                <Arc v={pct(mm.ram)} big={`${Math.round(num(mm.ram))}`} small={t("ramPct")} cool />
                 <div>
                   <h2>{host}</h2>
                   {focus?.title && <div style={{ fontSize: 24, fontWeight: 600, textWrap: "balance" as never }}>{focus.title}</div>}
-                  <div className="muted" style={{ fontSize: 17, marginTop: 8 }}>{focus?.proc ? `${focus.proc} · ` : ""}up {fmtUp(num(m.uptime))}{disks.length ? ` · ${disks.map((x) => `${x.drive} ${Math.round(x.freeGb)} GB liber`).join(" · ")}` : ""}</div>
+                  <div className="muted" style={{ fontSize: 17, marginTop: 8 }}>
+                    {focus?.proc ? `${focus.proc} · ` : ""}
+                    {t("up", { t: k.uptime(num(mm.uptime)) })}
+                    {disks.length ? ` · ${disks.map((x) => t("diskFree", { drive: x.drive, gb: Math.round(x.freeGb) })).join(" · ")}` : ""}
+                  </div>
                 </div>
               </div>
             );
@@ -508,21 +587,22 @@ function View({ id, st, tick, api, media, art, photo }: { id: DisplayViewId; st:
       if (!p) return null;
       const thr = (p.throttled as { undervolt?: boolean; capped?: boolean; throttled?: boolean; softTemp?: boolean } | undefined) ?? {};
       const disk = p.disk as { pct?: number; freeGb?: number } | undefined;
-      const flags = [thr.undervolt && "sub-tensiune", thr.capped && "frecvență limitată", thr.throttled && t("throttled"), thr.softTemp && "limită termică"].filter(Boolean);
+      const flags = [thr.undervolt && t("undervolt"), thr.capped && t("capped"), thr.throttled && t("throttled"), thr.softTemp && t("softTemp")].filter(Boolean);
       return (
         <div style={{ alignContent: "end" }}>
           <div className="plate" style={{ display: "grid", gridTemplateColumns: "auto auto auto 1fr", gap: 28, alignItems: "center", maxWidth: 900 }}>
-            <Arc v={pct(p.cpu)} big={`${Math.round(num(p.cpu))}`} small={`cpu · ${num(p.mhz)} MHz`} />
+            <Arc v={pct(p.cpu)} big={`${Math.round(num(p.cpu))}`} small={t("cpuMhz", { mhz: num(p.mhz) })} />
             <Arc v={Math.min(1, num(p.temp) / 85)} big={`${Math.round(num(p.temp))}°`} small="soc" />
-            <Arc v={pct(p.ram)} big={`${Math.round(num(p.ram))}`} small="ram %" cool />
+            <Arc v={pct(p.ram)} big={`${Math.round(num(p.ram))}`} small={t("ramPct")} cool />
             <div>
               <h2>Raspberry Pi</h2>
               <div className="row" style={{ gap: 18 }}>
-                <span style={{ fontSize: 34, fontWeight: 200 }} className={thr.undervolt ? "accent" : ""}>{num(p.coreV).toFixed(2)} V</span>
-                <span className="muted" style={{ fontSize: 18 }}>core{num(p.dips) ? ` · ${num(p.dips)} căderi` : ""}</span>
+                <span style={{ fontSize: 34, fontWeight: 200 }} className={thr.undervolt ? "accent" : ""}>{k.number(num(p.coreV), 2)} V</span>
+                <span className="muted" style={{ fontSize: 18 }}>{t("core")}{num(p.dips) ? ` · ${t("dips", { n: num(p.dips) })}` : ""}</span>
               </div>
               <div className="muted" style={{ fontSize: 17, marginTop: 8 }}>
-                load {num(p.load).toFixed(2)} · {num(p.containers)} containere · up {fmtUp(num(p.uptime))}{disk ? ` · disc ${Math.round(num(disk.freeGb))} GB liber` : ""} · ↓{Math.round(num(p.rxKbps))} ↑{Math.round(num(p.txKbps))} kb/s
+                {t("load", { v: k.number(num(p.load), 2) })} · {t("containers", { n: num(p.containers) })} · {t("up", { t: k.uptime(num(p.uptime)) })}
+                {disk ? ` · ${t("piDiskFree", { gb: Math.round(num(disk.freeGb)) })}` : ""} · ↓{Math.round(num(p.rxKbps))} ↑{Math.round(num(p.txKbps))} kb/s
               </div>
               {flags.length > 0 && <div className="accent" style={{ fontSize: 17, marginTop: 6 }}>{flags.join(" · ")}</div>}
             </div>
@@ -535,13 +615,12 @@ function View({ id, st, tick, api, media, art, photo }: { id: DisplayViewId; st:
       return (
         <div style={{ alignContent: "end" }}>
           <div className="plate" style={{ maxWidth: 620, display: "grid", gap: 10 }}>
-            <h2>Urmează</h2>
+            <h2>{t("upcoming")}</h2>
             {ev.map((e, i) => {
-              const t = typeof e.start === "number" ? e.start : Date.parse(e.start);
-              const dd = new Date(t);
+              const ts = typeof e.start === "number" ? e.start : Date.parse(e.start);
               return (
                 <div className="row" key={i} style={{ gap: 18, fontSize: 24 }}>
-                  <span className="muted" style={{ minWidth: 150, fontSize: 19 }}>{DAYS[dd.getDay()]?.slice(0, 3)} {dd.getDate()} {e.allDay ? "" : hhmm(t)}</span>
+                  <span className="muted" style={{ minWidth: 150, fontSize: 19 }}>{k.dayDate(new Date(ts))} {e.allDay ? "" : k.hhmm(ts)}</span>
                   <span style={{ fontWeight: 600 }}>{e.title}</span>
                 </div>
               );
@@ -561,8 +640,10 @@ function View({ id, st, tick, api, media, art, photo }: { id: DisplayViewId; st:
               return (
                 <div key={r.code}>
                   <h2>{r.code}</h2>
-                  <div className="num" style={{ fontSize: 64 }}>{r.rate.toFixed(4)}</div>
-                  <div className={dlt >= 0 ? "accent" : "cool"} style={{ fontSize: 19, marginTop: 6 }}>{dlt >= 0 ? "▲" : "▼"} {Math.abs(dlt).toFixed(4)} <span className="muted">RON · BNR {fx.date}</span></div>
+                  <div className="num" style={{ fontSize: 64 }}>{k.number(r.rate, 4)}</div>
+                  <div className={dlt >= 0 ? "accent" : "cool"} style={{ fontSize: 19, marginTop: 6 }}>
+                    <span role="img" aria-label={dlt >= 0 ? t("rising") : t("falling")}>{dlt >= 0 ? "▲" : "▼"}</span> {k.number(Math.abs(dlt), 4)} <span className="muted">{t("fxSource", { date: fx.date })}</span>
+                  </div>
                 </div>
               );
             })}
@@ -578,8 +659,8 @@ function View({ id, st, tick, api, media, art, photo }: { id: DisplayViewId; st:
             {c.map((x) => (
               <div key={x.symbol}>
                 <h2>{x.symbol}</h2>
-                <div className="num" style={{ fontSize: 60 }}>${Math.round(x.price).toLocaleString("en-US")}</div>
-                <div className={x.change24h >= 0 ? "accent" : "cool"} style={{ fontSize: 19, marginTop: 6 }}>{x.change24h >= 0 ? "▲" : "▼"} {Math.abs(x.change24h).toFixed(2)} % <span className="muted">24 h</span></div>
+                <div className="num" style={{ fontSize: 60 }}>${k.number(Math.round(x.price))}</div>
+                <div className={x.change24h >= 0 ? "accent" : "cool"} style={{ fontSize: 19, marginTop: 6 }}><span role="img" aria-label={x.change24h >= 0 ? t("rising") : t("falling")}>{x.change24h >= 0 ? "▲" : "▼"}</span> {k.number(Math.abs(x.change24h), 2)} % <span className="muted">24 h</span></div>
               </div>
             ))}
           </div>
@@ -605,7 +686,7 @@ function NowPlaying({ media, art, tick }: { media: Media; art: string | null; ti
       {art ? <img className="art" src={art} alt="" decoding="async" /> : <div className="art" />}
       <div style={{ minWidth: 0 }}>
         <div className="t">
-          {media.state === "playing" && <span className="eq"><i /><i /><i /></span>}
+          {media.state === "playing" && <span className="eq" aria-hidden><i /><i /><i /></span>}
           {media.title ?? media.app ?? "—"}
         </div>
         <div className="a">{[media.artist, media.name].filter(Boolean).join(" · ")}</div>
@@ -617,15 +698,16 @@ function NowPlaying({ media, art, tick }: { media: Media; art: string | null; ti
 /* Clock + outside weather, top-right, on every panel that does not already
    carry them (clock, weather). Same figures as the clock view, smaller. */
 function Strip({ st, tick }: { st: State; tick: number }) {
+  const k = useKioskText();
   const w = st.weather;
-  const t = num(w?.attributes.temperature, NaN);
+  const temp = num(w?.attributes.temperature, NaN);
   return (
     <div className="strip">
-      <div className="strip-time">{hhmm(tick)}</div>
-      {Number.isFinite(t) && (
+      <div className="strip-time">{k.hhmm(tick)}</div>
+      {Number.isFinite(temp) && (
         <div className="strip-w">
-          <span className="strip-t">{Math.round(t)}°</span>
-          <span className="muted">{COND[w?.state ?? ""] ?? ""} {COND_RO[w?.state ?? ""] ?? w?.state}</span>
+          <span className="strip-t">{Math.round(temp)}°</span>
+          <span className="muted"><span aria-hidden>{COND[w?.state ?? ""] ?? ""}</span> {k.cond(w?.state)}</span>
         </div>
       )}
     </div>
@@ -634,23 +716,25 @@ function Strip({ st, tick }: { st: State; tick: number }) {
 function Arc({ v, big, small, cool }: { v: number; big: string; small: string; cool?: boolean }) {
   return (
     <div className="arc" style={cool ? ({ "--accent": "var(--cool)" } as React.CSSProperties) : undefined}>
-      <svg viewBox="0 0 140 140"><circle className="tr" cx="70" cy="70" r="54" /><circle className="va" cx="70" cy="70" r="54" style={{ "--v": String(Math.max(0, Math.min(1, v))) } as React.CSSProperties} /></svg>
+      <svg viewBox="0 0 140 140" aria-hidden><circle className="tr" cx="70" cy="70" r="54" /><circle className="va" cx="70" cy="70" r="54" style={{ "--v": String(Math.max(0, Math.min(1, v))) } as React.CSSProperties} /></svg>
       <div className="lab"><b>{big}</b><span>{small}</span></div>
     </div>
   );
 }
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
-const fmtUp = (s: number) => (s >= 86400 ? `${Math.floor(s / 86400)} z ${Math.floor((s % 86400) / 3600)} h` : `${Math.floor(s / 3600)} h ${Math.floor((s % 3600) / 60)} m`);
 
 /* ------------------------------------------------------------------ home screen */
 type Cmd = Record<string, unknown>;
-function Home({ st, tick, api, onTouch }: { st: State; tick: number; api: (p: string, i?: RequestInit) => Promise<Response>; onTouch: () => void }) {
+type Send = (c: Cmd, o?: { entity: string; patch: Partial<Ent> }) => Promise<void>;
+function Home({ st, tick, api, onTouch }: { st: State; tick: number; api: Api; onTouch: () => void }) {
+  const t = useTranslations("nestHub.kiosk");
+  const k = useKioskText();
   const rooms = st.rooms.filter((r) => st.devices.some((d) => d.room === r.id && d.entity));
   const [room, setRoom] = React.useState(rooms[0]?.id ?? "bedroom");
   const [sheet, setSheet] = React.useState<Device | "ambilight" | "water" | null>(null);
   const [pending, setPending] = React.useState<Record<string, Ent>>({});
-  const send = React.useCallback(
-    async (c: Cmd, optimistic?: { entity: string; patch: Partial<Ent> }) => {
+  const send = React.useCallback<Send>(
+    async (c, optimistic) => {
       onTouch();
       if (optimistic) setPending((p) => ({ ...p, [optimistic.entity]: { ...(st.entities[optimistic.entity] ?? { state: "", attributes: {} }), ...optimistic.patch } }));
       try {
@@ -672,24 +756,25 @@ function Home({ st, tick, api, onTouch }: { st: State; tick: number; api: (p: st
     if (d.startViewTransition) d.startViewTransition(() => setSheet(s));
     else setSheet(s);
   };
+  const ambilightName = hyper?.state === "on" ? (String(hyper.attributes.effect ?? "").startsWith("Music") ? t("mode.music") : t("mode.movie")) : t("off");
 
   return (
     <div className="home-ui" onPointerDown={onTouch}>
-      <div className="tabs">
+      <div className="tabs" role="tablist" aria-label={t("roomsLabel")}>
         {rooms.map((r) => (
-          <button key={r.id} className={`tab ${room === r.id ? "on" : ""}`} onClick={() => setRoom(r.id)}>{ROOM_RO[r.id] ?? r.name}</button>
+          <button key={r.id} role="tab" aria-selected={room === r.id} className={`tab ${room === r.id ? "on" : ""}`} onClick={() => setRoom(r.id)}>{k.room(r)}</button>
         ))}
-        <button className={`tab ${room === "scene" ? "on" : ""}`} onClick={() => setRoom("scene")}>Scene</button>
+        <button role="tab" aria-selected={room === "scene"} className={`tab ${room === "scene" ? "on" : ""}`} onClick={() => setRoom("scene")}>{t("scenes")}</button>
         <span className="sp" />
-        <span className="clk">{hhmm(tick)}</span>
+        <span className="clk">{k.hhmm(tick)}</span>
       </div>
-      <div className="grid">
+      <div className="grid" role="tabpanel">
         {room === "scene" ? (
           <>
-            <Tile i={0} on={!!hyper && hyper.state === "on"} k="ambilight" n={hyper?.state === "on" ? (String(hyper.attributes.effect ?? "").startsWith("Music") ? "Music" : "Movie") : "oprit"} onTap={() => openSheet("ambilight")} onLong={() => openSheet("ambilight")} />
-            <Tile i={1} cool on={false} k="apă" n={water ? `${water.glasses} pahare · ${water.ml} ml` : "—"} v={water ? <>{Math.round((water.ml / Math.max(1, water.targetMl)) * 100)}<small>%</small></> : undefined} onTap={() => void send({ type: "water", ml: 250 })} onLong={() => openSheet("water")} />
-            <Tile i={2} on={false} k="pc" n="Trezește PC-ul" onTap={() => void send({ type: "script", name: "pc_wake" })} />
-            <Tile i={3} on={false} k="lumini" n="Stinge tot" onTap={() => { for (const d of st.devices) if (d.entity?.startsWith("light.") && ent(d.entity)?.state === "on") void send({ type: "toggle", entity: d.entity, on: false }, { entity: d.entity, patch: { state: "off" } }); }} />
+            <Tile i={0} on={!!hyper && hyper.state === "on"} k="ambilight" n={ambilightName} onTap={() => openSheet("ambilight")} onLong={() => openSheet("ambilight")} />
+            <Tile i={1} cool on={false} k={t("waterKey")} n={water ? t("waterTile", { g: water.glasses, ml: water.ml }) : "—"} v={water ? <>{Math.round((water.ml / Math.max(1, water.targetMl)) * 100)}<small>%</small></> : undefined} onTap={() => void send({ type: "water", ml: 250 })} onLong={() => openSheet("water")} />
+            <Tile i={2} on={false} k="pc" n={t("wakePc")} onTap={() => void send({ type: "script", name: "pc_wake" })} />
+            <Tile i={3} on={false} k={t("lightsKey")} n={t("allOff")} onTap={() => { for (const d of st.devices) if (d.entity?.startsWith("light.") && ent(d.entity)?.state === "on") void send({ type: "toggle", entity: d.entity, on: false }, { entity: d.entity, patch: { state: "off" } }); }} />
           </>
         ) : (
           devs.map((d, i) => <DeviceTile key={d.id} i={i} d={d} e={ent(d.entity)} send={send} open={() => openSheet(d)} />)
@@ -701,26 +786,40 @@ function Home({ st, tick, api, onTouch }: { st: State; tick: number; api: (p: st
 }
 
 function Tile({ i, on, cool, k, n, v, wide, onTap, onLong }: { i: number; on: boolean; cool?: boolean; k: string; n: string; v?: React.ReactNode; wide?: boolean; onTap?: () => void; onLong?: () => void }) {
-  const t = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const t = useTranslations("nestHub.kiosk");
+  const fx = useTapFx();
+  const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const fired = React.useRef(false);
+  const tap = () => {
+    fx();
+    onTap?.();
+  };
   return (
     <button
+      type="button"
       className={`tile ${on ? "on" : ""} ${cool ? "cool" : ""} ${wide ? "wide" : ""}`}
       style={{ "--i": String(i) } as React.CSSProperties}
-      onPointerDown={() => { fired.current = false; if (onLong) t.current = setTimeout(() => { fired.current = true; onLong(); }, 480); }}
-      onPointerUp={() => { if (t.current) clearTimeout(t.current); if (!fired.current) onTap?.(); }}
-      onPointerLeave={() => { if (t.current) clearTimeout(t.current); }}
-      onContextMenu={(e) => e.preventDefault()}
+      aria-pressed={onTap ? on : undefined}
+      aria-haspopup={onLong ? "dialog" : undefined}
+      title={onLong ? t("longPressHint") : undefined}
+      onPointerDown={() => { fired.current = false; if (onLong) timer.current = setTimeout(() => { fired.current = true; fx(); onLong(); }, 480); }}
+      onPointerUp={(e) => { if (timer.current) clearTimeout(timer.current); if (!fired.current && e.pointerType) tap(); fired.current = true; }}
+      onPointerLeave={() => { if (timer.current) clearTimeout(timer.current); }}
+      // keyboard: Enter/Space tap, the context-menu key / Shift+F10 opens the detail (long-press alternative)
+      onClick={(e) => { if (e.detail === 0) tap(); }}
+      onContextMenu={(e) => { e.preventDefault(); if (onLong && !fired.current) { fired.current = true; onLong(); } }}
     >
       <span className="k">{k}</span>
       {v !== undefined && <span className="v">{v}</span>}
       <span className="n">{n}</span>
-      <i className="dot" />
+      <i className="dot" aria-hidden />
     </button>
   );
 }
 
-function DeviceTile({ i, d, e, send, open }: { i: number; d: Device; e?: Ent; send: (c: Cmd, o?: { entity: string; patch: Partial<Ent> }) => Promise<void>; open: () => void }) {
+function DeviceTile({ i, d, e, send, open }: { i: number; d: Device; e?: Ent; send: Send; open: () => void }) {
+  const t = useTranslations("nestHub.kiosk");
+  const k = useKioskText();
   const id = d.entity!;
   const on = !!e && !["off", "unavailable", "unknown", "standby", "idle"].includes(e.state);
   const kind = d.kind;
@@ -729,16 +828,16 @@ function DeviceTile({ i, d, e, send, open }: { i: number; d: Device; e?: Ent; se
     const cur = num(e?.attributes.current_temperature, NaN);
     const target = num(e?.attributes.temperature, 24);
     return (
-      <Tile i={i} cool on={on} k={`AC · ${e?.state === "off" ? "oprit" : e?.state ?? "—"}`} n={`${d.name}${Number.isFinite(cur) ? ` · ${cur}° în cameră` : ""}`} v={<>{target}<small>°</small></>} wide
+      <Tile i={i} cool on={on} k={t("acKey", { state: k.hvac(e?.state) })} n={Number.isFinite(cur) ? t("acRoom", { name: d.name, t: cur }) : d.name} v={<>{target}<small>°</small></>} wide
         onTap={() => void send({ type: "toggle", entity: id, on: !on }, { entity: id, patch: { state: on ? "off" : "cool" } })} onLong={open} />
     );
   }
   if (kind === "sensor") {
-    return <Tile i={i} on={false} k="senzor" n={d.name} v={<>{Number(e?.state).toFixed(1)}<small>{String(e?.attributes.unit_of_measurement ?? "")}</small></>} />;
+    return <Tile i={i} on={false} k={t("sensorKey")} n={d.name} v={<>{k.number(Number(e?.state), 1)}<small>{String(e?.attributes.unit_of_measurement ?? "")}</small></>} />;
   }
   if (kind === "door" || kind === "presence") {
     const yes = e?.state === "on";
-    return <Tile i={i} on={yes} k={kind === "door" ? "ușă" : "prezență"} n={un ? "offline" : kind === "door" ? (yes ? "deschisă" : "închisă") : yes ? "cineva" : "nimeni"} />;
+    return <Tile i={i} on={yes} k={kind === "door" ? t("doorKey") : t("presenceKey")} n={un ? t("deviceOffline") : kind === "door" ? (yes ? t("open") : t("closed")) : yes ? t("someone") : t("nobody")} />;
   }
   if (kind === "tv" || kind === "display") {
     const title = e?.attributes.media_title as string | undefined;
@@ -746,42 +845,68 @@ function DeviceTile({ i, d, e, send, open }: { i: number; d: Device; e?: Ent; se
   }
   const br = num(e?.attributes.brightness, 0);
   return (
-    <Tile i={i} on={on} k={d.via.split(" ")[0] ?? "lumină"} n={d.name} v={on && br ? <>{Math.round((br / 255) * 100)}<small>%</small></> : undefined}
+    <Tile i={i} on={on} k={d.via.split(" ")[0] ?? t("lightKey")} n={d.name} v={on && br ? <>{Math.round((br / 255) * 100)}<small>%</small></> : undefined}
       onTap={() => !un && void send({ type: "toggle", entity: id, on: !on }, { entity: id, patch: { state: on ? "off" : "on" } })} onLong={open} />
   );
 }
 
-function Sheet({ s, st, ent, send, close }: { s: Device | "ambilight" | "water"; st: State; ent: (id?: string) => Ent | undefined; send: (c: Cmd, o?: { entity: string; patch: Partial<Ent> }) => Promise<void>; close: () => void }) {
+function SheetFrame({ title, sub, close, children }: { title: string; sub: React.ReactNode; close: () => void; children: React.ReactNode }) {
+  const t = useTranslations("nestHub.kiosk");
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();
+  const ref = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    ref.current?.focus();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [close]);
+  return (
+    <>
+      <div className="sheet-bg" onPointerDown={close} aria-hidden />
+      <div ref={ref} className="sheet" role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} onPointerDown={stop}>
+        <div className="row" style={{ justifyContent: "space-between", alignItems: "start" }}>
+          <div><h3>{title}</h3><div className="sub">{sub}</div></div>
+          <button type="button" className="b sheet-close" aria-label={t("close")} onClick={close}>✕</button>
+        </div>
+        {children}
+      </div>
+    </>
+  );
+}
+
+function Sheet({ s, st, ent, send, close }: { s: Device | "ambilight" | "water"; st: State; ent: (id?: string) => Ent | undefined; send: Send; close: () => void }) {
+  const t = useTranslations("nestHub.kiosk");
+  const k = useKioskText();
+  const fx = useTapFx();
+  const press = (fn: () => void) => () => {
+    fx();
+    fn();
+  };
   if (s === "ambilight") {
     const hyper = ent("light.hyperhdr");
     const eff = String(hyper?.attributes.effect ?? "");
     const mode = hyper?.state !== "on" ? "off" : eff.startsWith("Music") ? "music" : "movie";
     return (
-      <>
-        <div className="sheet-bg" onPointerDown={close} />
-        <div className="sheet" onPointerDown={stop}>
-          <div><h3>Ambilight</h3><div className="sub">ecranul conduce luminile · HyperHDR</div></div>
-          <div className="btns">
-            {(["movie", "music", "off"] as const).map((m) => <button key={m} className={`b ${mode === m ? "on" : ""}`} onClick={() => void send({ type: "ambilight", mode: m }).then(close)}>{m === "movie" ? "Movie" : m === "music" ? "Music" : "Cameră caldă"}</button>)}
-          </div>
+      <SheetFrame title="Ambilight" sub={t("ambilightSub")} close={close}>
+        <div className="btns">
+          {(["movie", "music", "off"] as const).map((md) => (
+            <button key={md} type="button" aria-pressed={mode === md} className={`b ${mode === md ? "on" : ""}`} onClick={press(() => void send({ type: "ambilight", mode: md }).then(close))}>
+              {t(`mode.${md}`)}
+            </button>
+          ))}
         </div>
-      </>
+      </SheetFrame>
     );
   }
   if (s === "water") {
     const w = st.nutrition?.water;
     return (
-      <>
-        <div className="sheet-bg" onPointerDown={close} />
-        <div className="sheet" onPointerDown={stop}>
-          <div><h3>Apă</h3><div className="sub">{w ? `${w.ml} ml din ${w.targetMl} ml · ${w.glasses} pahare` : ""}</div></div>
-          <div className="btns">
-            {[100, 250, 330, 500].map((ml) => <button key={ml} className="b" onClick={() => void send({ type: "water", ml }).then(close)}>+{ml} ml</button>)}
-            <button className="b" onClick={() => void send({ type: "water_undo" }).then(close)}>Anulează ultimul</button>
-          </div>
+      <SheetFrame title={t("waterTitle")} sub={w ? t("waterSub", { ml: w.ml, target: w.targetMl, g: w.glasses }) : ""} close={close}>
+        <div className="btns">
+          {[100, 250, 330, 500].map((ml) => <button key={ml} type="button" className="b" onClick={press(() => void send({ type: "water", ml }).then(close))}>{t("addMl", { ml })}</button>)}
+          <button type="button" className="b" onClick={press(() => void send({ type: "water_undo" }).then(close))}>{t("undoLast")}</button>
         </div>
-      </>
+      </SheetFrame>
     );
   }
   const d = s;
@@ -789,58 +914,61 @@ function Sheet({ s, st, ent, send, close }: { s: Device | "ambilight" | "water";
   const e = ent(id);
   if (d.kind === "ac") {
     const target = num(e?.attributes.temperature, 24);
+    const cur = num(e?.attributes.current_temperature, NaN);
     const modes = (e?.attributes.hvac_modes as string[] | undefined) ?? ["off", "cool", "heat", "dry", "fan_only", "auto"];
     const fans = (e?.attributes.fan_modes as string[] | undefined) ?? [];
-    const RO: Record<string, string> = { off: "Oprit", cool: "Răcire", heat: "Încălzire", dry: "Dezumidificare", fan_only: "Ventilator", auto: "Auto", heat_cool: "Auto" };
     return (
-      <>
-        <div className="sheet-bg" onPointerDown={close} />
-        <div className="sheet" onPointerDown={stop}>
-          <div><h3>{d.name}</h3><div className="sub">{Number.isFinite(num(e?.attributes.current_temperature, NaN)) ? `${num(e?.attributes.current_temperature)}° în cameră · ` : ""}{RO[e?.state ?? ""] ?? e?.state}</div></div>
-          <div className="bigtemp">
-            <button onClick={() => void send({ type: "climate", entity: id, temperature: target - 1 }, { entity: id, patch: { attributes: { ...(e?.attributes ?? {}), temperature: target - 1 } } })}>−</button>
-            <div className="t">{target}°</div>
-            <button onClick={() => void send({ type: "climate", entity: id, temperature: target + 1 }, { entity: id, patch: { attributes: { ...(e?.attributes ?? {}), temperature: target + 1 } } })}>+</button>
-          </div>
-          <div className="btns">{modes.map((m) => <button key={m} className={`b ${e?.state === m ? "on" : ""}`} onClick={() => void send({ type: "climate", entity: id, hvacMode: m }, { entity: id, patch: { state: m } })}>{RO[m] ?? m}</button>)}</div>
-          {fans.length > 0 && <div className="btns">{fans.map((f) => <button key={f} className={`b ${e?.attributes.fan_mode === f ? "on" : ""}`} style={{ fontSize: 18 }} onClick={() => void send({ type: "climate", entity: id, fanMode: f })}>{f.replace(/_/g, " ")}</button>)}</div>}
+      <SheetFrame title={d.name} sub={`${Number.isFinite(cur) ? `${t("inRoom", { t: cur })} · ` : ""}${k.hvac(e?.state)}`} close={close}>
+        <div className="bigtemp">
+          <button type="button" aria-label={t("colder")} onClick={press(() => void send({ type: "climate", entity: id, temperature: target - 1 }, { entity: id, patch: { attributes: { ...(e?.attributes ?? {}), temperature: target - 1 } } }))}>−</button>
+          <div className="t" aria-live="polite">{target}°</div>
+          <button type="button" aria-label={t("warmer")} onClick={press(() => void send({ type: "climate", entity: id, temperature: target + 1 }, { entity: id, patch: { attributes: { ...(e?.attributes ?? {}), temperature: target + 1 } } }))}>+</button>
         </div>
-      </>
+        <div className="btns">{modes.map((md) => <button key={md} type="button" aria-pressed={e?.state === md} className={`b ${e?.state === md ? "on" : ""}`} onClick={press(() => void send({ type: "climate", entity: id, hvacMode: md }, { entity: id, patch: { state: md } }))}>{k.hvac(md)}</button>)}</div>
+        {fans.length > 0 && <div className="btns" role="group" aria-label={t("fan")}>{fans.map((f) => <button key={f} type="button" aria-pressed={e?.attributes.fan_mode === f} className={`b ${e?.attributes.fan_mode === f ? "on" : ""}`} style={{ fontSize: 18 }} onClick={press(() => void send({ type: "climate", entity: id, fanMode: f }))}>{f.replace(/_/g, " ")}</button>)}</div>}
+      </SheetFrame>
     );
   }
   if (d.kind === "tv" || d.kind === "display") {
-    const cmds: Array<[string, string]> = [["previous_track", "⏮"], ["play_pause", "⏯"], ["next_track", "⏭"], ["volume_down", "🔉"], ["volume_up", "🔊"], ["volume_mute", "🔇"], ["turn_off", "⏻"]];
     return (
-      <>
-        <div className="sheet-bg" onPointerDown={close} />
-        <div className="sheet" onPointerDown={stop}>
-          <div><h3>{d.name}</h3><div className="sub">{String(e?.attributes.app_name ?? "")} {e?.attributes.media_title ? `· ${String(e.attributes.media_title)}` : ""}</div></div>
-          <div className="btns">{cmds.map(([c, g]) => <button key={c} className="b" style={{ fontSize: 30 }} onClick={() => void send({ type: "media", entity: id, command: c })}>{g}</button>)}</div>
+      <SheetFrame title={d.name} sub={`${String(e?.attributes.app_name ?? "")} ${e?.attributes.media_title ? `· ${String(e.attributes.media_title)}` : ""}`} close={close}>
+        <div className="btns">
+          {MEDIA_CMDS.map(([c, g]) => (
+            <button key={c} type="button" className="b" style={{ fontSize: 30 }} aria-label={t(`media.${c}`)} title={t(`media.${c}`)} onClick={press(() => void send({ type: "media", entity: id, command: c }))}>
+              <span aria-hidden>{g}</span>
+            </button>
+          ))}
         </div>
-      </>
+      </SheetFrame>
     );
   }
   // light
   const on = e?.state === "on";
   const br = Math.round((num(e?.attributes.brightness, 0) / 255) * 100);
-  const swatches: Array<[number, number, number]> = [[255, 180, 90], [255, 120, 60], [255, 60, 80], [200, 80, 255], [80, 140, 255], [60, 220, 200], [120, 255, 120], [255, 255, 255]];
   return (
-    <>
-      <div className="sheet-bg" onPointerDown={close} />
-      <div className="sheet" onPointerDown={stop}>
-        <div><h3>{d.name}</h3><div className="sub">{d.via}{on ? ` · ${br} %` : " · oprită"}</div></div>
-        <input className="slider" type="range" min={1} max={100} defaultValue={br || 60} onChange={(ev) => void send({ type: "light", entity: id, brightnessPct: Number(ev.currentTarget.value) }, { entity: id, patch: { state: "on", attributes: { ...(e?.attributes ?? {}), brightness: Math.round((Number(ev.currentTarget.value) / 100) * 255) } } })} />
-        {!d.whiteOnly && (
-          <div className="swatches">
-            {swatches.map((c) => <button key={c.join()} style={{ background: `rgb(${c.join(",")})` }} onClick={() => void send({ type: "light", entity: id, rgb: c }, { entity: id, patch: { state: "on" } })} />)}
-          </div>
-        )}
-        <div className="btns">
-          <button className={`b ${!on ? "on" : ""}`} onClick={() => void send({ type: "toggle", entity: id, on: false }, { entity: id, patch: { state: "off" } })}>Oprit</button>
-          <button className={`b ${on ? "on" : ""}`} onClick={() => void send({ type: "toggle", entity: id, on: true }, { entity: id, patch: { state: "on" } })}>Aprins</button>
-          {d.whiteOnly && [2700, 4000, 5500].map((k) => <button key={k} className="b" onClick={() => void send({ type: "light", entity: id, kelvin: k })}>{k} K</button>)}
+    <SheetFrame title={d.name} sub={on ? t("lightOnSub", { via: d.via, pct: br }) : t("lightOffSub", { via: d.via })} close={close}>
+      <input
+        className="slider"
+        type="range"
+        min={1}
+        max={100}
+        defaultValue={br || 60}
+        aria-label={t("brightness")}
+        aria-valuetext={`${br || 60} %`}
+        onChange={(ev) => void send({ type: "light", entity: id, brightnessPct: Number(ev.currentTarget.value) }, { entity: id, patch: { state: "on", attributes: { ...(e?.attributes ?? {}), brightness: Math.round((Number(ev.currentTarget.value) / 100) * 255) } } })}
+      />
+      {!d.whiteOnly && (
+        <div className="swatches" role="group" aria-label={t("colour")}>
+          {SWATCHES.map(([name, c]) => (
+            <button key={name} type="button" aria-label={t(`swatch.${name}`)} title={t(`swatch.${name}`)} style={{ background: `rgb(${c.join(",")})` }} onClick={press(() => void send({ type: "light", entity: id, rgb: [...c] }, { entity: id, patch: { state: "on" } }))} />
+          ))}
         </div>
+      )}
+      <div className="btns">
+        <button type="button" aria-pressed={!on} className={`b ${!on ? "on" : ""}`} onClick={press(() => void send({ type: "toggle", entity: id, on: false }, { entity: id, patch: { state: "off" } }))}>{t("turnOff")}</button>
+        <button type="button" aria-pressed={on} className={`b ${on ? "on" : ""}`} onClick={press(() => void send({ type: "toggle", entity: id, on: true }, { entity: id, patch: { state: "on" } }))}>{t("turnOn")}</button>
+        {d.whiteOnly && [2700, 4000, 5500].map((kv) => <button key={kv} type="button" className="b" onClick={press(() => void send({ type: "light", entity: id, kelvin: kv }))}>{kv} K</button>)}
       </div>
-    </>
+    </SheetFrame>
   );
 }

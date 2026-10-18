@@ -4,7 +4,7 @@ import { ProviderName, ProviderTile } from "@/components/cloud/provider-tile";
 import { Badge, DataTable, EmptyState, type ColumnDef } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { ArrowDownRight, ArrowRight, ArrowUpRight, Receipt } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useFormatter, useTranslations } from "next-intl";
 import * as React from "react";
 
@@ -26,7 +26,7 @@ export function BillMovers({ trends }: { trends: AccountTrend[] }) {
   const t = useTranslations("cloud.billExplainer.movers");
   const format = useFormatter();
   if (trends.length === 0) {
-    return <EmptyState compact icon={<Receipt />} title={t("empty.title")} description={t("empty.description")} />;
+    return <EmptyState illustration="costs" compact icon={<Receipt />} title={t("empty.title")} description={t("empty.description")} />;
   }
   const usd = (n: number, digits = 2) => format.number(n, { style: "currency", currency: "USD", minimumFractionDigits: digits, maximumFractionDigits: digits });
 
@@ -37,7 +37,7 @@ export function BillMovers({ trends }: { trends: AccountTrend[] }) {
         const Icon = dir === "up" ? ArrowUpRight : dir === "down" ? ArrowDownRight : ArrowRight;
         const vmDelta = tr.endInstances - tr.startInstances;
         return (
-          <motion.li
+          <m.li
             key={tr.accountId}
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
@@ -68,7 +68,7 @@ export function BillMovers({ trends }: { trends: AccountTrend[] }) {
                 endVms: tr.endInstances,
               })}
             </p>
-          </motion.li>
+          </m.li>
         );
       })}
     </ul>

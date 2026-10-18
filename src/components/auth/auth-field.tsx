@@ -14,7 +14,7 @@ export function AuthField({ id, label, hint, error, children }: { id: string; la
   const errorId = `${id}-error`;
   const describedBy = [hint ? hintId : null, error ? errorId : null].filter(Boolean).join(" ") || undefined;
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1.5 [&_input]:border-border [&_input:hover]:border-border-strong [&_input:focus-visible]:border-ring [&_input[aria-invalid=true]]:border-danger">
       <Label htmlFor={id}>{label}</Label>
       {children({ id, "aria-describedby": describedBy, "aria-invalid": error ? true : undefined })}
       {hint && !error && (

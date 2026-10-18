@@ -27,7 +27,7 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
             onChange?.(e);
             onCheckedChange?.(e.currentTarget.checked);
           }}
-          className="peer absolute inset-0 m-0 size-full cursor-pointer appearance-none rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] transition-colors checked:border-[var(--color-primary)] checked:bg-[var(--color-primary)] indeterminate:border-[var(--color-primary)] indeterminate:bg-[var(--color-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)] disabled:cursor-not-allowed"
+          className="peer absolute inset-0 m-0 size-full cursor-pointer appearance-none rounded-[6px] border-[1.5px] border-border-strong bg-[var(--color-surface)] transition-colors checked:border-[var(--color-primary)] checked:bg-[var(--color-primary)] indeterminate:border-[var(--color-primary)] indeterminate:bg-[var(--color-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed"
           style={{ accentColor: "var(--color-primary)" }}
           {...props}
         />

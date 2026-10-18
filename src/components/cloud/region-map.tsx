@@ -37,7 +37,7 @@ export function RegionMap({
 }) {
   return (
     <div className="space-y-4">
-      <div className="surface overflow-x-auto p-4">
+      <div className="surface overflow-x-auto p-4 [mask-image:linear-gradient(to_right,black_calc(100%-2.5rem),transparent)] lg:[mask-image:none]">
         <svg
           role="img"
           aria-label={ariaLabel}

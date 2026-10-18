@@ -8,11 +8,17 @@ import { DEVICES } from "@/lib/home/catalog";
 import { PC_ACTIONS, TOOLS } from "@/lib/mcp/tools";
 import { desc } from "drizzle-orm";
 import { Key } from "lucide-react";
+import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import "server-only";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("settings.access.apiKeys");
+  return { title: t("title") };
+}
 
 export default async function ApiKeysPage() {
   if (await authEnabled()) {

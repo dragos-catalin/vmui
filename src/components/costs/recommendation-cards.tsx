@@ -3,7 +3,7 @@
 import { ProviderName } from "@/components/cloud/provider-tile";
 import { Badge, Button } from "@/components/ui";
 import { ArrowDownRight, ExternalLink, Gauge, Power, Zap } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import type * as React from "react";
@@ -53,7 +53,7 @@ export function RecommendationCards({ rows }: { rows: RecommendationCardData[] }
         const href = `/instances/${encodeURIComponent(r.instanceId)}`;
         const days = Math.round((r.lookbackHours ?? 0) / 24);
         return (
-          <motion.li
+          <m.li
             key={r.id}
             initial={i < MAX_ANIMATED ? { opacity: 0, y: 6 } : false}
             animate={{ opacity: 1, y: 0 }}
@@ -108,7 +108,7 @@ export function RecommendationCards({ rows }: { rows: RecommendationCardData[] }
                 </Link>
               </Button>
             </div>
-          </motion.li>
+          </m.li>
         );
       })}
     </ul>

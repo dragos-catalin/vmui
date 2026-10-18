@@ -1,6 +1,6 @@
 "use client";
 
-import { HeatmapGrid } from "@/components/charts";
+import { HeatmapGrid } from "@/components/charts/heatmap";
 import { EmptyState } from "@/components/ui";
 import { Grid3x3 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
@@ -21,7 +21,7 @@ export function SpendHeatmapGrid({ cells, max }: { cells: SpendCell[]; max: numb
   const t = useTranslations("cloud.spendHeatmap");
   const format = useFormatter();
   if (cells.length === 0) {
-    return <EmptyState icon={<Grid3x3 />} title={t("empty.title")} description={t("empty.description")} />;
+    return <EmptyState illustration="costs" icon={<Grid3x3 />} title={t("empty.title")} description={t("empty.description")} />;
   }
   const usd = (n: number) => format.number(n, { style: "currency", currency: "USD", minimumFractionDigits: 4, maximumFractionDigits: 4 });
   const dayLabel = (dow: number) => format.dateTime(new Date(SUNDAY_UTC + dow * 86_400_000), { weekday: "short", timeZone: "UTC" });
@@ -29,7 +29,7 @@ export function SpendHeatmapGrid({ cells, max }: { cells: SpendCell[]; max: numb
   const values = DOWS.map((dow) => HOURS.map((h) => byKey.get(`${dow}:${h}`)?.mean ?? null));
 
   return (
-    <div className="surface overflow-x-auto p-4">
+    <div className="surface overflow-x-auto p-4 [mask-image:linear-gradient(to_right,black_calc(100%-2.5rem),transparent)] xl:[mask-image:none]">
       <HeatmapGrid
         rows={DOWS.map(dayLabel)}
         cols={HOURS.map(String)}

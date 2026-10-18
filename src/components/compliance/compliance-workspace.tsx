@@ -1,6 +1,6 @@
 "use client";
 
-import { DonutCard } from "@/components/charts";
+import { DonutCard } from "@/components/monitoring/lazy-charts";
 import { Badge, Button, DataTable, EmptyState, PageSection, Stat, StatGrid, ToggleGroup, sortableHeader, type ColumnDef, type StatTone, type ToggleOption } from "@/components/ui";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -10,7 +10,7 @@ import { revokeOpenWorldRuleAction } from "@/server/actions/compliance-fix";
 import { deleteOrphanResourceAction } from "@/server/actions/orphan-cleanup";
 import type { Finding, FindingKind, Severity } from "@/server/queries/compliance";
 import { ShieldCheck, Trash2, Wrench } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import * as React from "react";
@@ -157,7 +157,7 @@ export function ComplianceWorkspace({ findings }: { findings: Finding[] }) {
           />
         </PageSection>
 
-        <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+        <m.div initial={{ y: 6 }} animate={{ y: 0 }} transition={{ duration: 0.2 }}>
           <DonutCard
             title={t("donut.title")}
             ariaLabel={t("donut.ariaLabel")}
@@ -168,7 +168,7 @@ export function ComplianceWorkspace({ findings }: { findings: Finding[] }) {
               { name: t("donut.failing"), value: failing, tone: "danger" },
             ]}
           />
-        </motion.div>
+        </m.div>
       </div>
 
       <Sheet open={active !== null} onOpenChange={(open) => !open && setDetail(null)}>
@@ -207,7 +207,7 @@ function ControlDetail({ row }: { row: ControlRow }) {
         ) : (
           <ul className="space-y-2">
             {row.findings.map((f, i) => (
-              <motion.li
+              <m.li
                 key={f.id}
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -225,7 +225,7 @@ function ControlDetail({ row }: { row: ControlRow }) {
                   </div>
                   <FindingAction finding={f} />
                 </div>
-              </motion.li>
+              </m.li>
             ))}
           </ul>
         )}

@@ -1,4 +1,7 @@
 {
+  "meta": {
+    "title": "Panou"
+  },
   "greeting": {
     "morning": "Bună dimineața{name}",
     "afternoon": "Bună ziua{name}",
@@ -47,7 +50,7 @@
     "description": "{count, plural, =0 {Nicio instanță} one {# instanță} few {# instanțe} other {# de instanțe}} la {providers, plural, one {# furnizor} other {# furnizori}}",
     "launch": "Lansează una nouă",
     "emptyTitle": "Nicio instanță încă",
-    "emptyDescription": "Lansează una ca să începi — vmui sincronizează automat din conturile tale.",
+    "emptyDescription": "Lansează una ca să începi — Vatra sincronizează automat din conturile tale.",
     "emptyAction": "Lansează o instanță"
   },
   "activity": {
@@ -56,7 +59,7 @@
     "viewAll": "Toată activitatea"
   },
   "welcome": {
-    "title": "Bine ai venit în vmui",
+    "title": "Bine ai venit în Vatra",
     "description": "Conectează un cont cloud ca să administrezi mașinile virtuale dintr-un singur loc.",
     "feature1": "Pornire / oprire / repornire cu un clic pe orice instanță",
     "feature2": "Conectare inteligentă: .rdp pentru Windows, SSH + VNC pentru macOS, SSH pentru Linux",

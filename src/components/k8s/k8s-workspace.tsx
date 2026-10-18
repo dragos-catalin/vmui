@@ -169,7 +169,7 @@ function WorkloadsTab({ instanceId }: { instanceId: string }) {
   const columns = useMemo<ColumnDef<Pod, unknown>[]>(
     () => [
       { accessorKey: "namespace", header: t("columns.namespace"), cell: ({ row }) => <span className="font-mono text-xs text-fg-muted">{row.original.namespace}</span> },
-      { accessorKey: "name", header: t("columns.name"), cell: ({ row }) => <span className="block max-w-[24rem] truncate font-medium">{row.original.name}</span> },
+      { accessorKey: "name", header: t("columns.name"), cell: ({ row }) => <span className="block max-w-[24rem] truncate font-medium" title={row.original.name}>{row.original.name}</span> },
       { accessorKey: "status", header: t("columns.status"), cell: ({ row }) => <Badge variant={podVariant(row.original.status)}>{row.original.status}</Badge> },
       { accessorKey: "ready", header: t("columns.ready"), cell: ({ row }) => <span className="tabular-nums">{row.original.ready}</span> },
       { accessorKey: "restarts", header: t("columns.restarts"), cell: ({ row }) => <span className="tabular-nums">{row.original.restarts}</span> },

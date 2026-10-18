@@ -3,6 +3,7 @@
 import { RoomGrantsEditor } from "@/components/home/room-grants-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { DataTable, sortableHeader, type ColumnDef } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -10,16 +11,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Field, Panel, Subsection } from "@/components/ui/settings-panel";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAction } from "@/hooks/use-action";
+import { err, ok, type ActionResult } from "@/lib/action-result";
 import { FAMILY_ROLES, type FamilyRole, type RoomGrants } from "@/lib/home/access-model";
 import { ROOMS } from "@/lib/home/catalog";
 import { bindDeviceAction, createInviteAction, createMemberAccountAction, removeMemberAction, revokeInviteAction, upsertMemberAction } from "@/server/actions/family";
 import { Check, Copy, Laptop, Link2, Pencil, Smartphone, Trash2, Users, X } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useFormatter, useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
-import QRCode from "qrcode";
 import * as React from "react";
 import { toast } from "sonner";
+import { EASE_OUT } from "./home-motion";
 
 export type InviteRole = Exclude<FamilyRole, "owner">;
 
@@ -90,6 +92,27 @@ function generatePassword(): string {
   return Array.from(bytes, (b) => alphabet[b % alphabet.length] ?? "x").join("");
 }
 
+type FamilyResult<D = unknown> = ({ ok: true } & D) | { ok: false; error: string };
+
+/** useAction over the family actions: their error codes go through `errorText`, success refreshes the page. */
+function useFamilyAction<A extends unknown[], D = unknown>(fn: (...args: A) => Promise<FamilyResult<D>>, opts: { success?: string | ((d: D) => string) } = {}) {
+  const t = useTranslations("family");
+  return useAction<A, D>(
+    async (...args: A): Promise<ActionResult<D>> => {
+      const r = await fn(...args);
+      if (!r.ok) return err(errorText(t, r.error));
+      return ok(r as unknown as D) as ActionResult<D>;
+    },
+    { refresh: true, ...opts },
+  );
+}
+
+function useConfirmDestructive() {
+  const confirm = useConfirm();
+  const common = useTranslations("common");
+  return (title: string, confirmText: string) => confirm({ title, tone: "danger", confirmText, cancelText: common("cancel") });
+}
+
 /** Household access: members with per-room grants, invite links with QR, direct account creation. */
 export function FamilyCard({ members, invites, candidates, me, origin }: FamilyCardProps) {
   const t = useTranslations("family");
@@ -108,9 +131,9 @@ export function FamilyCard({ members, invites, candidates, me, origin }: FamilyC
               </div>
               <ul className="space-y-2 md:hidden">
                 {members.map((m, i) => (
-                  <motion.li key={m.userId} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: Math.min(i, 12) * 0.03 }}>
+                  <MotionLi key={m.userId} delay={Math.min(i, 8) * 0.035}>
                     <MemberCard member={m} isMe={m.userId === me} onEdit={() => setEditing(m.userId)} />
-                  </motion.li>
+                  </MotionLi>
                 ))}
               </ul>
             </>
@@ -133,6 +156,14 @@ export function FamilyCard({ members, invites, candidates, me, origin }: FamilyC
 
 // ---- members
 
+function MotionLi({ delay, children }: { delay: number; children: React.ReactNode }) {
+  return (
+    <m.li initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, ease: EASE_OUT, delay }}>
+      {children}
+    </m.li>
+  );
+}
+
 function Avatar({ name }: { name: string }) {
   const initial = (name || "?").trim().charAt(0).toUpperCase();
   return <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-full bg-[color-mix(in_oklch,var(--color-primary)_18%,transparent)] text-sm font-semibold text-primary">{initial}</span>;
@@ -153,7 +184,7 @@ function RoomChips({ role, rooms }: { role: FamilyRole; rooms: RoomGrants }) {
   return (
     <span className="flex flex-wrap gap-1">
       {ids.map((id) => (
-        <Badge key={id} variant={rooms[id] === "control" ? "success" : "muted"} className="whitespace-nowrap">
+        <Badge key={id} variant={rooms[id] === "control" ? "success" : "muted"} title={`${roomNames(id)} · ${t(`level.${rooms[id] ?? "view"}`)}`}>
           {roomNames(id)}
         </Badge>
       ))}
@@ -215,7 +246,7 @@ function MemberCard({ member: m, isMe, onEdit }: { member: FamilyMemberView; isM
   const t = useTranslations("family");
   const expired = m.expiresAt !== null && new Date(m.expiresAt).getTime() < Date.now();
   return (
-    <button type="button" onClick={onEdit} aria-label={t("members.editAria", { name: m.displayName })} className="surface card-hover flex w-full min-w-0 items-start gap-3 p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+    <button type="button" onClick={onEdit} aria-label={t("members.editAria", { name: m.displayName })} className="surface card-hover flex w-full min-w-0 items-start gap-3 p-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
       <Avatar name={m.displayName || m.email} />
       <span className="min-w-0 flex-1 space-y-1.5">
         <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
@@ -237,41 +268,36 @@ function MemberCard({ member: m, isMe, onEdit }: { member: FamilyMemberView; isM
 
 function MemberEditor({ member, isMe, onDone }: { member: FamilyMemberView; isMe: boolean; onDone: () => void }) {
   const t = useTranslations("family");
-  const router = useRouter();
+  const confirmDestructive = useConfirmDestructive();
   const [role, setRole] = React.useState<FamilyRole>(member.role);
   const [rooms, setRooms] = React.useState<RoomGrants>(member.rooms);
   const [expiresAt, setExpiresAt] = React.useState(toLocalInput(member.expiresAt));
   const [busy, setBusy] = React.useState<"save" | "remove" | string | null>(null);
+  const saveAction = useFamilyAction(upsertMemberAction, { success: t("members.saved", { name: member.displayName }) });
+  const removeAction = useFamilyAction(removeMemberAction, { success: t("members.removed", { name: member.displayName }) });
+  const unbindAction = useFamilyAction(bindDeviceAction);
 
   const dirty = role !== member.role || !sameGrants(rooms, member.rooms) || expiresAt !== toLocalInput(member.expiresAt);
   const expired = member.expiresAt !== null && new Date(member.expiresAt).getTime() < Date.now();
 
   const save = async () => {
     setBusy("save");
-    const r = await upsertMemberAction({ userId: member.userId, role, rooms, expiresAt: role === "guest" ? toIso(expiresAt) : null });
+    const r = await saveAction.run({ userId: member.userId, role, rooms, expiresAt: role === "guest" ? toIso(expiresAt) : null });
     setBusy(null);
-    if (!r.ok) return void toast.error(errorText(t, r.error));
-    toast.success(t("members.saved", { name: member.displayName }));
-    router.refresh();
-    onDone();
+    if (r.ok) onDone();
   };
   const remove = async () => {
-    if (!window.confirm(t("members.removeConfirm", { name: member.displayName }))) return;
+    if (!(await confirmDestructive(t("members.removeConfirm", { name: member.displayName }), t("members.remove")))) return;
     setBusy("remove");
-    const r = await removeMemberAction(member.userId);
+    const r = await removeAction.run(member.userId);
     setBusy(null);
-    if (!r.ok) return void toast.error(errorText(t, r.error));
-    toast.success(t("members.removed", { name: member.displayName }));
-    router.refresh();
-    onDone();
+    if (r.ok) onDone();
   };
   const unbind = async (d: FamilyMemberView["devices"][number]) => {
     setBusy(d.id);
-    const r = await bindDeviceAction({ deviceId: d.id, userId: null });
+    const r = await unbindAction.run({ deviceId: d.id, userId: null });
     setBusy(null);
-    if (!r.ok) return void toast.error(errorText(t, r.error));
-    toast.success(t("devices.unbound", { name: d.name }));
-    router.refresh();
+    if (r.ok) toast.success(t("devices.unbound", { name: d.name }));
   };
 
   return (
@@ -326,9 +352,9 @@ function MemberEditor({ member, isMe, onDone }: { member: FamilyMemberView; isMe
                     title={t("devices.unbind")}
                     disabled={busy === d.id}
                     onClick={() => void unbind(d)}
-                    className="grid size-4 shrink-0 place-items-center rounded-full hover:bg-[color-mix(in_oklch,var(--color-fg)_12%,transparent)] disabled:opacity-50"
+                    className="relative grid size-4 shrink-0 place-items-center rounded-full before:absolute before:-inset-1 before:content-[''] hover:bg-[color-mix(in_oklch,var(--color-fg)_12%,transparent)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-50"
                   >
-                    <X className="size-3" />
+                    <X className="size-3" aria-hidden />
                   </button>
                 </Badge>
               </li>
@@ -353,9 +379,10 @@ function MemberEditor({ member, isMe, onDone }: { member: FamilyMemberView; isMe
 
 function RoleSelect<R extends FamilyRole>({ value, onChange, roles, disabled }: { value: R; onChange: (r: R) => void; roles: readonly R[]; disabled?: boolean }) {
   const t = useTranslations("family.roles");
+  const label = useTranslations("family.members");
   return (
     <Select value={value} onValueChange={(v) => onChange(v as R)} disabled={disabled}>
-      <SelectTrigger aria-label={value}>
+      <SelectTrigger aria-label={label("role")}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -391,7 +418,9 @@ function InviteSection({ invites, origin }: { invites: FamilyInviteView[]; origi
   const t = useTranslations("family");
   const rooms = useTranslations("home.rooms");
   const fmt = useFormatter();
-  const router = useRouter();
+  const confirmDestructive = useConfirmDestructive();
+  const createAction = useFamilyAction(createInviteAction);
+  const revokeAction = useFamilyAction(revokeInviteAction, { success: t("invite.revoked") });
   const [name, setName] = React.useState("");
   const [role, setRole] = React.useState<InviteRole>("adult");
   const [grants, setGrants] = React.useState<RoomGrants>({});
@@ -404,7 +433,9 @@ function InviteSection({ invites, origin }: { invites: FamilyInviteView[]; origi
   React.useEffect(() => {
     if (!created) return void setQr(null);
     let alive = true;
-    QRCode.toDataURL(created.url, { margin: 1, width: 192 })
+    // qrcode is only needed once an invite exists: keep it out of the home bundle (HM-35).
+    import("qrcode")
+      .then((q) => q.default.toDataURL(created.url, { margin: 1, width: 192 }))
       .then((d) => { if (alive) setQr(d); })
       .catch(() => { if (alive) setQr(null); });
     return () => { alive = false; };
@@ -416,14 +447,14 @@ function InviteSection({ invites, origin }: { invites: FamilyInviteView[]; origi
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy("create");
-    const r = await createInviteAction({ name, role, rooms: grants, accessExpiresAt: role === "guest" ? toIso(expiresAt) : null });
+    const r = await createAction.run({ name, role, rooms: grants, accessExpiresAt: role === "guest" ? toIso(expiresAt) : null });
     setBusy(null);
-    if (!r.ok) return void toast.error(errorText(t, r.error));
-    setCreated({ url: `${origin}/invite/${r.data.token}`, expiresAt: r.data.expiresAt });
+    if (!r.ok || !("data" in r)) return;
+    const d = (r.data as { data: { token: string; expiresAt: string } }).data;
+    setCreated({ url: `${origin}/invite/${d.token}`, expiresAt: d.expiresAt });
     setCopied(false);
     setName("");
     toast.success(t("invite.created"));
-    router.refresh();
   };
   const copy = async () => {
     if (!created) return;
@@ -436,13 +467,10 @@ function InviteSection({ invites, origin }: { invites: FamilyInviteView[]; origi
     }
   };
   const revoke = async (inv: FamilyInviteView) => {
-    if (!window.confirm(t("invite.revokeConfirm", { name: inv.name }))) return;
+    if (!(await confirmDestructive(t("invite.revokeConfirm", { name: inv.name }), t("invite.revoke")))) return;
     setBusy(inv.id);
-    const r = await revokeInviteAction(inv.id);
+    await revokeAction.run(inv.id);
     setBusy(null);
-    if (!r.ok) return void toast.error(errorText(t, r.error));
-    toast.success(t("invite.revoked"));
-    router.refresh();
   };
 
   return (
@@ -486,7 +514,7 @@ function InviteSection({ invites, origin }: { invites: FamilyInviteView[]; origi
             <code className="block min-w-0 break-all rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-xs">{created.url}</code>
             <div className="flex flex-wrap items-center gap-2">
               <Button type="button" size="sm" variant="secondary" className="shrink-0" onClick={() => void copy()}>
-                {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+                {copied ? <Check className="size-4" aria-hidden /> : <Copy className="size-4" aria-hidden />}
                 {t("invite.copy")}
               </Button>
               <span className="min-w-0 break-words text-xs text-muted">{t("invite.linkExpires", { date: fmtDate(created.expiresAt) })}</span>
@@ -530,7 +558,6 @@ function InviteSection({ invites, origin }: { invites: FamilyInviteView[]; origi
 
 function CreateAccountSection() {
   const t = useTranslations("family");
-  const router = useRouter();
   const [email, setEmail] = React.useState("");
   const [displayName, setDisplayName] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -538,23 +565,20 @@ function CreateAccountSection() {
   const [role, setRole] = React.useState<InviteRole>("child");
   const [grants, setGrants] = React.useState<RoomGrants>({});
   const [expiresAt, setExpiresAt] = React.useState("");
-  const [busy, setBusy] = React.useState(false);
+  const createAction = useFamilyAction(createMemberAccountAction, { success: t("create.created", { name: displayName }) });
+  const busy = createAction.pending;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password.length < 8) return void toast.error(t("errors.passwordShort"));
-    setBusy(true);
-    const r = await createMemberAccountAction({ email, displayName, password, role, rooms: grants, expiresAt: role === "guest" ? toIso(expiresAt) : null });
-    setBusy(false);
-    if (!r.ok) return void toast.error(errorText(t, r.error));
-    toast.success(t("create.created", { name: displayName }));
+    const r = await createAction.run({ email, displayName, password, role, rooms: grants, expiresAt: role === "guest" ? toIso(expiresAt) : null });
+    if (!r.ok) return;
     setEmail("");
     setDisplayName("");
     setPassword("");
     setShowPassword(false);
     setGrants({});
     setExpiresAt("");
-    router.refresh();
   };
 
   return (
@@ -612,26 +636,23 @@ function CreateAccountSection() {
 
 function ExistingUserSection({ candidates }: { candidates: FamilyCandidate[] }) {
   const t = useTranslations("family");
-  const router = useRouter();
   const [userId, setUserId] = React.useState("");
   const [role, setRole] = React.useState<FamilyRole>("adult");
   const [grants, setGrants] = React.useState<RoomGrants>({});
   const [expiresAt, setExpiresAt] = React.useState("");
-  const [busy, setBusy] = React.useState(false);
+  const addAction = useFamilyAction(upsertMemberAction);
+  const busy = addAction.pending;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const c = candidates.find((x) => x.id === userId);
     if (!c) return;
-    setBusy(true);
-    const r = await upsertMemberAction({ userId, role, rooms: grants, expiresAt: role === "guest" ? toIso(expiresAt) : null });
-    setBusy(false);
-    if (!r.ok) return void toast.error(errorText(t, r.error));
+    const r = await addAction.run({ userId, role, rooms: grants, expiresAt: role === "guest" ? toIso(expiresAt) : null });
+    if (!r.ok) return;
     toast.success(t("existing.added", { name: c.displayName }));
     setUserId("");
     setGrants({});
     setExpiresAt("");
-    router.refresh();
   };
 
   return (

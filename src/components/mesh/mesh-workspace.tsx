@@ -8,7 +8,7 @@ import { useAction } from "@/hooks/use-action";
 import { ok, type ActionResult } from "@/lib/action-result";
 import { autoBuildMeshFromFleetAction, generateTailscaleCommandAction, generateWgMeshAction } from "@/server/actions/mesh";
 import { Download, Network, Server, Sparkles, Spline } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
@@ -202,7 +202,7 @@ function WireguardTab({ instances }: { instances: InstanceLite[] }) {
         <PageSection title={t("wireguard.configsTitle")} description={t("wireguard.configsDescription", { count: entries.length })}>
           <div className="grid gap-3 xl:grid-cols-2">
             {entries.map(([name, body], i) => (
-              <motion.div key={name} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: Math.min(i, 12) * 0.03 }} className="min-w-0">
+              <m.div key={name} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: Math.min(i, 12) * 0.03 }} className="min-w-0">
                 <LogViewer
                   title={<span className="font-mono">{name}/wg0.conf</span>}
                   text={body}
@@ -215,7 +215,7 @@ function WireguardTab({ instances }: { instances: InstanceLite[] }) {
                     </Button>
                   }
                 />
-              </motion.div>
+              </m.div>
             ))}
           </div>
         </PageSection>

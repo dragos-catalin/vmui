@@ -5,7 +5,8 @@ import { useConfirm } from "@/components/ui/confirm-dialog";
 import { formatUsd } from "@/lib/utils";
 import { bulkDeleteResourcesAction } from "@/server/actions/bulk-resources";
 import { Trash2 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence } from "motion/react";
+import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
@@ -130,7 +131,7 @@ export function ResourceCleanupTable({ rows }: { rows: CleanupRow[] }) {
 
       <AnimatePresence>
         {selectedCount > 0 && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
@@ -142,7 +143,7 @@ export function ResourceCleanupTable({ rows }: { rows: CleanupRow[] }) {
               <Trash2 className="size-3.5" aria-hidden />
               {t("deleteSelected")}
             </Button>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
     </div>

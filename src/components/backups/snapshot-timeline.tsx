@@ -4,7 +4,7 @@ import { RelativeTime } from "@/components/settings/relative-time";
 import { Badge, EmptyState } from "@/components/ui";
 import type { SnapshotEvent } from "@/server/queries/snapshots";
 import { HardDrive } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useFormatter, useTranslations } from "next-intl";
 import { useMemo } from "react";
 import { formatBytes } from "./bytes";
@@ -60,7 +60,7 @@ export function SnapshotTimeline({ events }: { events: SnapshotEvent[] }) {
                   const i = index++;
                   const hue = PROVIDER_VAR[e.provider] ?? "var(--color-primary)";
                   return (
-                    <motion.div
+                    <m.div
                       key={e.id}
                       initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -79,7 +79,7 @@ export function SnapshotTimeline({ events }: { events: SnapshotEvent[] }) {
                       <span className="tabular-nums text-fg-muted">{formatBytes(e.sizeBytes)}</span>
                       {e.status && <Badge variant="muted">{e.status}</Badge>}
                       <RelativeTime date={e.capturedAt} className="text-fg-muted" />
-                    </motion.div>
+                    </m.div>
                   );
                 })}
               </div>

@@ -64,10 +64,10 @@ export function SessionsCard() {
         cell: ({ row }) => (
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="truncate font-medium">{row.original.displayName}</span>
+              <span className="truncate font-medium" title={row.original.displayName}>{row.original.displayName}</span>
               {row.original.isCurrent && <Badge variant="success">{t("current")}</Badge>}
             </div>
-            <code className="block truncate text-[11px] text-fg-muted">{row.original.email}</code>
+            <code className="block truncate text-2xs text-fg-muted" title={row.original.email}>{row.original.email}</code>
           </div>
         ),
       },

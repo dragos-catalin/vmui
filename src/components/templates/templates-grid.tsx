@@ -9,7 +9,8 @@ import { useAction } from "@/hooks/use-action";
 import { ok, type ActionResult } from "@/lib/action-result";
 import { deleteLaunchTemplateAction } from "@/server/actions/templates-and-budgets";
 import { Eye, LayoutTemplate, Rocket, Trash2 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence } from "motion/react";
+import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useState } from "react";
@@ -89,7 +90,7 @@ export function TemplatesGrid({ templates }: { templates: LaunchTemplateCard[] }
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 3xl:grid-cols-4">
         <AnimatePresence initial={false}>
           {templates.map((tpl, i) => (
-            <motion.article
+            <m.article
               key={tpl.id}
               layout
               initial={{ opacity: 0, y: 6 }}
@@ -132,7 +133,7 @@ export function TemplatesGrid({ templates }: { templates: LaunchTemplateCard[] }
                   <Trash2 className="size-4 text-danger" aria-hidden />
                 </Button>
               </div>
-            </motion.article>
+            </m.article>
           ))}
         </AnimatePresence>
       </div>

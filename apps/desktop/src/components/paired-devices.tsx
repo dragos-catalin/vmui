@@ -3,9 +3,9 @@ import { Check, Laptop, Smartphone, Trash2, X } from "lucide-react";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n";
-import { api, cn, toast, useEvent } from "../lib";
+import { api, cn, toast, useEvent, useInterval } from "../lib";
 import { usePlatform } from "../platform";
-import { Card } from "../ui";
+import { Card, confirmDialog, Empty, ErrorState, Loading } from "../ui";
 
 export type Device = { id: string; name: string; platform: string; status: string; approvedBy: string | null; lastSeenAt: string | null; lastIp: string | null; createdAt: string };
 export type Pending = Device & { code: string };
@@ -37,13 +37,8 @@ export function PendingBanner() {
   const [pending, setPending] = React.useState<Pending[]>([]);
   const [busy, setBusy] = React.useState<string | null>(null);
   useEvent<DevicesPayload>("devices", (p) => setPending(p.pending));
-  React.useEffect(() => {
-    if (!mobile) return; // desktop gets pushed `devices` events from Rust
-    const tick = () => dev.list().then((p) => setPending(p.pending)).catch(() => undefined);
-    void tick();
-    const id = setInterval(() => document.visibilityState === "visible" && void tick(), 5000);
-    return () => clearInterval(id);
-  }, [mobile, dev]);
+  // desktop gets pushed `devices` events from Rust; the phone polls while visible
+  useInterval(() => void dev.list().then((p) => setPending(p.pending)).catch(() => undefined), mobile ? 5000 : null);
   if (pending.length === 0) return null;
   const act = (p: Pending, op: "approve" | "reject") => {
     setBusy(p.id);
@@ -55,10 +50,10 @@ export function PendingBanner() {
   return (
     <div className="grid gap-2 mb-4" role="status">
       {pending.map((p) => (
-        <div key={p.id} className="glass flex items-center gap-3 border-warn/50 px-3 py-2.5">
+        <div key={p.id} className="glass flex flex-wrap items-center gap-3 border-warn/50 px-3 py-2.5">
           <Icon platform={p.platform} />
           <div className="min-w-0 flex-1">
-            <div className="text-sm font-medium truncate">{t("devices.requests", { name: p.name })}</div>
+            <div className="text-sm font-medium truncate" title={t("devices.requests", { name: p.name })}>{t("devices.requests", { name: p.name })}</div>
             <div className="text-xs text-muted">{p.platform} · {p.lastIp ?? "?"} · {t("devices.codeHint")}</div>
           </div>
           <div className="font-mono text-xl tabular-nums tracking-widest">{p.code}</div>
@@ -75,24 +70,30 @@ export function DevicesCard() {
   const { t } = useTranslation();
   const dev = useDevicesApi();
   const [data, setData] = React.useState<DevicesPayload | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState<string | null>(null);
-  const load = React.useCallback(() => dev.list().then(setData).catch(() => undefined), [dev]);
+  const load = React.useCallback(() => dev.list().then((d) => { setData(d); setError(null); }).catch((e) => setError(String(e).replace(/^Error:\s*/, ""))), [dev]);
   React.useEffect(() => void load(), [load]);
-  useEvent<DevicesPayload>("devices", setData);
+  useEvent<DevicesPayload>("devices", (d) => { setData(d); setError(null); });
   const approved = data?.devices.filter((d) => d.status === "approved") ?? [];
+  const revoke = async (d: Device) => {
+    if (!(await confirmDialog({ title: t("devices.revokeConfirm", { name: d.name }), confirm: t("devices.revokeShort"), danger: true }))) return;
+    setBusy(d.id);
+    dev.op({ op: "revoke", id: d.id }).then(() => { toast("ok", t("devices.revoked", { name: d.name })); void load(); }).catch((e) => toast("error", String(e))).finally(() => setBusy(null));
+  };
   return (
     <Card title={t("devices.paired")} sub={t("devices.pairedSub")}>
-      {!data ? <div className="text-sm text-dim">{t("common.loading")}</div> : approved.length === 0 ? <div className="text-sm text-dim">{t("devices.none")}</div> : (
+      {!data ? (error ? <ErrorState title={t("devices.loadFailed")} error={error} onRetry={() => void load()} /> : <Loading />) : approved.length === 0 ? <Empty text={t("devices.none")} illustration="devices" /> : (
         <div className="grid gap-2">
           {approved.map((d) => (
             <div key={d.id} className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5">
               <Icon platform={d.platform} />
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium">{d.name}</div>
+                <div className="text-sm font-medium truncate" title={d.name}>{d.name}</div>
                 <div className="text-xs text-muted truncate">{d.platform}{d.lastSeenAt ? ` · ${t("devices.seen", { ago: ago(d.lastSeenAt) })}` : ""}{d.lastIp ? ` · ${d.lastIp}` : ""}{d.approvedBy ? ` · ${d.approvedBy}` : ""}</div>
               </div>
               <button type="button" className={cn("btn ghost sm hover:text-down")} aria-label={t("devices.revoke", { name: d.name })} disabled={busy === d.id}
-                onClick={() => { if (!confirm(t("devices.revokeConfirm", { name: d.name }))) return; setBusy(d.id); dev.op({ op: "revoke", id: d.id }).then(() => { toast("ok", t("devices.revoked", { name: d.name })); void load(); }).catch((e) => toast("error", String(e))).finally(() => setBusy(null)); }}>
+                onClick={() => void revoke(d)}>
                 <Trash2 className="size-4" />
               </button>
             </div>

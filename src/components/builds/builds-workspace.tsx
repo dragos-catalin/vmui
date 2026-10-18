@@ -4,12 +4,13 @@ import { RelativeTime } from "@/components/settings/relative-time";
 import { Badge, Button, DataTable, EmptyState, PageSection, Stat, StatGrid, sortableHeader, type ColumnDef } from "@/components/ui";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useAction } from "@/hooks/use-action";
+import { useInterval } from "@/hooks/use-poll";
 import { err, ok, type ActionResult } from "@/lib/action-result";
 import { deleteRegistryAction, listBuildsAction, listRegistriesAction } from "@/server/actions/builds";
 import { CheckCircle2, Hammer, KeyRound, Plus, RefreshCw, Trash2, XCircle } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { BuildRunCard } from "./build-run-card";
 import { NewBuildForm } from "./new-build-form";
 import { RegistryForm } from "./registry-form";
@@ -34,11 +35,7 @@ export function BuildsWorkspace({ instances }: { instances: InstanceLite[] }) {
     setLoaded(true);
   }, []);
 
-  useEffect(() => {
-    void refresh();
-    const timer = setInterval(() => void refresh(), 5000);
-    return () => clearInterval(timer);
-  }, [refresh]);
+  useInterval(() => void refresh(), 5000, { immediate: true });
 
   const reload = useAction(
     async (): Promise<ActionResult> => {

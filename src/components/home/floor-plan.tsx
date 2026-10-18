@@ -6,12 +6,16 @@ import { cn } from "@/lib/utils";
 import { placeDeviceAction, resetLayoutAction } from "@/server/actions/home";
 import type { PlacedDevice } from "@/server/queries/home";
 import { Lock, LockOpen, RotateCcw } from "lucide-react";
-import { motion } from "motion/react";
+import { useMotionValue } from "motion/react";
+import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
 import * as React from "react";
-import { toast } from "sonner";
 import { KIND_ICON } from "./device-icon";
-import { cssColor, isOn, useEntity } from "./use-home-states";
+import { deviceLayoutId } from "./home-motion";
+import { useHomeAction } from "./use-home-action";
+import { cssColor, isOn, useEntity, useHomeStates } from "./use-home-states";
+
+const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
 type Props = {
   devices: PlacedDevice[];
@@ -21,16 +25,25 @@ type Props = {
 
 /**
  * Top-down plan. Rooms are boxes in percent of the plan; devices are dots in
- * percent of their room. Drag a dot to move it (arrange mode); the drop is
- * persisted through placeDeviceAction and echoed back on refresh.
+ * percent of their room. Drag a dot (or focus it and use the arrow keys) to
+ * move it in arrange mode; the move is persisted through placeDeviceAction.
  */
 export function FloorPlan({ devices, selected, onSelect, canArrange = true }: Props & { canArrange?: boolean }) {
   const t = useTranslations("homeCards.floorPlan");
+  const roomName = useTranslations("homeCards.floorPlan.rooms");
   const [arrange, setArrange] = React.useState(false);
   const [local, setLocal] = React.useState(devices);
+  const [announce, setAnnounce] = React.useState("");
   const planRef = React.useRef<HTMLDivElement>(null);
   const [planSize, setPlanSize] = React.useState({ w: 0, h: 0 });
+  const place = useHomeAction(placeDeviceAction);
+  const reset = useHomeAction(resetLayoutAction, { success: t("layoutReset"), refresh: true });
+  const pendingSave = React.useRef(new Map<string, ReturnType<typeof setTimeout>>());
   React.useEffect(() => setLocal(devices), [devices]);
+  React.useEffect(() => {
+    const timers = pendingSave.current;
+    return () => timers.forEach((id) => clearTimeout(id));
+  }, []);
   React.useEffect(() => {
     const el = planRef.current;
     if (!el) return;
@@ -49,42 +62,56 @@ export function FloorPlan({ devices, selected, onSelect, canArrange = true }: Pr
   }, []);
   const offsets = React.useMemo(() => collisionOffsets(local, planSize), [local, planSize]);
 
-  const drop = async (d: CatalogDevice, clientX: number, clientY: number) => {
-    const plan = planRef.current?.getBoundingClientRect();
-    if (!plan) return;
-    const px = ((clientX - plan.left) / plan.width) * 100;
-    const py = ((clientY - plan.top) / plan.height) * 100;
+  /** Move to a point in plan percent; the room is whichever box contains it. */
+  const moveTo = (d: CatalogDevice, px: number, py: number, delayMs = 0) => {
     const room = ROOMS.find((r) => px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h) ?? ROOMS.find((r) => r.id === d.room)!;
     const x = Math.min(96, Math.max(4, ((px - room.x) / room.w) * 100));
     const y = Math.min(94, Math.max(6, ((py - room.y) / room.h) * 100));
     setLocal((prev) => prev.map((p) => (p.id === d.id ? { ...p, room: room.id, x, y, placed: true } : p)));
-    const r = await placeDeviceAction({ deviceId: d.id, room: room.id, x, y });
-    if (!r.ok) toast.error(r.error);
+    setAnnounce(t("position", { name: d.name, room: roomName(room.id), x: Math.round(x), y: Math.round(y) }));
+    const timers = pendingSave.current;
+    const prev = timers.get(d.id);
+    if (prev) clearTimeout(prev);
+    timers.set(
+      d.id,
+      setTimeout(() => {
+        timers.delete(d.id);
+        void place.run({ deviceId: d.id, room: room.id, x, y });
+      }, delayMs),
+    );
+  };
+  const drop = (d: CatalogDevice, clientX: number, clientY: number) => {
+    const plan = planRef.current?.getBoundingClientRect();
+    if (!plan) return;
+    moveTo(d, ((clientX - plan.left) / plan.width) * 100, ((clientY - plan.top) / plan.height) * 100);
+  };
+  // Keyboard alternative to dragging (WCAG 2.1.1 / 2.5.7): 1 % of the plan per arrow, 5 % with Shift.
+  const nudge = (d: PlacedDevice, dx: number, dy: number) => {
+    const c = dotCenter(d);
+    moveTo(d, Math.min(99, Math.max(1, c.left + dx)), Math.min(99, Math.max(1, c.top + dy)), 500);
   };
 
   return (
     <div className="mx-auto w-full space-y-3 3xl:max-w-5xl">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="min-w-0 text-xs text-muted">{arrange ? t("hintArrange") : t("hintTap")}</p>
-        {canArrange && <div className="flex shrink-0 items-center gap-1">
-          {arrange && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={async () => {
-                const r = await resetLayoutAction();
-                r.ok ? toast.success(t("layoutReset")) : toast.error(r.error);
-              }}
-            >
-              <RotateCcw className="mr-1.5 h-3.5 w-3.5" /> {t("reset")}
+        <p id="floor-plan-hint" className="min-w-0 text-xs text-muted">
+          {arrange ? `${t("hintArrange")} ${t("hintKeys")}` : t("hintTap")}
+        </p>
+        {canArrange && (
+          <div className="flex shrink-0 flex-wrap items-center gap-1">
+            {arrange && (
+              <Button variant="ghost" size="sm" loading={reset.pending} onClick={() => void reset.run()}>
+                <RotateCcw className="size-3.5" aria-hidden /> {t("reset")}
+              </Button>
+            )}
+            <Button variant={arrange ? "primary" : "outline"} size="sm" onClick={() => setArrange((v) => !v)} aria-pressed={arrange}>
+              {arrange ? <LockOpen className="size-3.5" aria-hidden /> : <Lock className="size-3.5" aria-hidden />}
+              {arrange ? t("done") : t("arrange")}
             </Button>
-          )}
-          <Button variant={arrange ? "primary" : "outline"} size="sm" onClick={() => setArrange((v) => !v)} aria-pressed={arrange}>
-            {arrange ? <LockOpen className="mr-1.5 h-3.5 w-3.5" /> : <Lock className="mr-1.5 h-3.5 w-3.5" />}
-            {arrange ? t("done") : t("arrange")}
-          </Button>
-        </div>}
+          </div>
+        )}
       </div>
+      <p className="sr-only" aria-live="polite">{announce}</p>
 
       <div
         ref={planRef}
@@ -108,9 +135,11 @@ export function FloorPlan({ devices, selected, onSelect, canArrange = true }: Pr
             offset={offsets.get(d.id) ?? ZERO}
             onSelect={() => onSelect(d.id)}
             onDrop={(x, y) => drop(d, x, y)}
+            onNudge={(dx, dy) => nudge(d, dx, dy)}
           />
         ))}
       </div>
+      <RoomLegend devices={local} />
     </div>
   );
 }
@@ -133,6 +162,13 @@ function dotCenter(d: PlacedDevice) {
   const room = ROOMS.find((r) => r.id === (d.room as RoomId)) ?? ROOMS[0]!;
   return { left: room.x + (d.x / 100) * room.w, top: room.y + (d.y / 100) * room.h };
 }
+
+// The plan clips (overflow-hidden for the rounded frame): keep each dot's centre
+// far enough from the edge that its pill, ring and shadow stay fully visible.
+const EDGE_X_PX = DOT_W_PX / 2 + 8;
+const EDGE_Y_PX = DOT_H_PX / 2 + 8;
+const edgeClamp = (pct: number, deltaPx: number, edgePx: number) =>
+  `clamp(${edgePx}px, calc(${pct}% + ${deltaPx}px), calc(100% - ${edgePx}px))`;
 
 // Walk dots in a fixed order (top-left first, id as tie-break); a dot whose
 // pill would overlap an already-placed one takes the nearest free slot around
@@ -184,7 +220,7 @@ function Room({ room, devices }: { room: (typeof ROOMS)[number]; devices: Placed
       style={{ left: `${room.x}%`, top: `${room.y}%`, width: `${room.w}%`, height: `${room.h}%` }}
     >
       <RoomTint devices={lit} />
-      <span className="absolute left-2 top-1.5 truncate text-xs font-medium uppercase tracking-[0.14em] text-muted">{t(room.id)}</span>
+      <span className="absolute left-1.5 top-1 hidden max-w-[calc(100%-0.75rem)] truncate text-2xs font-medium text-fg-muted sm:block" title={t(room.id)}>{t(room.id)}</span>
     </div>
   );
 }
@@ -201,22 +237,50 @@ function RoomTint({ devices }: { devices: PlacedDevice[] }) {
 
 function LightGlow({ device }: { device: PlacedDevice }) {
   const s = useEntity(device.entity);
-  const color = device.entity ? cssColor(s) : device.id === "dxlight" ? "oklch(0.75 0.15 250)" : null;
+  const color = device.entity ? cssColor(s) : device.id === "dxlight" ? "var(--color-accent)" : null;
   if (!color) return null;
   return (
     <span
       aria-hidden
-      className="motion-safe-only pointer-events-none absolute rounded-full blur-2xl"
+      className="pointer-events-none absolute opacity-[0.65]"
       style={{
         left: `${device.x}%`,
         top: `${device.y}%`,
         width: device.kind === "strip" ? "55%" : "38%",
         height: device.kind === "strip" ? "55%" : "38%",
-        transform: "translate(-50%, -50%)",
-        background: color,
-        animation: "glow-breathe 4s ease-in-out infinite",
+        translate: "-50% -50%",
       }}
-    />
+    >
+      {/* glow-breathe animates opacity 0.55-0.85 and scale: the wrapper caps the peak at ~0.55 and keeps the centring */}
+      <span
+        className="absolute inset-0 rounded-full opacity-85 blur-2xl motion-safe:animate-[glow-breathe_4s_ease-in-out_infinite]"
+        style={{ background: `color-mix(in oklch, ${color} 60%, var(--color-lit))` }}
+      />
+    </span>
+  );
+}
+
+/** Below sm the plan is too small for room labels: list each room with how many of its devices are on. */
+function RoomLegend({ devices }: { devices: PlacedDevice[] }) {
+  const t = useTranslations("homeCards.floorPlan");
+  const roomName = useTranslations("homeCards.floorPlan.rooms");
+  const { states } = useHomeStates();
+  const deviceOn = (d: PlacedDevice) => (d.entity ? isOn(states[d.entity]) : d.id === "dxlight" || d.id === "pc");
+  return (
+    <ul aria-label={t("legend")} className="grid grid-cols-1 gap-1.5 min-[420px]:grid-cols-2 sm:hidden">
+      {ROOMS.map((room) => {
+        const list = devices.filter((d) => d.room === room.id);
+        const on = list.filter(deviceOn).length;
+        return (
+          <li key={room.id} className="flex min-w-0 items-center justify-between gap-2 rounded-[var(--radius-md)] border border-border bg-surface px-3 py-2 text-sm">
+            <span className="min-w-0 truncate font-medium" title={roomName(room.id)}>{roomName(room.id)}</span>
+            <span className={cn("shrink-0 text-xs tabular-nums", on > 0 ? "text-lit-text" : "text-fg-muted")} title={t("legendTotal", { n: list.length })}>
+              {t("legendOn", { n: on })}
+            </span>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -227,6 +291,7 @@ function DeviceDot({
   offset,
   onSelect,
   onDrop,
+  onNudge,
 }: {
   device: PlacedDevice;
   selected: boolean;
@@ -234,10 +299,15 @@ function DeviceDot({
   offset: { dx: number; dy: number };
   onSelect: () => void;
   onDrop: (clientX: number, clientY: number) => void;
+  onNudge: (dx: number, dy: number) => void;
 }) {
+  const t = useTranslations("homeCards.floorPlan");
   const { left, top } = dotCenter(device);
   const [hover, setHover] = React.useState(false);
   const [focus, setFocus] = React.useState(false);
+  // Drag offset is reset on drop: the new left/top already carries the move.
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
   const s = useEntity(device.entity);
   const on = device.entity ? isOn(s) : device.id === "dxlight" || device.id === "pc";
   const color = cssColor(s);
@@ -245,55 +315,84 @@ function DeviceDot({
   const value =
     device.kind === "sensor" && s ? `${Number(s.state).toFixed(1)}°` : device.kind === "ac" && s && s.state !== "off" ? `${s.attributes.temperature ?? ""}°` : null;
   const showLabel = hover || focus || selected;
+  // Near the top edge the label would leave the plan (overflow-hidden): show it below the dot instead.
+  const below = top < 15;
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (!arrange) return;
+    const step = e.shiftKey ? 5 : 1;
+    const d = e.key === "ArrowLeft" ? [-step, 0] : e.key === "ArrowRight" ? [step, 0] : e.key === "ArrowUp" ? [0, -step] : e.key === "ArrowDown" ? [0, step] : null;
+    if (!d) return;
+    e.preventDefault();
+    onNudge(d[0]!, d[1]!);
+  };
 
   return (
-    <motion.button
-      type="button"
-      drag={arrange}
-      dragMomentum={false}
-      dragElastic={0}
-      onDragEnd={(_, info) => onDrop(info.point.x, info.point.y)}
-      onClick={() => !arrange && onSelect()}
-      onHoverStart={() => setHover(true)}
-      onHoverEnd={() => setHover(false)}
-      onFocus={() => setFocus(true)}
-      onBlur={() => setFocus(false)}
-      whileHover={{ scale: 1.08 }}
-      whileTap={{ scale: 0.94 }}
-      transition={{ type: "spring", stiffness: 380, damping: 26 }}
-      aria-label={`${device.name}${s ? `, ${s.state}` : ""}`}
-      aria-pressed={selected}
-      className={cn(
-        "absolute flex items-center gap-1 rounded-full border px-1.5 py-1 shadow-md backdrop-blur-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]",
-        showLabel ? "z-20" : "z-10",
-        // Centre with margins, not translate: motion owns `transform` for drag/tap.
-        "-ml-[19px] -mt-[17px] sm:-ml-[21px] sm:-mt-[19px]",
-        arrange ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
-        selected
-          ? "border-[var(--color-primary)] bg-[var(--color-surface)]"
-          : "border-[color-mix(in_oklch,var(--color-fg)_16%,transparent)] bg-[color-mix(in_oklch,var(--color-surface)_88%,transparent)] hover:border-[var(--color-primary)]",
-      )}
+    // The wrapper owns centring (translate); the inner motion button owns drag/tap transforms.
+    <span
+      className={cn("absolute -translate-x-1/2 -translate-y-1/2", showLabel ? "z-20" : "z-10")}
       style={{
-        left: offset.dx ? `calc(${left}% + ${offset.dx}px)` : `${left}%`,
-        top: offset.dy ? `calc(${top}% + ${offset.dy}px)` : `${top}%`,
+        left: edgeClamp(left, offset.dx, EDGE_X_PX),
+        top: edgeClamp(top, offset.dy, EDGE_Y_PX),
       }}
     >
-      {showLabel && (
-        <span
-          aria-hidden
-          className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded bg-[var(--color-surface)] px-1.5 py-0.5 text-[11px] shadow"
-        >
-          {device.name}
-        </span>
-      )}
-      <span
-        className="grid h-6 w-6 place-items-center rounded-full transition-colors sm:h-7 sm:w-7"
-        // the "on" disc takes the bulb's own (usually bright) colour, so the icon needs a fixed dark ink in both themes
-        style={{ background: on ? color ?? "var(--color-primary)" : "var(--color-bg-muted)", color: on ? "oklch(0.18 0.02 260)" : "var(--color-fg-muted)" }}
+      <m.button
+        type="button"
+        layoutId={arrange ? undefined : deviceLayoutId("dot", device.id)}
+        drag={arrange}
+        dragMomentum={false}
+        dragElastic={0}
+        style={{ x, y }}
+        onDragEnd={(_, info) => {
+          onDrop(info.point.x, info.point.y);
+          x.set(0);
+          y.set(0);
+        }}
+        onClick={() => !arrange && onSelect()}
+        onKeyDown={onKeyDown}
+        onHoverStart={() => setHover(true)}
+        onHoverEnd={() => setHover(false)}
+        onFocus={() => setFocus(true)}
+        onBlur={() => setFocus(false)}
+        whileHover={{ scale: 1.08 }}
+        whileTap={{ scale: 0.94 }}
+        transition={{ type: "spring", stiffness: 380, damping: 32 }}
+        aria-label={`${device.name}${s ? `, ${s.state}` : ""}`}
+        aria-pressed={arrange ? undefined : selected}
+        aria-describedby={arrange ? "floor-plan-hint" : undefined}
+        aria-roledescription={arrange ? t("movable") : undefined}
+        title={device.name}
+        className={cn(
+          "relative flex items-center gap-1 rounded-full border px-1.5 py-1 shadow-md backdrop-blur-md transition-colors",
+          FOCUS,
+          arrange ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
+          // selected = border; keyboard focus = the separate outline above
+          selected
+            ? "border-primary bg-surface"
+            : "border-[color-mix(in_oklch,var(--color-fg)_16%,transparent)] bg-[color-mix(in_oklch,var(--color-surface)_88%,transparent)] hover:border-primary",
+        )}
       >
-        <Icon className="h-3.5 w-3.5" strokeWidth={2.2} />
-      </span>
-      {value && <span className="pr-1 text-xs font-medium tabular-nums">{value}</span>}
-    </motion.button>
+        {showLabel && (
+          <span
+            aria-hidden
+            title={device.name}
+            className={cn(
+              "pointer-events-none absolute left-1/2 max-w-[10rem] -translate-x-1/2 truncate rounded-sm bg-surface px-1.5 py-0.5 text-2xs shadow",
+              below ? "top-full mt-1.5" : "bottom-full mb-1.5",
+            )}
+          >
+            {device.name}
+          </span>
+        )}
+        <span
+          className={cn("grid size-6 place-items-center rounded-full transition-colors sm:size-7", on ? "text-lit-fg" : "bg-bg-muted text-muted")}
+          // the "on" disc takes the bulb's own colour (data); other devices that are on use the lit token
+          style={on ? { background: color ?? "var(--color-lit)" } : undefined}
+        >
+          <Icon className="size-3.5" strokeWidth={2.2} aria-hidden />
+        </span>
+        {value && <span className="pr-1 text-xs font-medium tabular-nums">{value}</span>}
+      </m.button>
+    </span>
   );
 }

@@ -18,13 +18,18 @@ import {
 } from "@/server/actions/home";
 import type { WallSetting } from "@/server/queries/home";
 import { Bell, Clapperboard, Eraser, Lamp, MonitorPlay, Music2, Zap } from "lucide-react";
-import { motion } from "motion/react";
+import { LayoutGroup } from "motion/react";
+import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
 import * as React from "react";
 import { toast } from "sonner";
+import { SPRING } from "./home-motion";
+import { useHomeAction } from "./use-home-action";
 import { useEntity, useHomeStates } from "./use-home-states";
 
 const MODE_ICON = { movie: Clapperboard, music: Music2, off: Lamp } as const;
+const MODE_GLOW = { movie: "var(--color-primary)", music: "var(--color-accent)", off: "var(--color-lit)" } as const;
+const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
 type EffectKey =
   | "musicStereo"
@@ -69,18 +74,24 @@ const NOTIFY_APP_KEY: Record<string, "whatsapp" | "phone" | "messages" | "gmail"
 export function AmbilightPanel({ wall }: { wall: WallSetting }) {
   const t = useTranslations("ambilight");
   const [busy, setBusy] = React.useState<string | null>(null);
-  const [mode, setMode] = React.useState<string | null>(null);
   const { live } = useHomeStates();
   const hyper = useEntity("light.hyperhdr");
   const lastNotif = useEntity("sensor.dragos_s_s25_ultra_last_notification");
   const status = ambilightStatus(hyper);
+  // Start from what HyperHDR reports; a click wins until the next state frame says otherwise.
+  const [mode, setMode] = React.useState<string | null>(null);
+  const shownMode = mode ?? (status === "movie" ? "movie" : status === "music" ? "music" : null);
+  // HM-07: the capture switch follows the live grabber state (movie = SYSTEMGRABBER owns the LEDs).
+  const [grabber, setGrabber] = React.useState<boolean | null>(null);
+  const grabberOn = grabber ?? status === "movie";
+  React.useEffect(() => setGrabber(null), [status]);
 
+  const action = useHomeAction(async (fn: () => Promise<{ ok: boolean; error?: string }>) => fn());
   const act = async (key: string, fn: () => Promise<{ ok: boolean; error?: string }>, okMsg?: string) => {
     setBusy(key);
-    const r = await fn();
+    const r = await action.run(fn);
     setBusy(null);
-    if (!r.ok) toast.error(r.error ?? t("failed"));
-    else if (okMsg) toast.success(okMsg);
+    if (r.ok && okMsg) toast.success(okMsg);
     return r.ok;
   };
 
@@ -92,13 +103,14 @@ export function AmbilightPanel({ wall }: { wall: WallSetting }) {
           type="button"
           disabled={busy !== null}
           title={t(`effects.${EFFECT_KEY[e]}`)}
-          onClick={() => act(e, () => runHyperEffectAction({ effect: e }))}
+          onClick={() => void act(e, () => runHyperEffectAction({ effect: e }))}
           className={cn(
-            "flex min-w-0 items-center gap-2 rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm transition-colors hover:border-[var(--color-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] disabled:opacity-50",
-            busy === e && "border-[var(--color-primary)]",
+            "flex min-w-0 items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm transition-colors hover:border-primary disabled:opacity-50",
+            FOCUS,
+            busy === e && "border-primary",
           )}
         >
-          <Icon className="size-4 shrink-0 text-muted" />
+          <Icon className="size-4 shrink-0 text-muted" aria-hidden />
           <span className="min-w-0 truncate">{t(`effects.${EFFECT_KEY[e]}`)}</span>
         </button>
       ))}
@@ -120,60 +132,77 @@ export function AmbilightPanel({ wall }: { wall: WallSetting }) {
       }
     >
       <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-        {AMBILIGHT_MODES.map((m) => {
-          const Icon = MODE_ICON[m.id];
-          const active = mode === m.id;
-          const name = t(`modes.${m.id}.name`);
-          return (
-            <motion.button
-              key={m.id}
-              type="button"
-              whileTap={{ scale: 0.97 }}
-              disabled={busy !== null}
-              onClick={() => act(m.id, () => setAmbilightModeAction(m.id), t("modeApplied", { name })).then((ok) => ok && setMode(m.id))}
-              aria-pressed={active}
-              className={cn(
-                "group relative flex min-w-0 items-center gap-3 overflow-hidden rounded-lg border px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]",
-                active
-                  ? "border-[var(--color-primary)] bg-[color-mix(in_oklch,var(--color-primary)_14%,var(--color-surface))]"
-                  : "border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[color-mix(in_oklch,var(--color-primary)_55%,var(--color-border))]",
-              )}
-            >
-              <span
-                aria-hidden
+      <LayoutGroup id="ambilight-modes">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(12rem,1fr))] gap-2">
+          {AMBILIGHT_MODES.map((md) => {
+            const Icon = MODE_ICON[md.id];
+            const active = shownMode === md.id;
+            const name = t(`modes.${md.id}.name`);
+            const description = t(`modes.${md.id}.description`);
+            return (
+              <m.button
+                key={md.id}
+                type="button"
+                whileTap={{ scale: 0.97 }}
+                disabled={busy !== null}
+                onClick={() => void act(md.id, () => setAmbilightModeAction(md.id), t("modeApplied", { name })).then((ok) => ok && setMode(md.id))}
+                aria-pressed={active}
+                title={`${name} — ${description}`}
                 className={cn(
-                  "pointer-events-none absolute -right-6 -top-6 size-20 rounded-full blur-2xl transition-opacity",
-                  active ? "opacity-70" : "opacity-0 group-hover:opacity-40",
+                  "group relative isolate flex min-w-0 items-center gap-3 overflow-clip rounded-lg border px-3 py-2.5 text-left transition-colors",
+                  FOCUS,
+                  active ? "border-primary" : "border-border bg-surface hover:border-[color-mix(in_oklch,var(--color-primary)_55%,var(--color-border))]",
                 )}
-                style={{ background: m.id === "movie" ? "oklch(0.7 0.18 40)" : m.id === "music" ? "oklch(0.7 0.2 300)" : "oklch(0.85 0.1 80)" }}
-              />
-              <Icon className={cn("size-4 shrink-0", active ? "text-[var(--color-primary)]" : "text-muted")} />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold">{name}</span>
-                <span className="block truncate text-xs text-muted">{t(`modes.${m.id}.description`)}</span>
-              </span>
-              {busy === m.id && <span className="pulse-dot shrink-0" aria-hidden />}
-            </motion.button>
-          );
-        })}
-      </div>
+              >
+                {/* Active-mode backdrop slides between modes. */}
+                {active && (
+                  <m.span
+                    layoutId="ambilight-active-mode"
+                    aria-hidden
+                    transition={SPRING}
+                    className="absolute inset-0 -z-10 bg-[color-mix(in_oklch,var(--color-primary)_14%,var(--color-surface))]"
+                  />
+                )}
+                <span
+                  aria-hidden
+                  className={cn("pointer-events-none absolute -right-6 -top-6 -z-10 size-20 rounded-full blur-2xl transition-opacity", active ? "opacity-70" : "opacity-0 group-hover:opacity-40")}
+                  style={{ background: MODE_GLOW[md.id] }}
+                />
+                <Icon className={cn("size-4 shrink-0", active ? "text-primary-text" : "text-muted")} aria-hidden />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold">{name}</span>
+                  <span className="line-clamp-2 block text-xs text-muted">{description}</span>
+                </span>
+                {busy === md.id && <span className="pulse-dot shrink-0" aria-hidden />}
+              </m.button>
+            );
+          })}
+        </div>
+      </LayoutGroup>
 
       <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
         <Field
           inline
           label={
             <span className="flex items-center gap-2">
-              <MonitorPlay className="size-4 shrink-0 text-muted" />
-              <span className="truncate">{t("capture.title")}</span>
+              <MonitorPlay className="size-4 shrink-0 text-muted" aria-hidden />
+              <span className="truncate" title={t("capture.title")}>{t("capture.title")}</span>
             </span>
           }
           hint={t("capture.hint")}
         >
-          <Switch defaultChecked onCheckedChange={(v) => act("grabber", () => setGrabberAction(v))} aria-label={t("capture.switch")} />
+          <Switch
+            checked={grabberOn}
+            disabled={busy === "grabber" || status === "unreachable"}
+            onCheckedChange={(v) => {
+              setGrabber(v);
+              void act("grabber", () => setGrabberAction(v)).then((ok) => !ok && setGrabber(null));
+            }}
+            aria-label={t("capture.switch")}
+          />
         </Field>
-        <Button variant="ghost" size="sm" className="justify-self-start sm:justify-self-auto" onClick={() => act("clear", () => clearHyperPriorityAction(40), t("effectsCleared"))}>
-          <Eraser className="mr-1.5 h-3.5 w-3.5" /> {t("clearEffects")}
+        <Button variant="ghost" size="sm" className="justify-self-start sm:justify-self-auto" loading={busy === "clear"} onClick={() => void act("clear", () => clearHyperPriorityAction(40), t("effectsCleared"))}>
+          <Eraser className="size-3.5" aria-hidden /> {t("clearEffects")}
         </Button>
       </div>
 
@@ -185,41 +214,45 @@ export function AmbilightPanel({ wall }: { wall: WallSetting }) {
       <Subsection
         title={
           <span className="flex items-center gap-1.5">
-            <Bell className="size-3.5 shrink-0" />
+            <Bell className="size-3.5 shrink-0" aria-hidden />
             {t("notify.title")}
           </span>
         }
         hint={t("notify.hint")}
       >
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-          {NOTIFY_PALETTE.map((n) => (
-            <button
-              key={n.app}
-              type="button"
-              onClick={() => act(n.app, () => notifyFlashAction({ color: n.color, durationMs: 1500 }))}
-              className="flex min-w-0 items-center gap-2 rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm transition-colors hover:border-[var(--color-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
-            >
-              <span className="size-3 shrink-0 rounded-full" style={{ background: `rgb(${n.color.join(" ")})` }} aria-hidden />
-              <span className="min-w-0 truncate">{NOTIFY_APP_KEY[n.app] ? t(`notify.apps.${NOTIFY_APP_KEY[n.app]!}`) : n.label}</span>
-            </button>
-          ))}
+          {NOTIFY_PALETTE.map((n) => {
+            const label = NOTIFY_APP_KEY[n.app] ? t(`notify.apps.${NOTIFY_APP_KEY[n.app]!}`) : n.label;
+            return (
+              <button
+                key={n.app}
+                type="button"
+                title={label}
+                onClick={() => void act(n.app, () => notifyFlashAction({ color: n.color, durationMs: 1500 }))}
+                className={cn("flex min-w-0 items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm transition-colors hover:border-primary", FOCUS)}
+              >
+                <span className="size-3 shrink-0 rounded-full" style={{ background: `rgb(${n.color.join(" ")})` }} aria-hidden />
+                <span className="min-w-0 truncate">{label}</span>
+              </button>
+            );
+          })}
         </div>
         {lastNotif && (
           <p className="text-xs text-muted">
-            {t("notify.last")}: <span className="text-[var(--color-fg)]">{String(lastNotif.attributes["android.title"] ?? lastNotif.attributes.package ?? "")}</span>
+            {t("notify.last")}: <span className="text-fg">{String(lastNotif.attributes["android.title"] ?? lastNotif.attributes.package ?? "")}</span>
           </p>
         )}
       </Subsection>
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
         {HYPERHDR_INSTANCES.map((i) => (
-          <div key={i.id} className="min-w-0 rounded-lg border border-[var(--color-border)] p-3">
+          <div key={i.id} className="min-w-0 rounded-lg border border-border p-3">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-medium uppercase tracking-wider text-muted">{t("instances.label", { n: i.id })}</span>
+              <span className="min-w-0 truncate text-xs font-medium uppercase tracking-wider text-muted">{t("instances.label", { n: i.id })}</span>
               <Badge variant="muted">{t("instances.fps", { n: i.fps })}</Badge>
             </div>
-            <p className="mt-1 truncate text-sm font-medium">{t(`instances.${i.id}.name`)}</p>
-            <p className="truncate text-xs text-muted">{t(`instances.${i.id}.target`)}</p>
+            <p className="mt-1 truncate text-sm font-medium" title={t(`instances.${i.id}.name`)}>{t(`instances.${i.id}.name`)}</p>
+            <p className="truncate text-xs text-muted" title={t(`instances.${i.id}.target`)}>{t(`instances.${i.id}.target`)}</p>
           </div>
         ))}
       </div>
@@ -248,7 +281,7 @@ function WallCard({ wall, busy, onApply }: { wall: WallSetting; busy: boolean; o
           onChange={(e) => setHex(e.target.value)}
           onBlur={() => dirty && commit()}
           aria-label={t("colourLabel")}
-          className="h-8 w-10 cursor-pointer rounded-md border border-[var(--color-border)] bg-transparent p-0.5"
+          className={cn("h-8 w-10 cursor-pointer rounded-md border border-border-strong bg-transparent p-0.5", FOCUS)}
         />
       </Field>
       <div className="space-y-1.5">
@@ -272,7 +305,7 @@ function WallCard({ wall, busy, onApply }: { wall: WallSetting; busy: boolean; o
       </div>
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
         <span className="min-w-0 truncate text-xs text-muted">{t("preview")}</span>
-        <span className="h-4 w-16 rounded-sm border border-[var(--color-border)]" style={{ background: previewOnWall(hex, strength / 100) }} aria-hidden />
+        <span className="h-4 w-16 rounded-sm border border-border" style={{ background: previewOnWall(hex, strength / 100) }} aria-hidden />
       </div>
     </Subsection>
   );

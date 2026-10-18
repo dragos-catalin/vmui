@@ -70,7 +70,7 @@ async function deliverDiscord(cfg: DiscordConfig, p: AlertPayload): Promise<void
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      username: cfg.username ?? "vmui",
+      username: cfg.username ?? "Vatra",
       embeds: [
         {
           title: `[${p.severity.toUpperCase()}] ${p.ruleName}`,

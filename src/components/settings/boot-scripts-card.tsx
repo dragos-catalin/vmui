@@ -100,7 +100,11 @@ export function BootScriptsCard({ initial }: { initial: BootScriptRow[] }) {
         accessorKey: "description",
         header: t("columns.description"),
         enableSorting: false,
-        cell: ({ row }) => <span className="block max-w-[20rem] truncate text-fg-muted">{row.original.description ?? "—"}</span>,
+        cell: ({ row }) => (
+          <span className="block max-w-[20rem] truncate text-fg-muted" title={row.original.description ?? undefined}>
+            {row.original.description ?? "—"}
+          </span>
+        ),
       },
       {
         accessorKey: "updatedAt",

@@ -104,11 +104,11 @@ export function PushManager() {
     <div className="flex flex-wrap items-center gap-2">
       {enabled ? (
         <Button type="button" variant="secondary" size="sm" onClick={disable} loading={pending}>
-          <BellOff className="h-3 w-3" aria-hidden /> {t("disable")}
+          <BellOff className="size-4" aria-hidden /> {t("disable")}
         </Button>
       ) : (
         <Button type="button" size="sm" onClick={enable} loading={pending}>
-          <Bell className="h-3 w-3" aria-hidden /> {t("enable")}
+          <Bell className="size-4" aria-hidden /> {t("enable")}
         </Button>
       )}
       {enabled && (

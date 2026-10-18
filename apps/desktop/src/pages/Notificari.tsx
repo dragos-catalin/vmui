@@ -1,12 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { AppWindow, BatteryWarning, Bell, BellOff, BellRing, Bot, Check, Cpu, DoorOpen, GlassWater, Info, Mail, Monitor, Radar, Settings2, Smartphone, Trash2, X } from "lucide-react";
+import { AppWindow, BatteryWarning, Bell, BellRing, Bot, Check, Cpu, DoorOpen, GlassWater, Info, Mail, Monitor, Radar, Settings2, Smartphone, Trash2, X } from "lucide-react";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import i18n, { currentLocale, tx } from "../i18n";
-import { api, cn, toast, useEvent } from "../lib";
+import { api, cn, reducedMotion, toast, useEvent, useInterval } from "../lib";
 import { usePlatform } from "../platform";
-import { Card, Row, Seg, Switch } from "../ui";
+import { Card, EmptyState, ErrorState, Loading, PageHeader, Row, Seg, Switch } from "../ui";
 
 export type NotifyAction = { id: string; label: string; style: "primary" | "danger" | "ghost"; url?: string };
 export type NotifyCard = {
@@ -46,23 +46,32 @@ function useNotifyApi() {
   );
 }
 
-/** Open cards with live updates: desktop gets `notify` events from Rust; mobile polls while visible. */
-export function useNotifications() {
+type NotifState = { cards: NotifyCard[]; loaded: boolean; error: string | null; reload: () => Promise<void>; api: ReturnType<typeof useNotifyApi> };
+const NotifCtx = React.createContext<NotifState | null>(null);
+
+/** Open cards with live updates, mounted ONCE for the shell (DK-12): desktop gets `notify` events
+ *  from Rust (+ a 30 s resync); mobile polls every 5 s. Both only while the window is visible. */
+export function NotificationsProvider({ children }: { children: React.ReactNode }) {
   const { mobile } = usePlatform();
   const n = useNotifyApi();
   const [cards, setCards] = React.useState<NotifyCard[]>([]);
-  const load = React.useCallback(() => n.list(false).then((r) => setCards(r.cards)).catch(() => undefined), [n]);
-  React.useEffect(() => {
-    void load();
-    const id = setInterval(() => document.visibilityState === "visible" && void load(), mobile ? 5000 : 30000);
-    return () => clearInterval(id);
-  }, [load, mobile]);
+  const [loaded, setLoaded] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const load = React.useCallback(() => n.list(false).then((r) => { setCards(r.cards); setLoaded(true); setError(null); }).catch((e) => setError(String(e).replace(/^Error:\s*/, ""))), [n]);
+  useInterval(() => void load(), mobile ? 5000 : 30000);
   useEvent<{ type: string; card?: NotifyCard; cards?: NotifyCard[] }>("notify", (ev) => {
-    if (ev.type === "snapshot" && ev.cards) setCards(ev.cards);
+    if (ev.type === "snapshot" && ev.cards) { setCards(ev.cards); setLoaded(true); }
     else if (ev.type === "upsert" && ev.card) setCards((l) => [ev.card!, ...l.filter((c) => c.id !== ev.card!.id)]);
     else if (ev.type === "dismiss" && ev.card) setCards((l) => l.filter((c) => c.id !== ev.card!.id));
   });
-  return { cards, reload: load, api: n };
+  const value = React.useMemo(() => ({ cards, loaded, error, reload: load, api: n }), [cards, loaded, error, load, n]);
+  return <NotifCtx.Provider value={value}>{children}</NotifCtx.Provider>;
+}
+
+export function useNotificationsCtx(): NotifState {
+  const v = React.useContext(NotifCtx);
+  if (!v) throw new Error("NotificationsProvider missing");
+  return v;
 }
 
 export function NotifBell({ onClick, count }: { onClick: () => void; count: number }) {
@@ -70,21 +79,23 @@ export function NotifBell({ onClick, count }: { onClick: () => void; count: numb
   return (
     <button type="button" className="btn ghost sm relative" onClick={onClick} aria-label={count ? t("notif.bellUnread", { count }) : t("nav.notificari")}>
       <Bell className="size-4" />
-      {count > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 rounded-full bg-warn text-[10px] font-bold text-bg grid place-items-center px-1">{count > 9 ? "9+" : count}</span>}
+      {count > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 rounded-full bg-warn text-2xs font-bold text-warning-fg grid place-items-center px-1" aria-hidden>{count > 9 ? "9+" : count}</span>}
     </button>
   );
 }
 
 export function Notificari({ focusId }: { focusId?: string | null }) {
   const { t } = useTranslation();
-  const { cards, reload, api: n } = useNotifications();
+  const { cards, loaded, error, reload, api: n } = useNotificationsCtx();
   const [tab, setTab] = React.useState<"open" | "history" | "settings">("open");
-  const [history, setHistory] = React.useState<NotifyCard[]>([]);
+  const [history, setHistory] = React.useState<NotifyCard[] | null>(null);
+  const [histErr, setHistErr] = React.useState<string | null>(null);
   const [filter, setFilter] = React.useState<string>("all");
-  React.useEffect(() => {
-    if (tab !== "history") return;
-    n.list(true).then((r) => setHistory(r.cards.filter((c) => c.dismissedAt))).catch(() => undefined);
-  }, [tab, n]);
+  const loadHistory = React.useCallback(() => {
+    setHistErr(null);
+    n.list(true).then((r) => setHistory(r.cards.filter((c) => c.dismissedAt))).catch((e) => setHistErr(String(e).replace(/^Error:\s*/, "")));
+  }, [n]);
+  React.useEffect(() => { if (tab === "history") loadHistory(); }, [tab, loadHistory]);
   // opening the page marks what is visible as read
   React.useEffect(() => {
     const unread = cards.filter((c) => !c.readAt).map((c) => c.id);
@@ -92,17 +103,15 @@ export function Notificari({ focusId }: { focusId?: string | null }) {
   }, [cards, n, reload]);
   React.useEffect(() => {
     if (!focusId) return;
-    document.getElementById(`n-${focusId}`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+    document.getElementById(`n-${focusId}`)?.scrollIntoView({ block: "center", behavior: reducedMotion() ? "auto" : "smooth" });
   }, [focusId, cards]);
 
   const kinds = Array.from(new Set(cards.map((c) => c.kind)));
   const shown = filter === "all" ? cards : cards.filter((c) => c.kind === filter);
   return (
-    <div className="grid gap-4">
-      <div className="flex items-center gap-2 flex-wrap">
-        <h1 className="text-xl font-semibold tracking-tight mr-auto">{t("nav.notificari")}</h1>
-        <Seg value={tab} onChange={setTab} options={[{ id: "open", label: cards.length ? `${t("notif.active")} · ${cards.length}` : t("notif.active") }, { id: "history", label: t("notif.history") }, { id: "settings", label: t("notif.settings"), icon: <Settings2 className="size-4" /> }]} />
-      </div>
+    <div className="grid gap-5">
+      <PageHeader title={t("nav.notificari")}
+        actions={<Seg value={tab} onChange={setTab} options={[{ id: "open", label: cards.length ? `${t("notif.active")} · ${cards.length}` : t("notif.active") }, { id: "history", label: t("notif.history") }, { id: "settings", label: t("notif.settings"), icon: <Settings2 className="size-4" /> }]} />} />
       {tab === "open" && (
         <>
           {kinds.length > 1 && (
@@ -112,11 +121,8 @@ export function Notificari({ focusId }: { focusId?: string | null }) {
               {cards.some((c) => !c.sticky) && <button type="button" className="btn ghost sm ml-auto" onClick={() => n.op({ op: "dismissAll" }).then(reload)}><Trash2 className="size-3.5" />{t("notif.clear")}</button>}
             </div>
           )}
-          {shown.length === 0 ? (
-            <div className="glass grid place-items-center gap-2 py-14 text-muted">
-              <BellOff className="size-8 opacity-50" />
-              <div className="text-sm">{t("notif.empty")}</div>
-            </div>
+          {!loaded ? (error ? <ErrorState title={t("notif.loadFailed")} error={error} onRetry={() => void reload()} /> : <Loading />) : shown.length === 0 ? (
+            <EmptyState title={t("notif.empty")} illustration="notifications" />
           ) : (
             <div className="grid gap-2.5">{shown.map((c) => <NotifCardView key={c.id} card={c} focus={c.id === focusId} onAct={(a) => act(n, c, a, reload)} onDismiss={() => n.op({ op: "dismiss", id: c.id }).then(reload)} />)}</div>
           )}
@@ -124,13 +130,14 @@ export function Notificari({ focusId }: { focusId?: string | null }) {
       )}
       {tab === "history" && (
         <div className="grid gap-1.5">
-          {history.length === 0 && <div className="text-sm text-muted py-8 text-center">{t("notif.historyEmpty")}</div>}
-          {history.map((c) => (
+          {history == null && (histErr ? <ErrorState title={t("notif.loadFailed")} error={histErr} onRetry={loadHistory} /> : <Loading />)}
+          {history?.length === 0 && <EmptyState title={t("notif.historyEmpty")} illustration="search" compact />}
+          {history?.map((c) => (
             <div key={c.id} className="glass flex items-center gap-3 px-3 py-2 opacity-80">
               <KindDot kind={c.kind} color={c.color} />
               <div className="min-w-0 flex-1">
-                <div className="text-sm truncate">{c.title}</div>
-                <div className="text-[11px] text-dim truncate">{fmtWhen(c.createdAt)} · {c.actedWith ? `${c.actedWith} · ${c.actedBy ?? ""}` : c.fallbackAt ? t("notif.viaHa") : c.deliveredTo ? t("notif.deliveredTo", { to: c.deliveredTo }) : t("notif.expired")}</div>
+                <div className="text-sm truncate" title={c.title}>{c.title}</div>
+                <div className="text-xs text-muted truncate">{fmtWhen(c.createdAt)} · {c.actedWith ? `${c.actedWith} · ${c.actedBy ?? ""}` : c.fallbackAt ? t("notif.viaHa") : c.deliveredTo ? t("notif.deliveredTo", { to: c.deliveredTo }) : t("notif.expired")}</div>
               </div>
             </div>
           ))}
@@ -184,15 +191,15 @@ export function NotifCardView({ card: c, focus, onAct, onDismiss, compact }: { c
       {c.image && !compact && (
         <div className="relative h-36 -mb-6">
           <img src={c.image} alt="" className="absolute inset-0 size-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-bg/30 to-bg" />
+          <div className="absolute inset-0 bg-linear-to-b from-transparent via-bg/30 to-bg" />
         </div>
       )}
       <div className="relative flex gap-3 px-3.5 py-3">
         <KindDot kind={c.kind} color={color} />
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
-            <h3 className="text-[15px] font-semibold leading-tight truncate">{c.title}</h3>
-            <span className="ml-auto shrink-0 text-[11px] text-dim tabular-nums">{fmtWhen(c.updatedAt)}</span>
+            <h3 className="text-[15px] font-semibold leading-tight truncate" title={c.title}>{c.title}</h3>
+            <span className="ml-auto shrink-0 text-xs text-muted tabular-nums">{fmtWhen(c.updatedAt)}</span>
           </div>
           {c.subtitle && <div className="text-xs mt-0.5" style={{ color }}>{c.subtitle}</div>}
           {c.body && <p className="text-sm text-muted mt-1 whitespace-pre-line leading-snug line-clamp-4">{c.body}</p>}
@@ -235,10 +242,13 @@ function NotifSettings() {
   const [meta, setMeta] = React.useState<Meta>({});
   const [fcm, setFcm] = React.useState<boolean | null>(null);
   const [dirty, setDirty] = React.useState(false);
-  React.useEffect(() => {
-    n.settings().then((r) => { setS(r.settings); if (r.meta) setMeta(r.meta); if (typeof r.fcm === "boolean") setFcm(r.fcm); }).catch((e) => toast("error", String(e)));
+  const [err, setErr] = React.useState<string | null>(null);
+  const load = React.useCallback(() => {
+    setErr(null);
+    n.settings().then((r) => { setS(r.settings); if (r.meta) setMeta(r.meta); if (typeof r.fcm === "boolean") setFcm(r.fcm); }).catch((e) => setErr(String(e).replace(/^Error:\s*/, "")));
   }, [n]);
-  if (!s) return <div className="text-sm text-muted">{t("common.loading")}</div>;
+  React.useEffect(() => load(), [load]);
+  if (!s) return err ? <ErrorState title={t("notif.loadFailed")} error={err} onRetry={load} /> : <Loading />;
   const patch = (f: (x: Settings) => Settings) => { setS((x) => (x ? f(x) : x)); setDirty(true); };
   const save = () => n.settings(s).then(() => { toast("ok", t("common.saved")); setDirty(false); }).catch((e) => toast("error", String(e)));
   return (
@@ -256,9 +266,9 @@ function NotifSettings() {
             const label = meta[k]?.label ?? kindLabel(k);
             return (
               <div key={k} className="flex items-center gap-3 py-1.5">
-                <span className="size-8 rounded-full grid place-items-center" style={{ background: tint(c), color: c }}><I className="size-4" /></span>
-                <div className="flex-1 text-sm">{label}</div>
-                <label className="flex items-center gap-1.5 text-[11px] text-dim"><input type="checkbox" checked={v.breakQuiet} onChange={(e) => patch((x) => ({ ...x, kinds: { ...x.kinds, [k]: { ...v, breakQuiet: e.target.checked } } }))} />{t("notif.atNight")}</label>
+                <span className="size-8 shrink-0 rounded-full grid place-items-center" style={{ background: tint(c), color: c }}><I className="size-4" /></span>
+                <div className="min-w-0 flex-1 text-sm">{label}</div>
+                <label className="flex items-center gap-1.5 text-xs text-muted"><input type="checkbox" checked={v.breakQuiet} onChange={(e) => patch((x) => ({ ...x, kinds: { ...x.kinds, [k]: { ...v, breakQuiet: e.target.checked } } }))} />{t("notif.atNight")}</label>
                 <Switch checked={v.enabled} label={label} onChange={(on) => patch((x) => ({ ...x, kinds: { ...x.kinds, [k]: { ...v, enabled: on } } }))} />
               </div>
             );

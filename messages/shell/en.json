@@ -1,6 +1,6 @@
 {
   "brand": {
-    "tagline": "multi-cloud control",
+    "tagline": "home & machines",
     "commandPalette": "Command palette",
     "encryption": "AES-256-GCM at rest"
   },
@@ -93,7 +93,7 @@
   },
   "shortcuts": {
     "title": "Keyboard shortcuts",
-    "description": "Move through vmui without leaving the keyboard.",
+    "description": "Move through Vatra without leaving the keyboard.",
     "palette": "Open command palette",
     "help": "Show this help",
     "search": "Focus dashboard search",
@@ -184,5 +184,7 @@
     "spendHeatmap": "Spend heatmap",
     "webhookDeliveries": "Webhook queue",
     "cis": "CIS Linux"
-  }
+  },
+  "skipToContent": "Skip to content",
+  "splash": "Vatra is starting"
 }

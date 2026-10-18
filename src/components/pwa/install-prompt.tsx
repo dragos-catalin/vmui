@@ -61,19 +61,17 @@ export function InstallPrompt() {
     <div
       role="dialog"
       aria-label={t("title")}
-      className="fixed inset-x-3 z-50 rounded-[var(--radius-xl)] border border-border bg-surface p-3 shadow-lg backdrop-blur-md md:inset-x-auto md:right-4 md:max-w-sm"
+      className="fixed inset-x-3 z-[var(--z-overlay)] rounded-[var(--radius-xl)] border border-border bg-surface p-3 shadow-lg backdrop-blur-md md:inset-x-auto md:right-4 md:max-w-sm"
       style={{ bottom: "calc(env(safe-area-inset-bottom) + 4.5rem)" }}
     >
       <div className="flex items-start gap-3">
-        <div className="rounded-[var(--radius-lg)] bg-[color-mix(in_oklch,var(--color-primary)_15%,transparent)] p-2 text-primary">
-          <Download className="h-4 w-4" aria-hidden />
-        </div>
-        <div className="flex-1">
+        <img src="/icons/icon-192.png" alt="" width={40} height={40} className="size-10 shrink-0 rounded-[var(--radius-md)]" />
+        <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold">{t("title")}</p>
-          <p className="text-xs text-fg-muted">{t("description")}</p>
-          <div className="mt-2 flex items-center gap-2">
+          <p className="text-pretty text-xs text-fg-muted">{t("description")}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <Button type="button" size="sm" onClick={install}>
-              {t("install")}
+              <Download className="size-4" aria-hidden /> {t("install")}
             </Button>
             <Button type="button" variant="outline" size="sm" onClick={dismiss}>
               {t("notNow")}
@@ -84,9 +82,9 @@ export function InstallPrompt() {
           type="button"
           onClick={dismiss}
           aria-label={t("dismiss")}
-          className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-md)] text-fg-muted hover:bg-surface-muted focus-visible:ring-2 focus-visible:ring-primary"
+          className="flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] text-fg-muted hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
-          <X className="h-3 w-3" aria-hidden />
+          <X className="size-4" aria-hidden />
         </button>
       </div>
     </div>
@@ -120,7 +118,7 @@ export function InstallButton() {
 
   return (
     <Button type="button" variant="secondary" size="sm" onClick={install} disabled={!event}>
-      <Download className="h-3 w-3" aria-hidden /> {event ? t("title") : t("unavailable")}
+      <Download className="size-4" aria-hidden /> {event ? t("title") : t("unavailable")}
     </Button>
   );
 }

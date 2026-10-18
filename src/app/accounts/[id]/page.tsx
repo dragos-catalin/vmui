@@ -1,6 +1,7 @@
 import { AccountBudgetEditor } from "@/components/accounts/account-budget-editor";
 import { AccountDefaultTagsEditor } from "@/components/accounts/account-default-tags-editor";
 import { AccountHeaderActions } from "@/components/accounts/account-header-actions";
+import { AccountHero } from "@/components/accounts/account-hero";
 import { AccountRegionsEditor } from "@/components/accounts/account-regions-editor";
 import { ProbeKeyCard } from "@/components/accounts/probe-key-card";
 import { RequiredTagsEditor } from "@/components/accounts/required-tags-editor";
@@ -78,6 +79,7 @@ export default async function AccountDetailPage({ params }: PageProps) {
 
   return (
     <PageShell>
+      <AccountHero accountId={account.id}>
       <PageHeader
         icon={<KeyRound />}
         title={account.name}
@@ -101,13 +103,14 @@ export default async function AccountDetailPage({ params }: PageProps) {
               {t("allAccounts")}
             </Link>
             <span aria-hidden>/</span>
-            <span aria-current="page" className="truncate text-fg">
+            <span aria-current="page" className="truncate text-fg" title={account.name}>
               {account.name}
             </span>
           </nav>
         }
         actions={<AccountHeaderActions accountId={account.id} name={account.name} />}
       />
+      </AccountHero>
 
       <StatGrid cols={4}>
         <Stat icon={<Server />} label={t("stats.instances")} value={instanceRows.length} />
@@ -120,11 +123,11 @@ export default async function AccountDetailPage({ params }: PageProps) {
         <PageSection title={t("trend.title")} description={t("trend.description")}>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="min-w-0">
-              <div className="mb-1 text-[11px] uppercase tracking-wider text-muted">{t("trend.running")}</div>
+              <div className="mb-1 text-2xs uppercase tracking-wider text-muted">{t("trend.running")}</div>
               <Sparkline values={runSeries} className="w-full text-success" width={400} height={60} ariaLabel={t("trend.running")} />
             </div>
             <div className="min-w-0">
-              <div className="mb-1 text-[11px] uppercase tracking-wider text-muted">{t("trend.hourly")}</div>
+              <div className="mb-1 text-2xs uppercase tracking-wider text-muted">{t("trend.hourly")}</div>
               <Sparkline values={hourlySeries} className="w-full text-primary" width={400} height={60} ariaLabel={t("trend.hourly")} />
             </div>
           </div>
@@ -138,7 +141,7 @@ export default async function AccountDetailPage({ params }: PageProps) {
             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
               {Array.from(byRegion.entries()).map(([region, s]) => (
                 <div key={region} className="flex items-center justify-between gap-2 rounded-[var(--radius-md)] border border-border bg-surface-muted px-3 py-2 text-xs">
-                  <span className="truncate font-mono">{region}</span>
+                  <span className="min-w-0 truncate font-mono" title={region}>{region}</span>
                   <span className="shrink-0 text-muted">
                     {t("regions.breakdown", { running: s.running, total: s.total })} ·{" "}
                     {s.hourly > 0 ? t("regions.perMonth", { amount: formatUsd(s.hourly * HOURS_PER_MONTH) }) : t("regions.free")}
@@ -179,7 +182,7 @@ export default async function AccountDetailPage({ params }: PageProps) {
 
       <PageSection title={t("instances.title")} description={t("instances.count", { count: instanceRows.length })}>
         {instanceRows.length === 0 ? (
-          <EmptyState compact icon={<Server />} title={t("instances.empty")} />
+          <EmptyState compact illustration="vms" icon={<Server />} title={t("instances.empty")} />
         ) : (
           <ul className="divide-y divide-border">
             {instanceRows.map((i) => {
@@ -192,8 +195,8 @@ export default async function AccountDetailPage({ params }: PageProps) {
                   >
                     <StatusBadge state={i.state} />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium">{i.displayName ?? i.name ?? i.providerInstanceId}</span>
-                      <span className="block truncate text-xs text-muted">
+                      <span className="block truncate text-sm font-medium" title={i.displayName ?? i.name ?? i.providerInstanceId}>{i.displayName ?? i.name ?? i.providerInstanceId}</span>
+                      <span className="block truncate text-xs text-muted" title={`${i.region} · ${i.instanceType ?? "—"}`}>
                         {i.region} · {i.instanceType ?? "—"}
                       </span>
                     </span>
@@ -210,14 +213,14 @@ export default async function AccountDetailPage({ params }: PageProps) {
 
       <PageSection title={t("activity.title")}>
         {auditRows.length === 0 ? (
-          <EmptyState compact icon={<Activity />} title={t("activity.empty")} />
+          <EmptyState compact illustration="activity" icon={<Activity />} title={t("activity.empty")} />
         ) : (
           <ul className="space-y-1.5 text-xs">
             {auditRows.map((r) => (
               <li key={r.id} className="flex flex-wrap items-center gap-2">
                 <Badge variant={r.status === "ok" ? "success" : "danger"}>{r.status}</Badge>
                 <span className="font-mono">{r.action}</span>
-                {r.target && <span className="min-w-0 truncate text-muted">· {r.target}</span>}
+                {r.target && <span className="min-w-0 truncate text-muted" title={r.target}>· {r.target}</span>}
                 <span className="ml-auto text-muted">
                   <RelativeTime date={r.createdAt} />
                 </span>

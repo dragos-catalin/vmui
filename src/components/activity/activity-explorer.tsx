@@ -4,9 +4,10 @@ import { useContextRail } from "@/components/nav/context-rail";
 import { Badge, Button, DataTable, EmptyState, Input, ToggleGroup, type ColumnDef, type ToggleOption } from "@/components/ui";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { useEventsBus } from "@/hooks/use-poll";
 import { loadAuditPageAction } from "@/server/actions/activity";
 import { CheckCircle2, Download, Filter, Radio, Search, X, XCircle } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useFormatter, useTranslations } from "next-intl";
 import * as React from "react";
 import { toast } from "sonner";
@@ -102,13 +103,13 @@ export function ActivityExplorer({ initialRows, initialNextCursor, initialTotal,
     void reload();
   }, [reload]);
 
-  React.useEffect(() => {
-    if (!live || typeof EventSource === "undefined") return;
-    const es = new EventSource("/api/events");
-    const onAudit = (raw: MessageEvent<string>) => {
-      try {
-        const ev = JSON.parse(raw.data) as ActivityRow;
+  useEventsBus(
+    {
+      audit: (data) => {
+        if (!data || typeof data !== "object") return;
+        const ev = data as ActivityRow;
         const created = new Date(ev.createdAt);
+        if (Number.isNaN(created.getTime())) return;
         const sinceMs = RANGE_MS[range];
         if (sinceMs && Date.now() - created.getTime() > sinceMs) return;
         if (status !== "all" && ev.status !== status) return;
@@ -119,16 +120,10 @@ export function ActivityExplorer({ initialRows, initialNextCursor, initialTotal,
         }
         setRows((prev) => (prev.some((r) => r.id === ev.id) ? prev : [{ ...ev, createdAt: created }, ...prev]));
         setTotal((n) => n + 1);
-      } catch {
-        /* malformed frame */
-      }
-    };
-    es.addEventListener("audit", onAudit);
-    return () => {
-      es.removeEventListener("audit", onAudit);
-      es.close();
-    };
-  }, [live, range, status, accountId, deferredSearch]);
+      },
+    },
+    live,
+  );
 
   const exportCsv = () => {
     const escape = (v: string | number | Date | null) => {
@@ -260,7 +255,7 @@ export function ActivityExplorer({ initialRows, initialNextCursor, initialTotal,
 
       <div className="2xl:hidden">{summary}</div>
 
-      <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+      <m.div initial={{ y: 6 }} animate={{ y: 0 }} transition={{ duration: 0.2 }}>
         <DataTable
           columns={columns}
           data={rows}
@@ -269,9 +264,9 @@ export function ActivityExplorer({ initialRows, initialNextCursor, initialTotal,
           getRowId={(r) => String(r.id)}
           onRowClick={setDetail}
           pageSize={25}
-          emptyState={<EmptyState compact icon={<Filter />} title={t("empty.title")} description={t("empty.description")} />}
+          emptyState={<EmptyState compact illustration={hasFilters ? "search" : "activity"} icon={<Filter />} title={t("empty.title")} description={t("empty.description")} />}
         />
-      </motion.div>
+      </m.div>
 
       {nextCursor !== null && (
         <div className="flex justify-center">
@@ -343,27 +338,19 @@ function FiltersSummary({
   const t = useTranslations("observe.activity");
   const tc = useTranslations("common");
   return (
-    <section aria-label={t("summary.title")} className="surface p-4">
-      <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-fg-muted">{t("summary.title")}</h2>
-      <dl className="space-y-1.5 text-xs">
-        <div className="flex items-center justify-between gap-2">
-          <dt className="text-fg-muted">{t("summary.shown")}</dt>
-          <dd className="tabular-nums">{t("summary.count", { shown, total })}</dd>
-        </div>
-        <div className="flex items-center justify-between gap-2">
-          <dt className="text-fg-muted">{t("filters.status")}</dt>
-          <dd>{status === "all" ? tc("all") : status === "ok" ? t("status.ok") : t("status.error")}</dd>
-        </div>
-        <div className="flex items-center justify-between gap-2">
-          <dt className="text-fg-muted">{t("filters.range")}</dt>
-          <dd>{t(`range.${range}`)}</dd>
-        </div>
-        <div className="flex min-w-0 items-center justify-between gap-2">
-          <dt className="shrink-0 text-fg-muted">{t("filters.account")}</dt>
-          <dd className="min-w-0 truncate">{accountName ?? t("filters.allAccounts")}</dd>
-        </div>
-        <div className="flex items-center justify-between gap-2">
-          <dt className="text-fg-muted">{t("summary.stream")}</dt>
+    <section aria-label={t("summary.title")} className="min-w-0">
+      <h2 className="sr-only">{t("summary.title")}</h2>
+      <dl className="flex flex-wrap items-center gap-1.5 text-xs">
+        <SummaryChip label={t("summary.shown")}>
+          <span className="tabular-nums">{t("summary.count", { shown, total })}</span>
+        </SummaryChip>
+        <SummaryChip label={t("filters.status")}>{status === "all" ? tc("all") : status === "ok" ? t("status.ok") : t("status.error")}</SummaryChip>
+        <SummaryChip label={t("filters.range")}>{t(`range.${range}`)}</SummaryChip>
+        <SummaryChip label={t("filters.account")} title={accountName ?? t("filters.allAccounts")}>
+          <span className="block max-w-[14rem] truncate">{accountName ?? t("filters.allAccounts")}</span>
+        </SummaryChip>
+        <div className="flex items-center gap-1.5">
+          <dt className="sr-only">{t("summary.stream")}</dt>
           <dd>
             {live ? (
               <Badge variant="success" dot>
@@ -376,5 +363,14 @@ function FiltersSummary({
         </div>
       </dl>
     </section>
+  );
+}
+
+function SummaryChip({ label, title, children }: { label: string; title?: string; children: React.ReactNode }) {
+  return (
+    <div className="flex min-w-0 items-center gap-1 rounded-full border border-border bg-surface px-2.5 py-1" title={title}>
+      <dt className="shrink-0 text-fg-muted">{label}:</dt>
+      <dd className="min-w-0 font-medium">{children}</dd>
+    </div>
   );
 }

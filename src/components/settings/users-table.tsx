@@ -65,10 +65,10 @@ export function UsersTable({ users, meId }: { users: UserView[]; meId: string })
         cell: ({ row }) => (
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="truncate font-medium">{row.original.displayName}</span>
+              <span className="truncate font-medium" title={row.original.displayName}>{row.original.displayName}</span>
               {row.original.id === meId && <Badge variant="info">{t("you")}</Badge>}
             </div>
-            <code className="block truncate text-xs text-fg-muted">{row.original.email}</code>
+            <code className="block truncate text-xs text-fg-muted" title={row.original.email}>{row.original.email}</code>
           </div>
         ),
       },
@@ -80,7 +80,7 @@ export function UsersTable({ users, meId }: { users: UserView[]; meId: string })
           const isSelf = u.id === meId;
           return (
             <Select value={u.role} onValueChange={(v) => void onRole(u, v as UserRole)} disabled={isSelf || setRole.pending}>
-              <SelectTrigger aria-label={t("changeRole")} className="h-9 w-32">
+              <SelectTrigger aria-label={t("changeRole")} className="h-9 w-auto min-w-32">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

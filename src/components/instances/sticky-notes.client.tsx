@@ -4,7 +4,8 @@ import { useAction } from "@/hooks/use-action";
 import { cn } from "@/lib/utils";
 import { deleteStickyNoteAction, upsertStickyNoteAction } from "@/server/actions/sticky-and-tags";
 import { StickyNote, X } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence } from "motion/react";
+import * as m from "motion/react-m";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -112,7 +113,7 @@ export function StickyNotesClient({ accountId, providerInstanceId, notes }: Prop
               {notes.map((n, i) => {
                 const c: Color = isColor(n.color) ? n.color : "amber";
                 return (
-                  <motion.div
+                  <m.div
                     key={n.id}
                     layout
                     initial={{ opacity: 0, y: 6 }}
@@ -136,7 +137,7 @@ export function StickyNotesClient({ accountId, providerInstanceId, notes }: Prop
                     <div className="mt-2 text-[10px] text-muted">
                       {format.dateTime(new Date(n.createdAt), { dateStyle: "medium", timeStyle: "short" })}
                     </div>
-                  </motion.div>
+                  </m.div>
                 );
               })}
             </AnimatePresence>

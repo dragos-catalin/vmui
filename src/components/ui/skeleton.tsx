@@ -18,7 +18,7 @@ export function SkeletonText({ lines = 3, className }: { lines?: number; classNa
 
 export function SkeletonCard({ className }: { className?: string }) {
   return (
-    <div aria-hidden className={cn("surface space-y-3 p-4", className)}>
+    <div aria-hidden className={cn("surface space-y-3 p-4 sm:p-5", className)}>
       <Skeleton className="h-4 w-1/3" />
       <SkeletonText lines={3} />
     </div>
@@ -27,9 +27,9 @@ export function SkeletonCard({ className }: { className?: string }) {
 
 export function SkeletonStat({ className }: { className?: string }) {
   return (
-    <div aria-hidden className={cn("surface space-y-3 p-4", className)}>
-      <Skeleton className="h-3 w-1/2" />
-      <Skeleton className="h-7 w-2/3" />
+    <div aria-hidden className={cn("surface flex flex-col gap-2 p-4 sm:p-5", className)}>
+      <Skeleton className="h-4 w-1/2" />
+      <Skeleton className="h-6 w-2/3" />
     </div>
   );
 }

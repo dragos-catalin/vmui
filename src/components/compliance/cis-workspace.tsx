@@ -1,6 +1,7 @@
 "use client";
 
-import { DonutCard, type DonutDatum } from "@/components/charts";
+import type { DonutDatum } from "@/components/charts";
+import { DonutCard } from "@/components/monitoring/lazy-charts";
 import { Badge, Button, DataTable, EmptyState, Field, PageSection, Stat, StatGrid, ToggleGroup, sortableHeader, type ColumnDef, type StatTone, type ToggleOption } from "@/components/ui";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -8,7 +9,7 @@ import { useAction } from "@/hooks/use-action";
 import { ok, type ActionResult } from "@/lib/action-result";
 import { runCisCheckAction } from "@/server/actions/cis";
 import { Play, ShieldCheck } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useFormatter, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import * as React from "react";
@@ -91,7 +92,7 @@ export function CisWorkspace({ instances, selectedId, results }: { instances: Ci
         accessorKey: "evidence",
         header: t("columns.evidence"),
         enableSorting: false,
-        cell: ({ row }) => <span className="block max-w-[28rem] truncate font-mono text-xs text-fg-muted">{row.original.evidence ?? ""}</span>,
+        cell: ({ row }) => <span className="block max-w-[28rem] truncate font-mono text-xs text-fg-muted" title={row.original.evidence ?? undefined}>{row.original.evidence ?? ""}</span>,
       },
     ],
     [t],
@@ -148,9 +149,9 @@ export function CisWorkspace({ instances, selectedId, results }: { instances: Ci
               />
             </PageSection>
 
-            <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+            <m.div initial={{ y: 6 }} animate={{ y: 0 }} transition={{ duration: 0.2 }}>
               <DonutCard title={t("donut.title")} ariaLabel={t("donut.ariaLabel")} total={`${score}%`} totalLabel={t("donut.total")} data={donut} />
-            </motion.div>
+            </m.div>
           </div>
         </>
       )}

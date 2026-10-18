@@ -1,12 +1,13 @@
 "use client";
 
-import { Badge, Button, EmptyState, ToggleGroup, type ToggleOption } from "@/components/ui";
+import { Badge, Button, EmptyState, ScrollFade, ToggleGroup, type ToggleOption } from "@/components/ui";
 import { useAction } from "@/hooks/use-action";
 import type { ActionResult } from "@/lib/action-result";
 import type { NotificationRow } from "@/lib/db/schema";
 import { dismissAllNotificationsAction, dismissNotificationAction, markAllSeenAction } from "@/server/actions/notifications";
 import { AlertCircle, AlertTriangle, Bell, CheckCheck, CheckCircle2, ExternalLink, Info, X } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence } from "motion/react";
+import * as Mo from "motion/react-m";
 import { useFormatter, useTranslations } from "next-intl";
 import Link from "next/link";
 import * as React from "react";
@@ -80,7 +81,9 @@ export function NotificationCenter({ items }: { items: NotificationItem[] }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <ToggleGroup value={filter} onValueChange={setFilter} options={filterOptions} size="sm" aria-label={t("filters.label")} />
+        <ScrollFade label={t("filters.label")} activeKey={filter} className="max-w-full">
+          <ToggleGroup value={filter} onValueChange={setFilter} options={filterOptions} size="sm" aria-label={t("filters.label")} className="flex-nowrap" />
+        </ScrollFade>
         {categories.length > 1 && (
           <div className="flex flex-wrap gap-1" role="group" aria-label={t("filters.category")}>
             <Chip active={category === "all"} onClick={() => setCategory("all")}>
@@ -108,7 +111,7 @@ export function NotificationCenter({ items }: { items: NotificationItem[] }) {
       </div>
 
       {groups.length === 0 ? (
-        <EmptyState icon={<Bell />} title={t("empty.title")} description={t("empty.description")} />
+        <EmptyState illustration="activity" icon={<Bell />} title={t("empty.title")} description={t("empty.description")} />
       ) : (
         <div className="space-y-6">
           {groups.map(([day, list]) => (
@@ -121,7 +124,7 @@ export function NotificationCenter({ items }: { items: NotificationItem[] }) {
                   {list.map((n, i) => {
                     const Icon = ICON[n.severity];
                     return (
-                      <motion.li
+                      <Mo.li
                         key={n.id}
                         layout
                         initial={{ opacity: 0, y: 6 }}
@@ -156,7 +159,7 @@ export function NotificationCenter({ items }: { items: NotificationItem[] }) {
                             <X className="size-4" aria-hidden />
                           </Button>
                         )}
-                      </motion.li>
+                      </Mo.li>
                     );
                   })}
                 </AnimatePresence>

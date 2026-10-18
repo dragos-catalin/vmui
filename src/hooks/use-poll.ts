@@ -144,3 +144,124 @@ export function useEventSource<T = unknown>(url: string | null, handlers: EventS
 
   return { status, attempt };
 }
+
+// ---------------------------------------------------------------------------
+// Shared /api/events bus: ONE EventSource per tab, fanned out to every
+// subscriber. Three components used to open their own, which together with the
+// per-card stats streams exhausted the 6-connection HTTP/1.1 pool.
+// ---------------------------------------------------------------------------
+type BusListener = (data: unknown, raw: MessageEvent) => void;
+const bus = {
+  es: null as EventSource | null,
+  listeners: new Map<string, Set<BusListener>>(),
+  attached: new Set<string>(),
+  refs: 0,
+  timer: null as ReturnType<typeof setTimeout> | null,
+  tries: 0,
+};
+
+function busAttach(name: string) {
+  if (!bus.es || bus.attached.has(name)) return;
+  bus.attached.add(name);
+  bus.es.addEventListener(name, (ev) => {
+    const me = ev as MessageEvent<string>;
+    let data: unknown = me.data;
+    try {
+      data = JSON.parse(me.data);
+    } catch {
+      /* non-JSON payloads are passed through as strings */
+    }
+    for (const fn of bus.listeners.get(name) ?? []) fn(data, me);
+  });
+}
+
+function busConnect() {
+  if (typeof EventSource === "undefined" || bus.es) return;
+  bus.es = new EventSource("/api/events");
+  bus.attached.clear();
+  for (const name of bus.listeners.keys()) busAttach(name);
+  bus.es.onopen = () => {
+    bus.tries = 0;
+  };
+  bus.es.onerror = () => {
+    bus.es?.close();
+    bus.es = null;
+    if (bus.refs === 0) return;
+    bus.tries += 1;
+    bus.timer = setTimeout(busConnect, Math.min(30_000, 1000 * 2 ** Math.min(bus.tries - 1, 5)));
+  };
+}
+
+/** Subscribe to named events on the shared `/api/events` stream. `handlers`
+ *  maps event name -> callback (parsed JSON). Inline closures are fine. */
+export function useEventsBus(handlers: Record<string, (data: unknown, raw: MessageEvent) => void>, enabled = true): void {
+  const h = React.useRef(handlers);
+  h.current = handlers;
+  const names = Object.keys(handlers).sort().join("\u0000");
+  React.useEffect(() => {
+    if (!enabled || !names) return;
+    const subs: Array<[string, BusListener]> = names.split("\u0000").map((n) => [n, (d, raw) => h.current[n]?.(d, raw)]);
+    for (const [n, fn] of subs) {
+      if (!bus.listeners.has(n)) bus.listeners.set(n, new Set());
+      bus.listeners.get(n)!.add(fn);
+    }
+    bus.refs += 1;
+    busConnect();
+    for (const [n] of subs) busAttach(n);
+    return () => {
+      for (const [n, fn] of subs) bus.listeners.get(n)?.delete(fn);
+      bus.refs -= 1;
+      if (bus.refs === 0) {
+        if (bus.timer) clearTimeout(bus.timer);
+        bus.timer = null;
+        bus.es?.close();
+        bus.es = null;
+      }
+    };
+  }, [names, enabled]);
+}
+
+/** `document.visibilityState === "visible"`, reactive. */
+export function usePageVisible(): boolean {
+  const [visible, setVisible] = React.useState(true);
+  React.useEffect(() => {
+    const on = () => setVisible(document.visibilityState === "visible");
+    on();
+    document.addEventListener("visibilitychange", on);
+    return () => document.removeEventListener("visibilitychange", on);
+  }, []);
+  return visible;
+}
+
+/** setInterval that pauses while the tab is hidden (and when `ms` is null).
+ *  Use for clocks, mirrors and light polling; use TanStack Query for data. */
+export function useInterval(fn: () => void, ms: number | null, opts: { pauseHidden?: boolean; immediate?: boolean } = {}): void {
+  const { pauseHidden = true, immediate = false } = opts;
+  const visible = usePageVisible();
+  const cb = React.useRef(fn);
+  cb.current = fn;
+  const active = ms !== null && (!pauseHidden || visible);
+  React.useEffect(() => {
+    if (!active || ms === null) return;
+    if (immediate) cb.current();
+    const id = setInterval(() => cb.current(), ms);
+    return () => clearInterval(id);
+  }, [active, ms, immediate]);
+}
+
+/** True once the element has been on screen (IntersectionObserver), for
+ *  deferring screenshots/streams of off-screen cards. */
+export function useInView<T extends Element>(rootMargin = "200px"): [React.RefCallback<T>, boolean] {
+  const [inView, setInView] = React.useState(false);
+  const obs = React.useRef<IntersectionObserver | null>(null);
+  const ref = React.useCallback(
+    (el: T | null) => {
+      obs.current?.disconnect();
+      if (!el || typeof IntersectionObserver === "undefined") return;
+      obs.current = new IntersectionObserver((entries) => setInView(entries.some((e) => e.isIntersecting)), { rootMargin });
+      obs.current.observe(el);
+    },
+    [rootMargin],
+  );
+  return [ref, inView];
+}

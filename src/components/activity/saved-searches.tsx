@@ -6,7 +6,8 @@ import { useAction } from "@/hooks/use-action";
 import type { ActionResult } from "@/lib/action-result";
 import { createSavedSearchAction, deleteSavedSearchAction } from "@/server/actions/extras";
 import { Bookmark, Pin, Plus, Trash2 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence } from "motion/react";
+import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import * as React from "react";
@@ -84,7 +85,7 @@ export function SavedSearches({ items }: { items: SavedSearchItem[] }) {
           <ul className="divide-y divide-border">
             <AnimatePresence initial={false}>
               {items.map((s, i) => (
-                <motion.li
+                <m.li
                   key={s.id}
                   layout
                   initial={{ opacity: 0, y: 6 }}
@@ -118,7 +119,7 @@ export function SavedSearches({ items }: { items: SavedSearchItem[] }) {
                   >
                     <Trash2 className="size-4" aria-hidden />
                   </Button>
-                </motion.li>
+                </m.li>
               ))}
             </AnimatePresence>
           </ul>

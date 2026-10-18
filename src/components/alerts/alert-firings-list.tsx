@@ -3,7 +3,7 @@
 import { Badge, DataTable, EmptyState, type ColumnDef } from "@/components/ui";
 import type { AlertFiringRow } from "@/lib/db/schema";
 import { BellOff } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useFormatter, useTranslations } from "next-intl";
 import * as React from "react";
 
@@ -87,14 +87,14 @@ export function AlertFiringsList({ firings }: { firings: AlertFiringRow[] }) {
   );
 
   return (
-    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+    <m.div initial={{ y: 6 }} animate={{ y: 0 }} transition={{ duration: 0.2 }}>
       <DataTable
         columns={columns}
         data={firings}
         dense
         getRowId={(r) => String(r.id)}
-        emptyState={<EmptyState compact icon={<BellOff />} title={t("empty.title")} description={t("empty.description")} />}
+        emptyState={<EmptyState illustration="activity" compact icon={<BellOff />} title={t("empty.title")} description={t("empty.description")} />}
       />
-    </motion.div>
+    </m.div>
   );
 }

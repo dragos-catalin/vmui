@@ -1,6 +1,6 @@
 "use client";
 
-import { LineChartCard } from "@/components/charts";
+import { LineChartCard } from "@/components/monitoring/lazy-charts";
 import { useFormatter, useTranslations } from "next-intl";
 
 export interface ForecastPoint {

@@ -1,7 +1,7 @@
 {
   "activity": {
     "title": "Activitate",
-    "description": "Fiecare operațiune executată de vmui — căutabilă, filtrabilă, exportabilă.",
+    "description": "Fiecare operațiune executată de Vatra — căutabilă, filtrabilă, exportabilă.",
     "eventCount": "{count, plural, =0 {niciun eveniment} one {# eveniment} few {# evenimente} other {# de evenimente}}",
     "syncHistory": "Istoric sincronizări",
     "exportNdjson": "NDJSON",
@@ -113,7 +113,8 @@
       "cpuAria": "Utilizarea medie a CPU-ului în flotă în ultimele șase ore",
       "memAria": "Utilizarea medie a memoriei în flotă în ultimele șase ore",
       "netAria": "Traficul de rețea al flotei, intrare și ieșire, în ultimele șase ore",
-      "noSamples": "Niciun eșantion de probă încă"
+      "noSamples": "Niciun eșantion de probă încă",
+      "noSamplesHint": "Tendințele de CPU, memorie și rețea apar aici după ce gazdele trimit eșantioane."
     },
     "hosts": {
       "title": "Gazde",
@@ -136,7 +137,8 @@
       "title": "Configurație Prometheus",
       "description": "Generată din flota pornită — lipește în prometheus.yml.",
       "generate": "Generează",
-      "empty": "Apasă Generează pentru a construi configurația."
+      "empty": "Generează configurația de scrape din flota pornită.",
+      "regenerate": "Regenerează"
     },
     "grafana": {
       "title": "Grafana",
@@ -208,7 +210,7 @@
         "cooldown": "Răcire (secunde)",
         "cooldownHint": "Suprimă redeclanșările atât timp. 0 dezactivează.",
         "template": "Șablon mesaj",
-        "templateHint": "Variabile: {'{{instance}}'}, {'{{metric}}'}, {'{{value}}'}, {'{{threshold}}'}.",
+        "templateHint": "Variabile: '{{instance}}', '{{metric}}', '{{value}}', '{{threshold}}'.",
         "channels": "Canale",
         "noChannels": "Creează mai întâi un canal."
       },
@@ -469,6 +471,12 @@
       "scrub": "Derulează",
       "loadFailed": "Playerul nu a putut fi încărcat",
       "loadFailedHint": "Playerul asciinema se descarcă de pe un CDN; verifică rețeaua sau descarcă fișierul .cast.",
+      "load": "Încarcă playerul",
+      "loadHint": "Playerul de redare se descarcă de pe un CDN doar când îl ceri. Poți descărca și fișierul .cast.",
+      "offline": "Ești offline",
+      "offlineHint": "Playerul de redare are nevoie de rețea prima dată. Descarcă fișierul .cast și redă-l local.",
+      "retry": "Încearcă din nou",
+      "downloadCast": "Descarcă .cast",
       "tip": "Sfat: descarcă fișierul <code>.cast</code> și redă-l local cu <code>asciinema play</code>."
     }
   },
@@ -558,7 +566,7 @@
   },
   "offline": {
     "title": "Ești offline",
-    "description": "vmui nu poate ajunge la planul de control în acest moment.",
+    "description": "Vatra nu poate ajunge la planul de control în acest moment.",
     "empty": {
       "title": "Lucrezi din cache",
       "description": "Instantaneul flotei pe care l-ai văzut ultima dată este încă pe acest dispozitiv."

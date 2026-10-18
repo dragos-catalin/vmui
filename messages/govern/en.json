@@ -539,7 +539,7 @@
     },
     "sheet": {
       "onlyProvider": "Only at the provider",
-      "onlyLocal": "Only in vmui",
+      "onlyLocal": "Only in Vatra",
       "conflicting": "Conflicting values",
       "none": "Nothing in this group.",
       "empty": "empty",

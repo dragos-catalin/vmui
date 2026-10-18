@@ -3,7 +3,8 @@ import { ArrowDown, ArrowUp, ExternalLink, Image as ImageIcon, MonitorSmartphone
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { api, cn, toast, useAction } from "../lib";
-import { Card, Row, Seg, Slider, Swatches, Switch } from "../ui";
+import { SCREEN_ACCENTS } from "../lights";
+import { Card, ErrorState, Loading, PageHeader, Row, Seg, Slider, Swatches, Switch } from "../ui";
 
 type TurzxView = { id: string; enabled: boolean; dwellSec: number; skin: string; background: null | { mode: "none" | "photo"; sources: string[]; folder: string; dim: number; blur: number }; options: Record<string, unknown> };
 type Turzx = { version: 2; views: TurzxView[]; fps: number; transitionMs: number; brightness: number; nightBrightness: number; nightFrom: string; nightTo: string; accent: string; flip: boolean; background: { mode: "none" | "photo"; sources: string[]; folder: string; dim: number; blur: number }; bgRotateMin: number; notify: { enabled: boolean; presenceOnly: boolean; durationSec: number; showText: boolean; position: "top" | "center" | "bottom"; packages: string[] } };
@@ -17,7 +18,7 @@ type Meta = {
 };
 type Payload = { turzx: Turzx; display: Display; meta: Meta };
 
-const ACCENTS = ["#7c9cff", "#f2b85a", "#34d399", "#f472b6", "#a78bfa", "#22d3ee", "#fb923c"];
+const ACCENTS = SCREEN_ACCENTS;
 
 export function Ecrane() {
   const { t } = useTranslation();
@@ -29,7 +30,7 @@ export function Ecrane() {
   const load = React.useCallback(() => api.vmuiGet<Payload>("/api/desktop/settings").then((j) => { setP(j); setSaved(j); setErr(null); }).catch((e) => setErr(String(e))), []);
   React.useEffect(() => void load(), [load]);
 
-  if (!p || !saved) return <div className="text-sm text-dim">{err ? t("common.vmuiDown", { error: err }) : t("common.loading")}</div>;
+  if (!p || !saved) return err ? <ErrorState title={t("common.vmuiDownTitle")} error={err} onRetry={() => void load()} /> : <Loading />;
   const dirty = tab === "hub" ? JSON.stringify(p.display) !== JSON.stringify(saved.display) : JSON.stringify(p.turzx) !== JSON.stringify(saved.turzx);
   const save = () => run("save", async () => {
     await api.vmuiSend("PUT", "/api/desktop/settings", tab === "hub" ? { display: p.display } : { turzx: p.turzx });
@@ -38,18 +39,13 @@ export function Ecrane() {
 
   return (
     <div className="grid gap-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t("nav.ecrane")}</h1>
-          <p className="text-sm text-muted mt-1">{t("ecrane.sub")}</p>
-        </div>
-        <Seg value={tab} onChange={setTab} options={[{ id: "hub", label: "Nest Hub", icon: <Tablet className="size-4" /> }, { id: "turzx", label: "Turzx 3.5\"", icon: <MonitorSmartphone className="size-4" /> }]} />
-      </div>
+      <PageHeader title={t("nav.ecrane")} sub={t("ecrane.sub")}
+        actions={<Seg value={tab} onChange={setTab} options={[{ id: "hub", label: "Nest Hub", icon: <Tablet className="size-4" /> }, { id: "turzx", label: "Turzx 3.5\"", icon: <MonitorSmartphone className="size-4" /> }]} />} />
 
       {tab === "hub" ? <Hub d={p.display} meta={p.meta} set={(d) => setP({ ...p, display: d })} /> : <TurzxPane t={p.turzx} meta={p.meta} set={(t) => setP({ ...p, turzx: t })} />}
 
       <div className="sticky bottom-3 flex justify-end">
-        <div className={cn("glass flex items-center gap-3 px-4 py-2.5 transition-opacity", dirty ? "opacity-100" : "opacity-0 pointer-events-none")} aria-hidden={!dirty}>
+        <div className={cn("glass float flex flex-wrap items-center gap-3 px-4 py-2.5 transition-opacity", dirty ? "opacity-100" : "opacity-0 pointer-events-none")} aria-hidden={!dirty}>
           <span className="text-sm text-muted">{t("common.unsaved")}</span>
           <button type="button" className="btn ghost sm" tabIndex={dirty ? 0 : -1} onClick={() => setP(saved)}>{t("common.discard")}</button>
           <button type="button" className="btn primary" tabIndex={dirty ? 0 : -1} onClick={save} disabled={busy === "save"}><Save className="size-4" />{busy === "save" ? t("common.saving") : t("common.save")}</button>
@@ -80,14 +76,14 @@ function Hub({ d, meta, set }: { d: Display; meta: Meta; set: (d: Display) => vo
           {d.views.map((v, i) => {
             const m = meta.displayViews[v.id];
             return (
-              <div key={v.id} className={cn("flex items-center gap-3 rounded-xl border px-3 py-2", v.enabled ? "border-primary/40 bg-primary/5" : "border-border opacity-70")}>
+              <div key={v.id} className={cn("flex flex-wrap items-center gap-3 rounded-xl border px-3 py-2", v.enabled ? "border-primary/40 bg-primary/5" : "border-border opacity-70")}>
                 <Switch checked={v.enabled} onChange={(en) => setView(v.id, { enabled: en })} label={m?.label} />
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium">{m?.label ?? v.id} <span className="text-dim font-normal tabular-nums">· {v.dwellSec} s</span></div>
-                  <div className="text-xs text-muted truncate">{m?.description}</div>
+                <div className="min-w-0 flex-1 basis-40">
+                  <div className="truncate text-sm font-medium" title={m?.label ?? v.id}>{m?.label ?? v.id} <span className="text-muted font-normal tabular-nums">· {v.dwellSec} s</span></div>
+                  <div className="text-xs text-muted truncate" title={m?.description}>{m?.description}</div>
                 </div>
                 <label className="flex items-center gap-2 text-xs text-muted"><ImageIcon className="size-3.5" /><Switch checked={v.photo} onChange={(ph) => setView(v.id, { photo: ph })} label={t("ecrane.photo")} /></label>
-                <div className="w-40"><Slider value={v.dwellSec} min={5} max={180} step={5} onChange={(n) => setView(v.id, { dwellSec: n })} format={(n) => `${n} s`} /></div>
+                <div className="w-full min-w-32 max-w-40 basis-40"><Slider value={v.dwellSec} min={5} max={180} step={5} onChange={(n) => setView(v.id, { dwellSec: n })} format={(n) => `${n} s`} /></div>
                 <button type="button" className="btn ghost sm" aria-label={t("common.moveUp")} disabled={i === 0} onClick={() => set({ ...d, views: move(d.views, i, -1) })}><ArrowUp className="size-3.5" /></button>
                 <button type="button" className="btn ghost sm" aria-label={t("common.moveDown")} disabled={i === d.views.length - 1} onClick={() => set({ ...d, views: move(d.views, i, 1) })}><ArrowDown className="size-3.5" /></button>
               </div>
@@ -105,7 +101,7 @@ function Hub({ d, meta, set }: { d: Display; meta: Meta; set: (d: Display) => vo
           </div>
           <div className="field"><span>{t("ecrane.photoEvery")} · {d.photoSec} s</span><Slider value={d.photoSec} min={10} max={300} step={5} onChange={(n) => set({ ...d, photoSec: n })} format={(n) => `${n} s`} /></div>
           <div className="field mt-3"><span>{t("ecrane.dim")} · {Math.round(d.dim * 100)} %</span><Slider value={d.dim} min={0} max={0.9} step={0.05} onChange={(n) => set({ ...d, dim: n })} format={(n) => `${Math.round(n * 100)} %`} /></div>
-          <div className="field mt-3"><span>Accent</span><Swatches value={d.accent} onChange={(c) => set({ ...d, accent: c })} colors={ACCENTS} /></div>
+          <div className="field mt-3"><span>{t("ecrane.accent")}</span><Swatches value={d.accent} onChange={(c) => set({ ...d, accent: c })} colors={ACCENTS} /></div>
         </Card>
         <Card title={t("ecrane.behaviour")}>
           <div className="field"><span>{t("ecrane.idleAfter", { s: d.idleAfterSec })}</span><Slider value={d.idleAfterSec} min={10} max={300} step={5} onChange={(n) => set({ ...d, idleAfterSec: n })} format={(n) => `${n} s`} /></div>
@@ -135,16 +131,16 @@ function TurzxPane({ t, meta, set }: { t: Turzx; meta: Meta; set: (t: Turzx) => 
           {t.views.map((v, i) => {
             const m = meta.turzxViews[v.id];
             return (
-              <div key={v.id} className={cn("flex items-center gap-3 rounded-xl border px-3 py-2", v.enabled ? "border-primary/40 bg-primary/5" : "border-border opacity-70")}>
+              <div key={v.id} className={cn("flex flex-wrap items-center gap-3 rounded-xl border px-3 py-2", v.enabled ? "border-primary/40 bg-primary/5" : "border-border opacity-70")}>
                 <Switch checked={v.enabled} onChange={(en) => setView(v.id, { enabled: en })} label={m?.label} />
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium">{m?.label ?? v.id} <span className="text-dim font-normal tabular-nums">· {v.dwellSec} s</span></div>
-                  <div className="text-xs text-muted truncate">{m?.description}</div>
+                <div className="min-w-0 flex-1 basis-40">
+                  <div className="truncate text-sm font-medium" title={m?.label ?? v.id}>{m?.label ?? v.id} <span className="text-muted font-normal tabular-nums">· {v.dwellSec} s</span></div>
+                  <div className="text-xs text-muted truncate" title={m?.description}>{m?.description}</div>
                 </div>
-                <select className="input py-1.5 text-xs" value={v.skin} onChange={(e) => setView(v.id, { skin: e.target.value })} aria-label={`Skin ${m?.label}`}>
+                <select className="input py-1.5 text-xs" value={v.skin} onChange={(e) => setView(v.id, { skin: e.target.value })} aria-label={tr("ecrane.skinFor", { name: m?.label ?? v.id })}>
                   {(m?.skins ?? meta.turzxSkins.map((s) => s.id)).map((s) => <option key={s} value={s}>{meta.turzxSkins.find((x) => x.id === s)?.label ?? s}</option>)}
                 </select>
-                <div className="w-36"><Slider value={v.dwellSec} min={5} max={120} step={5} onChange={(n) => setView(v.id, { dwellSec: n })} format={(n) => `${n} s`} /></div>
+                <div className="w-full min-w-32 max-w-36 basis-36"><Slider value={v.dwellSec} min={5} max={120} step={5} onChange={(n) => setView(v.id, { dwellSec: n })} format={(n) => `${n} s`} /></div>
                 <button type="button" className="btn ghost sm" aria-label={tr("common.moveUp")} disabled={i === 0} onClick={() => set({ ...t, views: move(t.views, i, -1) })}><ArrowUp className="size-3.5" /></button>
                 <button type="button" className="btn ghost sm" aria-label={tr("common.moveDown")} disabled={i === t.views.length - 1} onClick={() => set({ ...t, views: move(t.views, i, 1) })}><ArrowDown className="size-3.5" /></button>
               </div>
@@ -162,7 +158,7 @@ function TurzxPane({ t, meta, set }: { t: Turzx; meta: Meta; set: (t: Turzx) => 
           </div>
           <div className="field mt-3"><span>FPS · {t.fps}</span><Slider value={t.fps} min={5} max={30} onChange={(n) => set({ ...t, fps: n })} /></div>
           <div className="field mt-3"><span>{tr("ecrane.transition")} · {t.transitionMs} ms</span><Slider value={t.transitionMs} min={0} max={2000} step={50} onChange={(n) => set({ ...t, transitionMs: n })} format={(n) => `${n} ms`} /></div>
-          <div className="field mt-3"><span>Accent</span><Swatches value={t.accent} onChange={(c) => set({ ...t, accent: c })} colors={ACCENTS} /></div>
+          <div className="field mt-3"><span>{tr("ecrane.accent")}</span><Swatches value={t.accent} onChange={(c) => set({ ...t, accent: c })} colors={ACCENTS} /></div>
           <Row label={tr("ecrane.flip")} hint={tr("ecrane.flipHint")}><Switch checked={t.flip} onChange={(v) => set({ ...t, flip: v })} label={tr("ecrane.flip")} /></Row>
         </Card>
         <Card title={tr("ecrane.bgNotify")}>

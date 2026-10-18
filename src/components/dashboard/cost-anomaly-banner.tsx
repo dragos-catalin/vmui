@@ -6,29 +6,32 @@ import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import "server-only";
 
+const WEBHOOK_MIN_INTERVAL_MS = 60 * 60 * 1000;
 let lastWebhookDigest = "";
+let lastWebhookAt = 0;
+
+/** Fire-and-forget, at most once per hour and only when the anomaly set changed.
+ *  Never awaited by render. Belongs in the background sync job (see report). */
+function notifyWebhook(url: string, anomalies: Awaited<ReturnType<typeof detectCostAnomalies>>): void {
+  const digest = anomalies.map((a) => `${a.accountId}:${a.currentHourly.toFixed(2)}`).join("|");
+  const now = Date.now();
+  if (digest === lastWebhookDigest || now - lastWebhookAt < WEBHOOK_MIN_INTERVAL_MS) return;
+  lastWebhookDigest = digest;
+  lastWebhookAt = now;
+  void fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ anomalies }),
+    signal: AbortSignal.timeout(5_000),
+  }).catch((err: unknown) => console.error("[vmui] anomaly webhook failed", err));
+}
 
 export async function CostAnomalyBanner() {
   const anomalies = await detectCostAnomalies();
   if (anomalies.length === 0) return null;
   const t = await getTranslations("dashboard.anomaly");
 
-  if (env.VMUI_ANOMALY_WEBHOOK) {
-    const digest = anomalies.map((a) => `${a.accountId}:${a.currentHourly.toFixed(2)}`).join("|");
-    if (digest !== lastWebhookDigest) {
-      lastWebhookDigest = digest;
-      try {
-        await fetch(env.VMUI_ANOMALY_WEBHOOK, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ anomalies }),
-          signal: AbortSignal.timeout(5_000),
-        });
-      } catch (err) {
-        console.error("[vmui] anomaly webhook failed", err);
-      }
-    }
-  }
+  if (env.VMUI_ANOMALY_WEBHOOK) notifyWebhook(env.VMUI_ANOMALY_WEBHOOK, anomalies);
 
   return (
     <div className="space-y-2">

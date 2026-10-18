@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useEventsBus } from "@/hooks/use-poll";
 import type { NotificationRow } from "@/lib/db/schema";
 import {
     dismissAllNotificationsAction,
@@ -11,7 +12,8 @@ import {
     markAllSeenAction,
 } from "@/server/actions/notifications";
 import { AlertCircle, AlertTriangle, Bell, Check, CheckCircle2, Info, X } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence } from "motion/react";
+import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -36,10 +38,10 @@ const ICON = {
 } as const;
 
 const COLOR = {
-  info: "text-[var(--color-primary)]",
-  success: "text-[var(--color-success)]",
-  warning: "text-warning",
-  error: "text-[var(--color-danger)]",
+  info: "text-primary-text",
+  success: "text-success",
+  warning: "text-warning-text",
+  error: "text-danger",
 } as const;
 
 export function NotificationsBell() {
@@ -56,18 +58,14 @@ export function NotificationsBell() {
   }
 
   useEffect(() => {
-    refresh();
-    if (typeof EventSource === "undefined") return;
-    const es = new EventSource("/api/events");
-    const onCreate = () => {
-      refresh();
-    };
-    es.addEventListener("notification.created", onCreate);
-    return () => {
-      es.removeEventListener("notification.created", onCreate);
-      es.close();
-    };
+    void refresh();
   }, []);
+
+  useEventsBus({
+    "notification.created": () => {
+      void refresh();
+    },
+  });
 
   useEffect(() => {
     if (open && unseen > 0) {
@@ -101,18 +99,25 @@ export function NotificationsBell() {
       <Tooltip>
         <TooltipTrigger asChild>
           <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label={t("tooltip")} className="relative">
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={unseen > 0 ? t("tooltipNew", { count: unseen }) : t("tooltip")}
+              className="relative"
+            >
               <Bell className="h-4 w-4" aria-hidden />
               <AnimatePresence>
                 {unseen > 0 && (
-                  <motion.span
+                  <m.span
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     exit={{ scale: 0 }}
-                    className="absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-danger px-1 text-[9px] font-bold text-danger-fg"
+                    transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                    aria-hidden
+                    className="absolute -right-0.5 -top-0.5 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-danger px-1 text-2xs font-bold leading-none text-danger-fg ring-2 ring-[var(--color-bg)]"
                   >
                     {unseen > 99 ? "99+" : unseen}
-                  </motion.span>
+                  </m.span>
                 )}
               </AnimatePresence>
             </Button>
@@ -120,23 +125,23 @@ export function NotificationsBell() {
         </TooltipTrigger>
         <TooltipContent>{unseen > 0 ? t("tooltipNew", { count: unseen }) : t("tooltip")}</TooltipContent>
       </Tooltip>
-      <PopoverContent className="w-96 p-0">
-        <div className="flex items-center justify-between border-b border-border px-3 py-2">
-          <div className="text-sm font-semibold">{t("title")}</div>
+      <PopoverContent className="w-[min(24rem,calc(100vw-1rem))] p-0" collisionPadding={8}>
+        <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
+          <h2 className="text-sm font-semibold">{t("title")}</h2>
           {visible.length > 0 && (
             <button
               type="button"
               onClick={dismissAll}
-              className="text-xs text-fg-muted hover:text-fg"
+              className="min-h-6 rounded-[var(--radius-sm)] px-1.5 text-xs text-fg-muted hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               {t("clearAll")}
             </button>
           )}
         </div>
-        <div className="max-h-[60vh] overflow-y-auto">
+        <div className="max-h-[60dvh] overflow-y-auto">
           {visible.length === 0 ? (
             <div className="px-3 py-10 text-center text-xs text-fg-muted">
-              <Check className="mx-auto mb-2 h-5 w-5 opacity-50" aria-hidden />
+              <Check className="mx-auto mb-2 h-5 w-5 opacity-60" aria-hidden />
               {t("empty")}
             </div>
           ) : (
@@ -146,14 +151,14 @@ export function NotificationsBell() {
                 const color = COLOR[n.severity];
                 const created = n.createdAt instanceof Date ? n.createdAt.toISOString() : String(n.createdAt);
                 const inner = (
-                  <div className="flex gap-2.5">
+                  <div className="flex gap-2.5 pr-7">
                     <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${color}`} aria-hidden />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between gap-2">
-                        <div className="truncate text-sm font-medium">{n.title}</div>
-                        <span className="shrink-0 text-[10px] text-fg-muted">{relative(created, t)}</span>
+                        <div className="truncate text-sm font-medium" title={n.title}>{n.title}</div>
+                        <time dateTime={created} className="shrink-0 text-2xs text-fg-muted">{relative(created, t)}</time>
                       </div>
-                      {n.body && <div className="mt-0.5 text-xs text-fg-muted">{n.body}</div>}
+                      {n.body && <div className="mt-0.5 break-words text-xs text-fg-muted">{n.body}</div>}
                     </div>
                   </div>
                 );
@@ -163,7 +168,11 @@ export function NotificationsBell() {
                     className="group relative px-3 py-2.5 transition-colors hover:bg-[color-mix(in_oklch,var(--color-fg)_4%,transparent)]"
                   >
                     {n.href ? (
-                      <Link href={n.href} onClick={() => setOpen(false)} className="block">
+                      <Link
+                        href={n.href}
+                        onClick={() => setOpen(false)}
+                        className="block rounded-[var(--radius-sm)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                      >
                         {inner}
                       </Link>
                     ) : (
@@ -173,9 +182,9 @@ export function NotificationsBell() {
                       type="button"
                       aria-label={t("dismiss")}
                       onClick={() => dismiss(n.id)}
-                      className="absolute right-2 top-2 hidden h-5 w-5 items-center justify-center rounded-[var(--radius-sm)] text-fg-muted hover:bg-bg-muted hover:text-fg focus-visible:flex group-hover:flex"
+                      className="absolute right-2 top-2 grid size-6 place-items-center rounded-[var(--radius-sm)] text-fg-muted transition-opacity hover:bg-bg-muted hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within:opacity-100 [@media(hover:hover)]:group-hover:opacity-100"
                     >
-                      <X className="h-3 w-3" aria-hidden />
+                      <X className="size-3.5" aria-hidden />
                     </button>
                   </li>
                 );

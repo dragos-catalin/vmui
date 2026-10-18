@@ -6,7 +6,8 @@
     "empty": "Nothing active.",
     "close": "Close",
     "actionDone": "Done",
-    "actionFailed": "That did not work"
+    "actionFailed": "That did not work",
+    "closeAria": "Dismiss “{title}”"
   },
   "kinds": {
     "copilot": "Copilot",
@@ -128,7 +129,7 @@
   },
   "devices": {
     "title": "Paired devices",
-    "description": "Phones and PCs running the vmui app. Each has its own token, revocable here.",
+    "description": "Phones and PCs running the Vatra app. Each has its own token, revocable here.",
     "pendingBadge": "{count, plural, one {# pending} other {# pending}}",
     "pendingTitle": "Pairing requests",
     "pendingHint": "Approve only if the device shows the same code.",

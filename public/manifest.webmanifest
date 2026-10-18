@@ -1,40 +1,105 @@
 {
-  "name": "vmui — multi-cloud VM control",
-  "short_name": "vmui",
-  "description": "Local-first interface to manage virtual machines across cloud providers.",
+  "name": "Vatra · home & machines",
+  "short_name": "Vatra",
+  "description": "One calm place for the house and the machines. Casă și mașini.",
+  "id": "/",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": [
+    "window-controls-overlay",
+    "standalone"
+  ],
   "orientation": "any",
-  "background_color": "#0b0e16",
-  "theme_color": "#0b0e16",
+  "lang": "ro",
+  "dir": "ltr",
+  "background_color": "#110b07",
+  "theme_color": "#110b07",
   "icons": [
     {
-      "src": "/icons/icon-192.svg",
+      "src": "/icons/icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "/icons/icon-512.svg",
+      "src": "/icons/icon-512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/badge-96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "monochrome"
     }
   ],
-  "categories": ["developer", "productivity", "utilities"],
+  "categories": [
+    "productivity",
+    "utilities",
+    "lifestyle"
+  ],
   "shortcuts": [
     {
-      "name": "Home",
-      "url": "/home?tab=ambilight",
-      "description": "Lights, ambilight, climate"
+      "name": "Casă · Home",
+      "short_name": "Casă",
+      "url": "/home",
+      "icons": [
+        {
+          "src": "/icons/shortcut-home-96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
     },
     {
-      "name": "New instance",
+      "name": "VM nou · New instance",
+      "short_name": "VM nou",
       "url": "/instances/new",
-      "description": "Launch a new VM"
+      "icons": [
+        {
+          "src": "/icons/shortcut-home-96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
     },
-    { "name": "Costs", "url": "/costs", "description": "Cost overview" },
-    { "name": "Activity", "url": "/activity", "description": "Audit log" }
+    {
+      "name": "Costuri · Costs",
+      "short_name": "Costuri",
+      "url": "/costs",
+      "icons": [
+        {
+          "src": "/icons/shortcut-home-96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Activitate · Activity",
+      "short_name": "Activitate",
+      "url": "/activity",
+      "icons": [
+        {
+          "src": "/icons/shortcut-home-96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    }
   ]
 }

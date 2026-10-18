@@ -1,5 +1,6 @@
 "use client";
 
+import { useInView, usePageVisible } from "@/hooks/use-poll";
 import { cn } from "@/lib/utils";
 import { getScreenshotAction } from "@/server/actions/screenshots";
 import { Camera, MonitorOff } from "lucide-react";
@@ -32,12 +33,17 @@ export function VmScreenshot({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hasFrame, setHasFrame] = useState(false);
   const [unsupported, setUnsupported] = useState(false);
+  const [viewRef, inView] = useInView<HTMLDivElement>();
+  const visible = usePageVisible();
+  // Off-screen cards and hidden tabs keep their last frame and stop polling.
+  const polling = enabled && inView && visible;
 
   useEffect(() => {
     if (!enabled) {
       setHasFrame(false);
       return;
     }
+    if (!polling) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
 
@@ -64,10 +70,11 @@ export function VmScreenshot({
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [accountId, enabled, intervalMs, maxWidth]);
+  }, [accountId, enabled, polling, intervalMs, maxWidth]);
 
   return (
     <div
+      ref={viewRef}
       className={cn(
         "relative aspect-video w-full overflow-hidden rounded-[var(--radius-md)] border border-border bg-bg-muted",
         className,
@@ -87,17 +94,17 @@ export function VmScreenshot({
           {unsupported ? (
             <>
               <MonitorOff className="h-5 w-5" aria-hidden />
-              <span className="text-[11px]">{t("unavailable")}</span>
+              <span className="text-2xs">{t("unavailable")}</span>
             </>
           ) : enabled ? (
             <>
-              <Camera className="h-5 w-5 animate-pulse" aria-hidden />
-              <span className="text-[11px]">{t("capturing")}</span>
+              <Camera className="h-5 w-5 motion-safe:animate-pulse" aria-hidden />
+              <span className="text-2xs">{t("capturing")}</span>
             </>
           ) : (
             <>
               <MonitorOff className="h-5 w-5" aria-hidden />
-              <span className="text-[11px]">{t("off")}</span>
+              <span className="text-2xs">{t("off")}</span>
             </>
           )}
         </div>

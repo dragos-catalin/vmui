@@ -93,7 +93,7 @@ export function CostOptimizerView({ recommendations }: { recommendations: CostRe
   );
 
   if (recommendations.length === 0) {
-    return <EmptyState icon={<Gauge />} title={t("empty.title")} description={t("empty.description")} />;
+    return <EmptyState illustration="costs" icon={<Gauge />} title={t("empty.title")} description={t("empty.description")} />;
   }
 
   return (

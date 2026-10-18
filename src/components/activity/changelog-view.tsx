@@ -2,7 +2,7 @@
 
 import { Badge, Button, EmptyState, PageSection, ToggleGroup, type ToggleOption } from "@/components/ui";
 import { Check, Copy, ScrollText } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useFormatter, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import * as React from "react";
@@ -51,13 +51,13 @@ export function ChangelogView({ days, groups, markdown }: { days: number; groups
       {showMd ? (
         <pre className="surface max-h-[70vh] overflow-auto whitespace-pre-wrap p-4 font-mono text-xs leading-relaxed">{markdown}</pre>
       ) : groups.length === 0 ? (
-        <EmptyState icon={<ScrollText />} title={t("empty.title")} description={t("empty.description")} />
+        <EmptyState illustration="activity" icon={<ScrollText />} title={t("empty.title")} description={t("empty.description")} />
       ) : (
         groups.map((g, gi) => (
           <PageSection key={g.day} title={format.dateTime(new Date(g.day), { dateStyle: "full" })}>
             <ol className="relative space-y-3 pl-6 before:absolute before:bottom-1 before:left-[7px] before:top-1 before:w-px before:bg-border">
               {g.items.map((it, i) => (
-                <motion.li
+                <m.li
                   key={it.id}
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -74,7 +74,7 @@ export function ChangelogView({ days, groups, markdown }: { days: number; groups
                     </time>
                   </div>
                   {it.message && <p className="mt-0.5 text-xs text-fg-muted">{it.message}</p>}
-                </motion.li>
+                </m.li>
               ))}
             </ol>
           </PageSection>

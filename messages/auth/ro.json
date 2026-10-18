@@ -1,7 +1,13 @@
 {
   "brand": {
-    "name": "vmui",
-    "tagline": "Panou de control local"
+    "name": "Vatra",
+    "tagline": "casă și mașini"
+  },
+  "meta": {
+    "signIn": "Autentificare",
+    "signUp": "Creare cont",
+    "invite": "Alătură-te gospodăriei",
+    "onboarding": "Primii pași"
   },
   "or": "sau",
   "theme": {
@@ -28,10 +34,10 @@
     "viewer": "Vizualizator"
   },
   "signIn": {
-    "title": "Autentificare în vmui",
-    "description": "Mașinile tale virtuale, pe calculatorul tău. Nimic nu părăsește acest host.",
+    "title": "Autentificare în Vatra",
+    "description": "Casa și mașinile tale, pe hardware-ul tău. Nimic nu părăsește acest host.",
     "submit": "Autentifică-te",
-    "noAccount": "Ai nevoie de un cont? Cere unui administrator vmui să-l creeze.",
+    "noAccount": "Ai nevoie de un cont? Cere unui administrator Vatra să-l creeze.",
     "twoFactorTitle": "Verificare în doi pași",
     "twoFactorBody": "Introdu codul pentru <b>{email}</b>.",
     "verify": "Verifică"
@@ -41,7 +47,7 @@
     "signedIn": "Autentificat"
   },
   "signUp": {
-    "firstTitle": "Creează primul administrator vmui",
+    "firstTitle": "Creează primul administrator Vatra",
     "firstDescription": "Nu există încă utilizatori — acest cont devine administratorul local.",
     "addTitle": "Adaugă un utilizator",
     "addDescription": "Noul utilizator se poate autentifica imediat cu rolul pe care îl alegi.",
@@ -100,8 +106,8 @@
     "generic": "Nu a funcționat: {message}"
   },
   "onboarding": {
-    "title": "Bine ai venit în vmui",
-    "description": "Panou de control multi-cloud, local-first. Totul rămâne pe această mașină — vmui nu are conturi cloud proprii.",
+    "title": "Bine ai venit în Vatra",
+    "description": "Control local pentru casa și mașinile tale. Totul rămâne pe acest host — Vatra nu are conturi cloud proprii.",
     "progress": "{done} din {total} pași finalizați",
     "status": {
       "done": "gata",
@@ -149,11 +155,11 @@
     },
     "providers": {
       "title": "Ghid rapid pentru furnizori",
-      "aws": "<b>AWS:</b> cheie de acces IAM + secret. Recomandat un utilizator dedicat cu drepturi de citire/scriere pe EC2, S3, RDS, ELB și Route53.",
-      "azure": "<b>Azure:</b> service principal — tenantId, clientId, clientSecret, subscriptionId. Rol Contributor pe abonamentul țintă.",
-      "gcp": "<b>GCP:</b> cheie JSON de service account. Roluri Compute, Storage, Cloud SQL, DNS. JSON-ul lipit este criptat înainte de a ajunge pe disc.",
-      "scaleway": "<b>Scaleway:</b> token API + id de organizație.",
-      "kvm": "<b>local-kvm:</b> host SSH + cheie pentru hostul libvirt. vmui vorbește direct cu libvirt prin URI-ul ales."
+      "aws": "Cheie de acces IAM + secret. Recomandat un utilizator dedicat cu drepturi de citire/scriere pe EC2, S3, RDS, ELB și Route53.",
+      "azure": "Service principal — tenantId, clientId, clientSecret, subscriptionId. Rol Contributor pe abonamentul țintă.",
+      "gcp": "Cheie JSON de service account. Roluri Compute, Storage, Cloud SQL, DNS. JSON-ul lipit este criptat înainte de a ajunge pe disc.",
+      "scaleway": "Token API + id de organizație.",
+      "kvm": "Host SSH + cheie pentru hostul libvirt. Vatra vorbește direct cu libvirt prin URI-ul ales."
     },
     "background": {
       "title": "Ce rulează în fundal",

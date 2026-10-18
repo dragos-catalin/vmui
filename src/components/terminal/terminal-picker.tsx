@@ -1,9 +1,10 @@
 "use client";
 
-import { TerminalView } from "@/components/instances/terminal-view";
+import { TerminalView } from "@/components/instances/terminal-view-lazy";
 import { Button, EmptyState, Field, ToggleGroup } from "@/components/ui";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useEventSource } from "@/hooks/use-poll";
 import { openContainerTerminalAction, openHostTerminalAction } from "@/server/actions/terminal";
 import { Container as ContainerIcon, Server, TerminalSquare, X } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -55,29 +56,22 @@ export function TerminalPicker({ instances }: { instances: InstanceLite[] }) {
     }
   }, [instances]);
 
+  const containersUrl = mode === "container" && instanceId ? `/api/instances/${encodeURIComponent(instanceId)}/containers/stream?interval=10` : null;
   useEffect(() => {
-    if (mode !== "container" || !instanceId) return;
+    if (!containersUrl) return;
     setLoadingContainers(true);
     setContainerOptions([]);
-    const es = new EventSource(`/api/instances/${encodeURIComponent(instanceId)}/containers/stream?interval=10`);
-    es.addEventListener("snapshot", (e) => {
-      try {
-        const data = JSON.parse((e as MessageEvent).data) as {
-          rows: { id: string; name: string; state: string }[];
-        };
-        const running = data.rows.filter((r) => r.state === "running");
-        setContainerOptions(running.map((r) => ({ id: r.id, name: r.name || r.id })));
-        if (running.length > 0 && !containerId) setContainerId(running[0]!.id);
-      } catch {
-        /* ignore */
-      } finally {
-        setLoadingContainers(false);
-      }
-    });
-    es.addEventListener("error", () => setLoadingContainers(false));
-    return () => es.close();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, instanceId]);
+  }, [containersUrl]);
+  useEventSource<{ rows?: { id: string; name: string; state: string }[] }>(containersUrl, {
+    events: ["snapshot"],
+    onMessage: (data) => {
+      const running = (data.rows ?? []).filter((r) => r.state === "running");
+      setContainerOptions(running.map((r) => ({ id: r.id, name: r.name || r.id })));
+      if (running.length > 0) setContainerId((cur) => cur || running[0]!.id);
+      setLoadingContainers(false);
+    },
+    onError: () => setLoadingContainers(false),
+  });
 
   const issue = async (target: Target) =>
     target.kind === "host"
@@ -207,7 +201,7 @@ export function TerminalPicker({ instances }: { instances: InstanceLite[] }) {
             <TabsList aria-label={t("sessions")} className="h-auto w-full flex-wrap justify-start gap-1">
               {sessions.map((s) => (
                 <span key={s.id} className="inline-flex items-center">
-                  <TabsTrigger value={s.id} className="max-w-[16rem] gap-1.5">
+                  <TabsTrigger value={s.id} className="max-w-[16rem] gap-1.5" title={s.label}>
                     {s.target.kind === "host" ? (
                       <Server className="size-3.5 shrink-0" aria-hidden />
                     ) : (

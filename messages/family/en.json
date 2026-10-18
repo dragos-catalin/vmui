@@ -95,7 +95,7 @@
   },
   "existing": {
     "title": "Add an existing user",
-    "hint": "Accounts that can sign in to vmui but have no household access yet.",
+    "hint": "Accounts that can sign in to Vatra but have no household access yet.",
     "user": "User",
     "pick": "Pick a user",
     "add": "Add to household",

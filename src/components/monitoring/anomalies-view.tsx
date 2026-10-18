@@ -1,10 +1,10 @@
 "use client";
 
-import { LineChartCard } from "@/components/charts";
+import { LineChartCard } from "./lazy-charts";
 import { Badge, DataTable, EmptyState, type ColumnDef } from "@/components/ui";
 import type { AnomalyPoint } from "@/lib/cost-anomaly";
 import { CheckCircle2 } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useFormatter, useTranslations } from "next-intl";
 import * as React from "react";
 
@@ -68,7 +68,7 @@ export function AnomaliesView({ points, mean, threshold, stdDev }: { points: Ano
         markers={points.filter((p) => p.isAnomaly).map((p) => ({ x: p.day, y: p.usd, tone: p.zScore > 0 ? "danger" : "info" }))}
       />
 
-      <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+      <m.div initial={{ y: 6 }} animate={{ y: 0 }} transition={{ duration: 0.2 }}>
         <DataTable
           columns={columns}
           data={anomalies}
@@ -76,7 +76,7 @@ export function AnomaliesView({ points, mean, threshold, stdDev }: { points: Ano
           getRowId={(r) => r.day}
           emptyState={<EmptyState compact icon={<CheckCircle2 />} title={t("empty.title")} description={t("empty.description")} />}
         />
-      </motion.div>
+      </m.div>
     </div>
   );
 }

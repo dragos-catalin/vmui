@@ -159,6 +159,7 @@ export function ExternalLinkRow({ href, label }: { href: string; label: React.Re
 
 export function CodeBlock({ code, label }: { code: string; label?: React.ReactNode }) {
   const t = useTranslations("cloud.connect.common");
+  const tc = useTranslations("common");
   function copy() {
     void navigator.clipboard.writeText(code);
     toast.success(t("copied"));
@@ -167,7 +168,14 @@ export function CodeBlock({ code, label }: { code: string; label?: React.ReactNo
     <div className="space-y-1">
       {label && <div className="text-[11px] font-medium text-muted">{label}</div>}
       <div className="group relative">
-        <pre className="overflow-x-auto rounded-[var(--radius-md)] bg-bg-muted p-3 pr-12 font-mono text-xs leading-relaxed">{code}</pre>
+        <pre
+          role="region"
+          aria-label={typeof label === "string" ? label : tc("scrollRegion")}
+          tabIndex={0}
+          className="overflow-x-auto rounded-[var(--radius-md)] bg-bg-muted p-3 pr-12 font-mono text-xs leading-relaxed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          {code}
+        </pre>
         <Button type="button" variant="ghost" size="icon" onClick={copy} className="absolute right-1 top-1 size-9" aria-label={t("copy")}>
           <Copy className="size-3.5" aria-hidden />
         </Button>

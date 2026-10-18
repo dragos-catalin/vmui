@@ -2,7 +2,7 @@
 
 import { EmptyState } from "@/components/ui";
 import { Archive, FileArchive } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useFormatter, useTranslations } from "next-intl";
 
 export interface ArchiveFile {
@@ -15,12 +15,12 @@ export function ArchiveList({ files }: { files: ArchiveFile[] }) {
   const t = useTranslations("observe.archive");
   const format = useFormatter();
   if (files.length === 0) {
-    return <EmptyState compact icon={<Archive />} title={t("empty.title")} description={t("empty.description")} />;
+    return <EmptyState illustration="activity" compact icon={<Archive />} title={t("empty.title")} description={t("empty.description")} />;
   }
   return (
     <ul className="divide-y divide-border">
       {files.map((f, i) => (
-        <motion.li
+        <m.li
           key={f.name}
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
@@ -37,7 +37,7 @@ export function ArchiveList({ files }: { files: ArchiveFile[] }) {
           <span className="shrink-0 text-xs tabular-nums text-fg-muted">
             {format.number(f.size / 1024, { maximumFractionDigits: 1 })} KB
           </span>
-        </motion.li>
+        </m.li>
       ))}
     </ul>
   );

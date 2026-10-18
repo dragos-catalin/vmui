@@ -9,7 +9,7 @@ import { saveButtonBindingsAction, testButtonGestureAction } from "@/server/acti
 import { CirclePlay, MousePointerClick, Save } from "lucide-react";
 import { useTranslations } from "next-intl";
 import * as React from "react";
-import { toast } from "sonner";
+import { useHomeAction } from "./use-home-action";
 
 type Kind = ButtonAction["type"];
 const KINDS = ["none", "water_add", "water_undo", "ha_script", "ha_service", "intercom_open", "intercom_arm", "turzx_next", "turzx_pause", "ambilight_movie", "pc_wake"] as const satisfies readonly Kind[];
@@ -30,6 +30,8 @@ export function ButtonBindingsCard({ initial, scripts, defaultOpen = false }: { 
   const t = useTranslations("devices.buttons");
   const [b, setB] = React.useState<ButtonBindings>(initial);
   const [busy, setBusy] = React.useState<string | null>(null);
+  const saveAction = useHomeAction(saveButtonBindingsAction, { success: t("saved"), refresh: true });
+  const testAction = useHomeAction(testButtonGestureAction, { success: t("testSent") });
   const dirty = JSON.stringify(b) !== JSON.stringify(initial);
   const gestureName = (g: Gesture) => t(`gesture.${g}`);
   const kindName = (k: Kind) => t(`kind.${k}`);
@@ -43,17 +45,13 @@ export function ButtonBindingsCard({ initial, scripts, defaultOpen = false }: { 
       const a = clean.gestures[g] ?? { type: "none" };
       if (a.type === "ha_service" && !a.entityId) clean.gestures[g] = { type: "ha_service", service: a.service };
     }
-    const r = await saveButtonBindingsAction(clean);
+    await saveAction.run(clean);
     setBusy(null);
-    if (r.ok) toast.success(t("saved"));
-    else toast.error(r.error);
   };
   const test = async (g: Gesture) => {
     setBusy(g);
-    const r = await testButtonGestureAction(g);
+    await testAction.run(g);
     setBusy(null);
-    if (r.ok) toast.success(r.message ?? "ok");
-    else toast.error(r.error);
   };
 
   const bound = GESTURES.filter((g) => (b.gestures[g]?.type ?? "none") !== "none");
@@ -76,8 +74,8 @@ export function ButtonBindingsCard({ initial, scripts, defaultOpen = false }: { 
           const a: ButtonAction = b.gestures[g] ?? { type: "none" };
           const name = gestureName(g);
           return (
-            <li key={g} className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 py-3 sm:grid-cols-[8rem_minmax(0,1fr)_auto]">
-              <span className="min-w-0 truncate pt-2 text-sm font-semibold">{name}</span>
+            <li key={g} className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 py-3 sm:grid-cols-[minmax(8rem,11rem)_minmax(0,1fr)_auto]">
+              <span className="min-w-0 pt-2 text-sm font-semibold [overflow-wrap:anywhere]" title={name}>{name}</span>
               <Button variant="ghost" size="sm" className="sm:order-3" disabled={busy !== null || a.type === "none"} onClick={() => test(g)} aria-label={t("testAria", { gesture: name })}>
                 <CirclePlay className="size-4" aria-hidden /> {t("test")}
               </Button>

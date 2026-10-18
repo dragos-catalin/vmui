@@ -9,8 +9,10 @@ import {
   useRef,
   useState,
 } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { AnimatePresence } from "motion/react";
+import * as m from "motion/react-m";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { useTranslations } from "next-intl";
 import {
   AlertTriangle,
   AlertOctagon,
@@ -64,6 +66,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [typed, setTyped] = useState("");
+  const tc = useTranslations("common");
 
   // We hold the active resolver in a ref so close handlers can settle the
   // promise even when state is stale (e.g. ESC key).
@@ -97,7 +100,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
         await pending.onConfirm();
         settle(true);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Action failed");
+        setError(err instanceof Error && err.message ? err.message : tc("actionFailed"));
         setBusy(false);
         return;
       }
@@ -120,21 +123,21 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
           {isOpen && pending && (
             <DialogPrimitive.Portal forceMount>
               <DialogPrimitive.Overlay asChild>
-                <motion.div
+                <m.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.18 }}
-                  className="fixed inset-0 z-[100] bg-black/45 backdrop-blur-sm"
+                  className="fixed inset-0 z-[var(--z-modal)] bg-overlay backdrop-blur-sm"
                 />
               </DialogPrimitive.Overlay>
               <DialogPrimitive.Content asChild>
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95, y: 12 }}
+                <m.div
+                  initial={{ opacity: 0, scale: 0.97, y: 8 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.96, y: 8 }}
-                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                  className="glass fixed left-1/2 top-1/2 z-[101] w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-[var(--radius-xl)] p-6 shadow-2xl"
+                  exit={{ opacity: 0, scale: 0.98, y: 6 }}
+                  transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                  className="glass fixed inset-0 z-[var(--z-modal)] m-auto h-fit max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-md overflow-y-auto rounded-[var(--radius-xl)] p-6 shadow-[var(--shadow-lg)]"
                 >
                   <ConfirmBody
                     pending={pending}
@@ -145,7 +148,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
                     onCancel={() => !busy && settle(false)}
                     onConfirm={handleConfirm}
                   />
-                </motion.div>
+                </m.div>
               </DialogPrimitive.Content>
             </DialogPrimitive.Portal>
           )}
@@ -162,19 +165,19 @@ const TONE_STYLES: Record<
   danger: {
     icon: AlertOctagon,
     ring: "bg-[color-mix(in_oklch,var(--color-danger)_18%,transparent)] text-[var(--color-danger)] ring-[color-mix(in_oklch,var(--color-danger)_35%,transparent)]",
-    text: "text-[var(--color-danger)]",
+    text: "text-danger",
     variant: "danger",
   },
   warning: {
     icon: AlertTriangle,
-    ring: "bg-[color-mix(in_oklch,var(--color-warning,#f59e0b)_18%,transparent)] text-[var(--color-warning,#f59e0b)] ring-[color-mix(in_oklch,var(--color-warning,#f59e0b)_35%,transparent)]",
-    text: "text-[var(--color-warning,#f59e0b)]",
+    ring: "bg-[color-mix(in_oklch,var(--color-warning)_18%,transparent)] text-warning-text ring-[color-mix(in_oklch,var(--color-warning)_35%,transparent)]",
+    text: "text-warning-text",
     variant: "primary",
   },
   info: {
     icon: Info,
-    ring: "bg-[color-mix(in_oklch,var(--color-primary)_18%,transparent)] text-[var(--color-primary)] ring-[color-mix(in_oklch,var(--color-primary)_35%,transparent)]",
-    text: "text-[var(--color-primary)]",
+    ring: "bg-[color-mix(in_oklch,var(--color-primary)_18%,transparent)] text-primary-text ring-[color-mix(in_oklch,var(--color-primary)_35%,transparent)]",
+    text: "text-primary-text",
     variant: "primary",
   },
   neutral: {
@@ -204,6 +207,7 @@ function ConfirmBody({
 }) {
   const tone = pending.tone ?? "neutral";
   const t = TONE_STYLES[tone];
+  const tc = useTranslations("common");
   const Icon = t.icon;
   const requireText = pending.requireText;
   const matched = !requireText || typed === requireText;
@@ -226,61 +230,67 @@ function ConfirmBody({
   return (
     <div onKeyDown={onKeyDown} className="space-y-4">
       <div className="flex items-start gap-3">
-        <motion.div
-          initial={{ scale: 0.6, opacity: 0 }}
+        <m.div
+          initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: "spring", stiffness: 420, damping: 18, delay: 0.05 }}
+          transition={{ type: "spring", stiffness: 380, damping: 32, delay: 0.05 }}
           className={cn(
             "grid h-10 w-10 shrink-0 place-items-center rounded-full ring-1",
             t.ring,
           )}
         >
-          <Icon className="h-5 w-5" />
-        </motion.div>
+          <Icon className="h-5 w-5" aria-hidden />
+        </m.div>
         <div className="min-w-0 flex-1">
-          <DialogPrimitive.Title className="text-base font-semibold leading-tight">
+          <DialogPrimitive.Title className="break-words text-base font-semibold leading-tight">
             {pending.title}
           </DialogPrimitive.Title>
-          {pending.description && (
-            <DialogPrimitive.Description className="mt-1.5 text-sm text-muted">
+          {pending.description ? (
+            <DialogPrimitive.Description className="mt-1.5 text-sm text-fg-muted">
               {pending.description}
             </DialogPrimitive.Description>
+          ) : (
+            <DialogPrimitive.Description className="sr-only">{pending.title}</DialogPrimitive.Description>
           )}
         </div>
       </div>
 
       {requireText && (
         <div className="space-y-1.5">
-          <label className="text-xs text-muted">
-            Type{" "}
-            <code className="rounded bg-[var(--color-bg-muted)] px-1.5 py-0.5 font-mono text-[11px] text-fg">
-              {requireText}
-            </code>{" "}
-            to confirm
+          <label htmlFor="confirm-require-text" className="text-xs text-fg-muted">
+            {tc.rich("typeToConfirm", {
+              phrase: requireText,
+              code: (chunks) => (
+                <code className="rounded bg-[var(--color-bg-muted)] px-1.5 py-0.5 font-mono text-2xs text-fg">{chunks}</code>
+              ),
+            })}
           </label>
           <input
+            id="confirm-require-text"
             autoFocus
             value={typed}
             onChange={(e) => setTyped(e.target.value)}
             disabled={busy}
-            className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 font-mono text-sm outline-none transition-colors focus:border-[var(--color-primary)]"
+            className="w-full rounded-[var(--radius-sm)] border border-border-strong bg-[var(--color-bg)] px-3 py-2 font-mono text-sm transition-colors focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             placeholder={requireText}
-            aria-label="Confirmation phrase"
+            autoComplete="off"
+            spellCheck={false}
           />
         </div>
       )}
 
       {error && (
-        <motion.div
+        <m.div
+          role="alert"
           initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-md bg-[color-mix(in_oklch,var(--color-danger)_15%,transparent)] px-3 py-2 text-xs text-[var(--color-danger)]"
+          className="rounded-[var(--radius-sm)] bg-[color-mix(in_oklch,var(--color-danger)_15%,transparent)] px-3 py-2 text-xs text-[color-mix(in_oklch,var(--color-danger)_80%,var(--color-fg))]"
         >
           {error}
-        </motion.div>
+        </m.div>
       )}
 
-      <div className="flex justify-end gap-2 pt-1">
+      <div className="flex flex-wrap justify-end gap-2 pt-1">
         <Button
           ref={cancelRef}
           variant="ghost"
@@ -288,16 +298,17 @@ function ConfirmBody({
           onClick={onCancel}
           disabled={busy}
         >
-          {pending.cancelText ?? "Cancel"}
+          {pending.cancelText ?? tc("cancel")}
         </Button>
         <Button
           variant={t.variant}
           size="sm"
           onClick={onConfirm}
           disabled={busy || !matched}
+          aria-busy={busy || undefined}
         >
-          {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-          {pending.confirmText ?? "Confirm"}
+          {busy && <Loader2 className="h-3.5 w-3.5 motion-safe:animate-spin" aria-hidden />}
+          {pending.confirmText ?? tc("confirm")}
         </Button>
       </div>
     </div>
@@ -318,6 +329,7 @@ export function useConfirm() {
  */
 export function useConfirmDanger() {
   const confirm = useConfirm();
+  const tc = useTranslations("common");
   return useMemo(
     () =>
       (
@@ -329,9 +341,9 @@ export function useConfirmDanger() {
           title,
           description,
           tone: "danger",
-          confirmText: "Delete",
+          confirmText: tc("delete"),
           ...opts,
         }),
-    [confirm],
+    [confirm, tc],
   );
 }

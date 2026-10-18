@@ -9,6 +9,7 @@
   "accent": {
     "label": "Accent",
     "custom": "Nuanță personalizată",
+    "ember": "Jar (Vatra)",
     "indigo": "Indigo",
     "violet": "Violet",
     "rose": "Roz",
@@ -30,8 +31,14 @@
     "compact": "Compact"
   },
   "motion": {
-    "label": "Mai puțină mișcare",
-    "hint": "Fără animații și tranziții"
+    "label": "Animații",
+    "system": "Sistem",
+    "reduce": "Reduse",
+    "full": "Complete",
+    "hint_system": "Urmează setarea de mișcare redusă a dispozitivului.",
+    "hint_reduce": "Fără animații sau tranziții.",
+    "hint_full": "Toate animațiile, chiar dacă dispozitivul cere mai puține.",
+    "hint": "Fără animații sau tranziții."
   },
   "vibe": {
     "label": "Presetări",
@@ -67,5 +74,9 @@
       "name": "Synthwave",
       "hint": "Grilă pe orizont cromat"
     }
+  },
+  "ambient": {
+    "label": "Căldură ambientală",
+    "hint": "Neutrele devin mai calde când luminile casei sunt aprinse sau după apus."
   }
 }

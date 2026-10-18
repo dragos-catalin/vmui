@@ -6,6 +6,7 @@ import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useAction } from "@/hooks/use-action";
+import { useInterval } from "@/hooks/use-poll";
 import { ok, type ActionResult } from "@/lib/action-result";
 import { verifyBackupJobAction } from "@/server/actions/backup-verify";
 import {
@@ -93,11 +94,7 @@ export function BackupsWorkspace({ instances }: { instances: InstanceLite[] }) {
     setLoaded(true);
   }, []);
 
-  useEffect(() => {
-    void refresh();
-    const timer = setInterval(() => void refresh(), 5000);
-    return () => clearInterval(timer);
-  }, [refresh]);
+  useInterval(() => void refresh(), 5000, { immediate: true });
 
   const instanceName = useCallback(
     (iid: string) => {

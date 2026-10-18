@@ -12,6 +12,9 @@ import { Bot, Lightbulb, MonitorSmartphone, Play, Radio, Smartphone, Sparkles } 
 import { useTranslations } from "next-intl";
 import * as React from "react";
 import { toast } from "sonner";
+import { useHomeAction } from "./use-home-action";
+
+const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
 const TARGETS = [
   { key: "light", Icon: Lightbulb },
@@ -29,16 +32,16 @@ export function CopilotSignalsCard({ initial, lights, defaultOpen = false }: { i
   const [busy, setBusy] = React.useState<string | null>(null);
   const dirty = JSON.stringify(s) !== JSON.stringify(initial);
   const eventName = (e: CopilotEvent) => t(`event.${e}.label`);
+  const saveAction = useHomeAction(saveCopilotSignalsAction, { success: t("saved"), error: t("failed"), refresh: true });
+  const testAction = useHomeAction(testCopilotSignalAction, { error: t("failed") });
 
   const setPattern = (e: CopilotEvent, patch: Partial<CopilotSignals["patterns"][CopilotEvent]>) =>
     setS((p) => ({ ...p, patterns: { ...p.patterns, [e]: { ...p.patterns[e], ...patch } } }));
 
   const save = async () => {
     setBusy("save");
-    const r = await saveCopilotSignalsAction(s);
+    await saveAction.run(s);
     setBusy(null);
-    if (!r.ok) toast.error(r.error ?? t("failed"));
-    else toast.success(t("saved"));
   };
   const test = async (e: CopilotEvent) => {
     if (dirty) {
@@ -46,10 +49,9 @@ export function CopilotSignalsCard({ initial, lights, defaultOpen = false }: { i
       return;
     }
     setBusy(e);
-    const r = await testCopilotSignalAction(e);
+    const r = await testAction.run(e);
     setBusy(null);
-    if (!r.ok) toast.error(r.error ?? t("failed"));
-    else toast.success(t("sent", { name: eventName(e) }));
+    if (r.ok) toast.success(t("sent", { name: eventName(e) }));
   };
 
   const activeEvents = COPILOT_EVENTS.filter((e) => s.patterns[e].enabled).length;
@@ -80,7 +82,8 @@ export function CopilotSignalsCard({ initial, lights, defaultOpen = false }: { i
                   type="button"
                   onClick={() => setS((p) => ({ ...p, lights: on ? p.lights.filter((x) => x !== l.id) : [...p.lights, l.id] }))}
                   aria-pressed={on}
-                  className={cn("rounded-full border px-3 py-1 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary", on ? "border-primary bg-primary/15 text-fg" : "border-border text-muted hover:text-fg")}
+                  title={l.name}
+                  className={cn("max-w-full rounded-full border px-3 py-1 text-left text-sm transition [overflow-wrap:anywhere]", FOCUS, on ? "border-primary bg-primary/15 text-fg" : "border-border text-muted hover:text-fg")}
                 >
                   {l.name}
                 </button>
@@ -90,7 +93,7 @@ export function CopilotSignalsCard({ initial, lights, defaultOpen = false }: { i
         </ul>
         <div className="grid gap-3 pt-2 sm:grid-cols-2">
           <Field label={<span className="inline-flex items-center gap-1.5"><Smartphone className="size-3.5" aria-hidden /> {t("phoneNotify")}</span>} className="sm:col-span-2">
-            <Input value={s.phoneNotify} onChange={(e) => setS((p) => ({ ...p, phoneNotify: e.target.value }))} placeholder="mobile_app_dragos_s_s25_ultra" className="font-mono text-xs" aria-label={t("phoneNotifyAria")} />
+            <Input value={s.phoneNotify} onChange={(e) => setS((p) => ({ ...p, phoneNotify: e.target.value }))} placeholder={t("phoneNotifyPlaceholder")} className="font-mono text-xs" aria-label={t("phoneNotifyAria")} />
           </Field>
           <Field inline label={t("muteInMovie")} className="sm:col-span-2">
             <Switch checked={s.muteInMovie} onCheckedChange={(on) => setS((p) => ({ ...p, muteInMovie: on }))} aria-label={t("muteInMovieAria")} />
@@ -131,7 +134,7 @@ export function CopilotSignalsCard({ initial, lights, defaultOpen = false }: { i
                   </Field>
                   <Field label={t("colorLabel")}>
                     <div className="flex items-center gap-2">
-                      <input type="color" value={p.color} onChange={(ev) => setPattern(e, { color: ev.target.value })} aria-label={t("colorAria", { name })} className="size-9 shrink-0 rounded-md border border-[var(--color-border)] bg-transparent p-0.5" />
+                      <input type="color" value={p.color} onChange={(ev) => setPattern(e, { color: ev.target.value })} aria-label={t("colorAria", { name })} className={cn("size-9 shrink-0 rounded-md border border-border-strong bg-transparent p-0.5", FOCUS)} />
                       <Button size="sm" variant="outline" onClick={() => test(e)} disabled={busy !== null || !p.enabled} aria-label={t("testAria", { name })}>
                         <Play className="size-3.5" aria-hidden /> {t("test")}
                       </Button>
@@ -156,7 +159,7 @@ function Target({ on, onChange, label, children }: { on: boolean; onChange: (v: 
       aria-pressed={on}
       title={label}
       aria-label={label}
-      className={cn("inline-flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-md border px-2 text-xs transition", on ? "border-primary bg-primary/15 text-[var(--color-fg)]" : "border-[var(--color-border)] text-muted hover:text-[var(--color-fg)]")}
+      className={cn("inline-flex min-h-8 shrink-0 items-center gap-1 rounded-md border px-2 text-xs transition", FOCUS, on ? "border-primary bg-primary/15 text-fg" : "border-border text-muted hover:text-fg")}
     >
       {children}
       <span className="hidden xl:inline">{label}</span>

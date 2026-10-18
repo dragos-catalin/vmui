@@ -8,7 +8,7 @@ import { detectIdle } from "@/lib/idle";
 import type { PricedRow } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 import { Apple, Cpu, Globe, MonitorSmartphone, Moon, Pin, Server, StickyNote } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useState } from "react";
@@ -16,6 +16,7 @@ import { ConnectDialog } from "./connect-dialog";
 import { CostPill } from "./cost-pill";
 import { InstanceActions } from "./instance-actions";
 import { InstanceContextMenuWrapper } from "./instance-context-wrapper";
+import { instanceMorphName, MorphSurface } from "./instance-hero";
 import { instanceLabel } from "./instance-label";
 import { useInstanceMenuItems } from "./instance-menu";
 import { InstanceMenuButton } from "./instance-menu-button";
@@ -78,13 +79,13 @@ export function InstanceCard({
 
   return (
     <>
-      <motion.div
-        layout
+      <m.div
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.2, delay: Math.min(index, 12) * 0.03 }}
         onClick={handleClick}
       >
+        <MorphSurface name={instanceMorphName(instance.id)}>
         <InstanceContextMenuWrapper items={menuItems}>
           <Card
             className={cn(
@@ -92,7 +93,6 @@ export function InstanceCard({
               selected && "border-[color-mix(in_oklch,var(--color-primary)_55%,var(--color-border))] shadow-[var(--shadow-glow)]",
             )}
             aria-selected={selectionActive ? selected : undefined}
-            style={{ viewTransitionName: `inst-${instance.id.replace(/[^a-zA-Z0-9_-]/g, "-")}` }}
           >
             <CardHeader>
               <div className="flex flex-wrap items-start justify-between gap-2">
@@ -127,7 +127,7 @@ export function InstanceCard({
                         </span>
                       )}
                     </div>
-                    <div className="mt-0.5 truncate text-xs text-muted">
+                    <div className="mt-0.5 truncate text-xs text-muted" title={`${instance.providerInstanceId} · ${instance.instanceType ?? "—"}`}>
                       {instance.providerInstanceId} · {instance.instanceType ?? "—"}
                     </div>
                   </div>
@@ -161,9 +161,7 @@ export function InstanceCard({
               {showStats && (
                 <div className="mb-3">
                   <InstanceStatsInline
-                    accountId={instance.accountId}
                     enabled={showStats}
-                    providerInstanceId={instance.providerInstanceId}
                     instanceId={instance.id}
                     onOpenDetails={() => setStatsOpen(true)}
                   />
@@ -176,7 +174,7 @@ export function InstanceCard({
                   {instance.publicIp && (
                     <>
                       <span className="opacity-40">·</span>
-                      <span className="truncate font-mono text-[11px]">{instance.publicIp}</span>
+                      <span className="truncate font-mono text-2xs" title={instance.publicIp}>{instance.publicIp}</span>
                     </>
                   )}
                 </div>
@@ -190,7 +188,8 @@ export function InstanceCard({
             </CardContent>
           </Card>
         </InstanceContextMenuWrapper>
-      </motion.div>
+        </MorphSurface>
+      </m.div>
       <RenameInstanceDialog open={renameOpen} onOpenChange={setRenameOpen} instance={instance} />
       <NotesDialog open={notesOpen} onOpenChange={setNotesOpen} instance={instance} />
       <ConnectDialog open={connectOpen} onOpenChange={setConnectOpen} instance={instance} />

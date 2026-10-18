@@ -2,35 +2,33 @@
 
 import { Button } from "@/components/ui/button";
 import { Sparkline } from "@/components/ui/sparkline";
+import { useInView } from "@/hooks/use-poll";
 import { BarChart3, Cpu, MemoryStick } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
-import { useInstanceStats } from "./use-instance-stats";
+import { useFleetStats } from "./use-fleet-stats";
 
 /**
- * Compact, one-line stats strip for the InstanceCard. Polls only when the
- * VM is in a state where stats are meaningful.
+ * Compact, one-line stats strip for the InstanceCard. Reads the shared fleet
+ * poll only while enabled, on screen and the tab is visible.
  */
 export function InstanceStatsInline({
-  accountId,
   enabled,
   onOpenDetails,
-  providerInstanceId,
   instanceId,
 }: {
-  accountId: string;
   enabled: boolean;
   onOpenDetails?: () => void;
-  providerInstanceId?: string;
-  instanceId?: string;
+  instanceId: string;
 }) {
   const t = useTranslations("vm.stats");
-  const { latest, history } = useInstanceStats(accountId, { enabled, intervalMs: 2000, providerInstanceId, instanceId });
+  const [ref, inView] = useInView<HTMLDivElement>();
+  const { latest, history } = useFleetStats(instanceId, enabled && inView);
 
   if (!enabled) return null;
   if (!latest?.running) {
     return (
-      <div className="flex items-center gap-2 text-[11px] text-muted">
+      <div ref={ref} className="flex items-center gap-2 text-2xs text-muted">
         <span className="inline-block h-1.5 w-1.5 rounded-full bg-border" aria-hidden />
         <span>{t("idle")}</span>
       </div>
@@ -46,11 +44,12 @@ export function InstanceStatsInline({
   );
 
   return (
-    <motion.div
+    <m.div
+      ref={ref}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.2 }}
-      className="flex items-center gap-3"
+      className="flex min-w-0 items-center gap-3"
     >
       <Metric
         icon={Cpu}
@@ -72,14 +71,15 @@ export function InstanceStatsInline({
         <Button
           size="sm"
           variant="ghost"
-          className="ml-auto h-7 px-2 text-[11px]"
+          className="ml-auto h-7 px-2 text-2xs"
           onClick={onOpenDetails}
           aria-label={t("showDetails")}
+          title={t("showDetails")}
         >
           <BarChart3 className="h-3 w-3" aria-hidden />
         </Button>
       )}
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -100,12 +100,12 @@ function Metric({
 }) {
   return (
     <div className="flex items-center gap-1.5">
-      <div className="flex w-12 items-center gap-1 text-[10px] uppercase tracking-wider text-muted">
+      <div className="flex min-w-12 items-center gap-1 text-2xs uppercase tracking-wider text-muted">
         <Icon className="h-3 w-3" aria-hidden />
         {label}
       </div>
       <Sparkline values={history} width={56} height={18} className={colorClass} ariaLabel={ariaLabel} />
-      <div className={`w-9 text-right font-mono text-[11px] tabular-nums ${colorClass}`}>{value}</div>
+      <div className={`w-9 text-right font-mono text-2xs tabular-nums ${colorClass}`}>{value}</div>
     </div>
   );
 }

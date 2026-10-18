@@ -1,7 +1,7 @@
 {
   "tray": {
-    "starting": "vmui — pornire…",
-    "open": "Deschide vmui",
+    "starting": "Vatra — pornire…",
+    "open": "Deschide Vatra",
     "movie": "Film",
     "music": "Muzică",
     "off": "Lumini stinse",
@@ -74,11 +74,16 @@
     "pages": "Pagini",
     "minimize": "Minimizează",
     "maximize": "Maximizează",
-    "closeToTray": "Închide în tray"
+    "closeToTray": "Închide în tray",
+    "stateOk": "totul merge",
+    "stateWarn": "atenție",
+    "stateDown": "oprit",
+    "serviceUp": "răspunde",
+    "serviceDown": "nu răspunde"
   },
   "common": {
     "customColor": "Culoare personalizată",
-    "vmuiDown": "vmui nu răspunde: {{error}}",
+    "vmuiDown": "Vatra nu răspunde: {{error}}",
     "loading": "se încarcă…",
     "movie": "Film",
     "music": "Muzică",
@@ -110,7 +115,12 @@
     "moveDown": "Mută mai jos",
     "ok": "OK",
     "back": "Înapoi",
-    "cancel": "Anulează"
+    "cancel": "Anulează",
+    "retry": "Reîncearcă",
+    "confirm": "Confirmă",
+    "delete": "Șterge",
+    "stale": "date vechi",
+    "vmuiDownTitle": "Casa nu răspunde"
   },
   "time": {
     "now": "acum",
@@ -214,7 +224,11 @@
     "stopped": "oprită",
     "effectOn": "Efect pe {{name}}",
     "effectPick": "efect…",
-    "colorOn": "Culoare pe {{name}}"
+    "colorOn": "Culoare pe {{name}}",
+    "connecting": "se conectează la HyperHDR…",
+    "restartHint": "HyperHDR · OpenRGB · punți",
+    "settingsFailed": "Nu pot citi ambilight/settings.json — salvarea e oprită",
+    "gamma": "Gamma"
   },
   "devices": {
     "approved": "{{name}} aprobat",
@@ -224,12 +238,14 @@
     "approve": "Aprobă",
     "reject": "Respinge",
     "paired": "Dispozitive împerecheate",
-    "pairedSub": "Telefoane și PC-uri cu aplicația vmui. Fiecare are tokenul lui; revocă de aici.",
+    "pairedSub": "Telefoane și PC-uri cu aplicația Vatra. Fiecare are tokenul lui; revocă de aici.",
     "none": "Niciun dispozitiv.",
     "seen": "văzut {{ago}}",
     "revoke": "Revocă {{name}}",
     "revokeConfirm": "Revoci accesul pentru {{name}}?",
-    "revoked": "{{name}} revocat"
+    "revoked": "{{name}} revocat",
+    "revokeShort": "Revocă",
+    "loadFailed": "Nu pot citi dispozitivele"
   },
   "pc": {
     "subMobile": "Comenzile ajung la PC prin Pi (MQTT), când e pornit. Verbe fixe, nimic arbitrar.",
@@ -254,9 +270,9 @@
     "killRenderer": "Închide renderer-ul fugit",
     "restartAmbilight": "Repornește ambilight",
     "restartTurzx": "Repornește Turzx",
-    "restartVmui": "Repornește vmui local",
+    "restartVmui": "Repornește Vatra local",
     "running": "Calculatoare pornite",
-    "runningSub": "Ce raportează agentul din turzx (pc_metrics) prin vmui de pe homepi.",
+    "runningSub": "Ce raportează agentul din turzx (pc_metrics) prin Vatra de pe homepi.",
     "nothing": "nimic raportat",
     "uptime": "pornit de {{h}} h"
   },
@@ -272,7 +288,14 @@
     "autostartOff": "Pornire automată dezactivată",
     "repo": "Repo",
     "logs": "Log-uri servicii",
-    "version": "Versiune"
+    "version": "Versiune",
+    "theme": "Temă",
+    "themeHint": "Sistem urmează Windows",
+    "themeSystem": "Sistem",
+    "themeDark": "Întunecată",
+    "themeLight": "Luminoasă",
+    "unavailable": "indisponibil",
+    "ambilightFile": "Setări Ambilight"
   },
   "pi": {
     "sub": "homepi · serverul casei",
@@ -295,7 +318,12 @@
       "homeassistant": "Home Assistant (host network, :80)",
       "esphome": "firmware ESP32 (:6052)",
       "mosquitto": "MQTT :1883 — HA ↔ HyperHDR ↔ agentul PC"
-    }
+    },
+    "title": "Raspberry Pi",
+    "uptime": "Pornit de",
+    "throttled": "limitat {{code}}",
+    "powerOk": "ok",
+    "downTitle": "Pi-ul nu răspunde"
   },
   "sistem": {
     "sub": "Task-urile din Task Scheduler care țin stack-ul în viață, log-urile lor și serviciile de pe homepi.",
@@ -326,7 +354,7 @@
         "what": "dxlight + openrgb + BLE → HID/SDK; video_follow"
       },
       "vmui": {
-        "name": "vmui (local)",
+        "name": "Vatra (local)",
         "what": "Next.js pe 127.0.0.1:3737 — folosit doar de Hyper-V"
       },
       "turzx": {
@@ -337,7 +365,9 @@
         "name": "Această aplicație",
         "what": "tray + fereastra asta; pornește la logon cu --hidden"
       }
-    }
+    },
+    "logTitle": "Log · {{name}}",
+    "logPick": "Alege logul"
   },
   "ecrane": {
     "sub": "Nest Hub din dormitor și ecranul Turzx de pe birou. Salvarea ajunge pe ecran în câteva secunde.",
@@ -375,7 +405,9 @@
     "top": "sus",
     "center": "centru",
     "bottom": "jos",
-    "duration": "Durată"
+    "duration": "Durată",
+    "accent": "Accent",
+    "skinFor": "Aspect pentru {{name}}"
   },
   "notif": {
     "bellUnread_one": "Notificări, {{count}} necitită",
@@ -423,33 +455,36 @@
       "battery": "Baterii",
       "contact": "Contact",
       "system": "Sistem"
-    }
+    },
+    "loadFailed": "Nu pot citi notificările"
   },
   "setup": {
     "title": "Conectare la casă",
     "sub": "Telefonul găsește singur serverul; îl aprobi de pe web, PC sau alt telefon.",
-    "scanning": "caut vmui în rețea…",
-    "notFound": "Nu am găsit niciun vmui. Ești pe Wi-Fi-ul de acasă sau cu Tailscale pornit?",
+    "scanning": "caut Vatra în rețea…",
+    "notFound": "Nu am găsit niciun Vatra. Ești pe Wi-Fi-ul de acasă sau cu Tailscale pornit?",
     "viaLan": "găsit în LAN",
     "viaDns": "prin nume",
     "viaManual": "manual",
-    "manualLabel": "Adresa serverului vmui",
+    "manualLabel": "Adresa serverului Vatra",
     "manualPlaceholder": "sau http://adresa:3737",
     "rescan": "caută din nou",
-    "haveAccount": "am contul vmui",
-    "waitText": "Aprobă acest telefon din <b>vmui web → Displays</b>, din aplicația de pe PC sau de pe alt telefon. Codul trebuie să fie același:",
+    "haveAccount": "am contul Vatra",
+    "waitText": "Aprobă acest telefon din <b>Vatra web → Displays</b>, din aplicația de pe PC sau de pe alt telefon. Codul trebuie să fie același:",
     "expires": "expiră în 10 minute",
     "orLogin": "sau conectează-te cu contul",
     "approved": "Aprobat · {{detail}}",
     "connected": "Conectat · {{detail}}",
-    "loginSub": "Contul din vmui ({{url}}). Telefonul e aprobat pe loc.",
+    "loginSub": "Contul din Vatra ({{url}}). Telefonul e aprobat pe loc.",
     "email": "Email",
     "password": "Parolă",
     "checking": "Se verifică…",
-    "connect": "Conectează"
+    "connect": "Conectează",
+    "rejected": "Cerere respinsă",
+    "timedOut": "Nimeni n-a aprobat în 5 minute. Încearcă din nou."
   },
   "update": {
-    "available": "vmui {{version}} disponibil",
+    "available": "Vatra {{version}} disponibil",
     "youHave": "ai {{version}} · {{mb}} MB de pe Pi",
     "install": "Instalează"
   },
@@ -505,7 +540,8 @@
       "tuya_lan": "Tuya LAN",
       "openrgb": "OpenRGB",
       "wled": "WLED"
-    }
+    },
+    "downTitle": "Nu pot citi luminile"
   },
   "dev": {
     "sub": "{{n}} în registru, pe homepi. Calibrare, segmente, scanare BLE, export.",
@@ -606,5 +642,37 @@
     "known_few": "{{count}} dispozitive deja în registru, ascunse.",
     "known_other": "{{count}} de dispozitive deja în registru, ascunse.",
     "again": "Scanează din nou"
+  },
+  "error": {
+    "title": "Ceva n-a mers pe pagina asta"
+  },
+  "swatch": {
+    "amber": "Chihlimbar",
+    "red": "Roșu",
+    "sky": "Albastru deschis",
+    "green": "Verde",
+    "violet": "Violet",
+    "pink": "Roz",
+    "white": "Alb",
+    "off": "Stins",
+    "deepRed": "Roșu închis",
+    "ember": "Jar",
+    "brown": "Maro",
+    "plum": "Prună",
+    "navy": "Bleumarin",
+    "forest": "Verde pădure",
+    "teal": "Turcoaz",
+    "sand": "Nisip",
+    "cream": "Crem",
+    "grey": "Gri",
+    "wood": "Lemn",
+    "slate": "Ardezie",
+    "periwinkle": "Lavandă albastră",
+    "gold": "Auriu",
+    "mint": "Mentă",
+    "rose": "Trandafiriu",
+    "lavender": "Lavandă",
+    "cyan": "Cyan",
+    "orange": "Portocaliu"
   }
 }

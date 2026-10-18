@@ -1,7 +1,7 @@
 {
   "activity": {
     "title": "Activity",
-    "description": "Every operation vmui performed — searchable, filterable, exportable.",
+    "description": "Every operation Vatra performed — searchable, filterable, exportable.",
     "eventCount": "{count, plural, =0 {no events} one {# event} other {# events}}",
     "syncHistory": "Sync history",
     "exportNdjson": "NDJSON",
@@ -113,7 +113,8 @@
       "cpuAria": "Fleet average CPU utilisation over the last six hours",
       "memAria": "Fleet average memory utilisation over the last six hours",
       "netAria": "Fleet network throughput in and out over the last six hours",
-      "noSamples": "No probe samples yet"
+      "noSamples": "No probe samples yet",
+      "noSamplesHint": "CPU, memory and network trends appear here once hosts report probe samples."
     },
     "hosts": {
       "title": "Hosts",
@@ -136,7 +137,8 @@
       "title": "Prometheus scrape config",
       "description": "Generated from the running fleet — paste into prometheus.yml.",
       "generate": "Generate",
-      "empty": "Click Generate to build the scrape config."
+      "empty": "Generate the scrape config from the running fleet.",
+      "regenerate": "Regenerate"
     },
     "grafana": {
       "title": "Grafana",
@@ -208,7 +210,7 @@
         "cooldown": "Cooldown (seconds)",
         "cooldownHint": "Suppress re-fires for this long. 0 disables.",
         "template": "Message template",
-        "templateHint": "Placeholders: {'{{instance}}'}, {'{{metric}}'}, {'{{value}}'}, {'{{threshold}}'}.",
+        "templateHint": "Placeholders: '{{instance}}', '{{metric}}', '{{value}}', '{{threshold}}'.",
         "channels": "Channels",
         "noChannels": "Create a channel first."
       },
@@ -469,6 +471,12 @@
       "scrub": "Seek",
       "loadFailed": "Player could not be loaded",
       "loadFailedHint": "The asciinema player is fetched from a CDN; check your network or download the .cast file.",
+      "load": "Load player",
+      "loadHint": "The replay player is fetched from a CDN when you ask for it. You can also download the .cast file.",
+      "offline": "You are offline",
+      "offlineHint": "The replay player needs a network connection the first time. Download the .cast file and replay it locally instead.",
+      "retry": "Try again",
+      "downloadCast": "Download .cast",
       "tip": "Tip: download the <code>.cast</code> file and replay it locally with <code>asciinema play</code>."
     }
   },
@@ -558,7 +566,7 @@
   },
   "offline": {
     "title": "You’re offline",
-    "description": "vmui can’t reach the control plane right now.",
+    "description": "Vatra can’t reach the control plane right now.",
     "empty": {
       "title": "Working from cache",
       "description": "The fleet snapshot you last viewed is still on this device."

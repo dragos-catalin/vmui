@@ -107,7 +107,7 @@ export function ProbeKeyCard({ accountId, hasKey }: Props) {
           <Input type="password" autoComplete="off" value={passphrase} onChange={(e) => setPassphrase(e.target.value)} />
         </Field>
         <Field label={t("probe.defaultUser")}>
-          <Input type="text" value={defaultUser} onChange={(e) => setDefaultUser(e.target.value)} placeholder="ubuntu / ec2-user / root" />
+          <Input type="text" value={defaultUser} onChange={(e) => setDefaultUser(e.target.value)} placeholder={t("probe.defaultUserPlaceholder")} />
         </Field>
       </div>
       <div className="flex items-center gap-2">

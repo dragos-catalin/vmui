@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuthMark } from "@/components/auth/auth-card";
 import { translateAuthError } from "@/components/auth/auth-errors";
 import { AuthField, PasswordInput } from "@/components/auth/auth-field";
 import { Alert } from "@/components/ui/alert";
@@ -16,6 +17,7 @@ export function SignInForm() {
   const t = useTranslations("auth");
   const [state, action, pending] = useActionState(signInAction, initial);
   const [totpState, totpFormAction, totpPending] = useActionState(verifyTotpAction, initial);
+  useAuthMark(pending || totpPending, totpPending || pending ? null : (totpState?.error ?? state?.error ?? null));
 
   // Once a sign-in returns pending2FA, switch the form to the code prompt.
   // Failures on verifyTotpAction also carry pending2FA so the user can retry without the password.

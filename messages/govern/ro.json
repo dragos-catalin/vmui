@@ -512,7 +512,7 @@
   },
   "tagDrift": {
     "title": "Derivă etichete",
-    "description": "Mașini ale căror etichete locale din vmui nu mai corespund cu etichetele sau labelurile native ale furnizorului.",
+    "description": "Mașini ale căror etichete locale din Vatra nu mai corespund cu etichetele sau labelurile native ale furnizorului.",
     "stats": {
       "drifting": "Mașini cu derivă",
       "conflicts": "Chei în conflict",
@@ -534,12 +534,12 @@
     "pushLabel": "Trimite etichetele locale pentru {name}",
     "confirmPush": {
       "title": "Trimiți etichetele locale către {name}?",
-      "description": "Etichetele furnizorului pentru aceste chei sunt suprascrise cu valorile locale din vmui.",
+      "description": "Etichetele furnizorului pentru aceste chei sunt suprascrise cu valorile locale din Vatra.",
       "confirm": "Trimite"
     },
     "sheet": {
       "onlyProvider": "Doar la furnizor",
-      "onlyLocal": "Doar în vmui",
+      "onlyLocal": "Doar în Vatra",
       "conflicting": "Valori în conflict",
       "none": "Nimic în acest grup.",
       "empty": "gol",

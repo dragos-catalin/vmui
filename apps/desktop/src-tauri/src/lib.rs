@@ -56,7 +56,7 @@ mod mobile_cmds {
     /// PC verbs are relayed by the Pi over MQTT to the desktop tray agent.
     #[tauri::command]
     pub async fn pc_action(action: String, value: Option<i64>) -> Result<String, String> {
-        err(mobile::vmui_send("POST", "/api/desktop/pc", json!({"action":action,"value":value})).map(|v| v["result"].as_str().unwrap_or("trimis").to_string()))
+        err(mobile::vmui_send("POST", "/api/desktop/pc", json!({"action":action,"value":value})).map(|v| v["result"].as_str().unwrap_or("sent").to_string()))
     }
     #[tauri::command]
     pub async fn hyper_send(commands: Vec<Value>, instances: Option<Vec<u32>>) -> Result<Vec<String>, String> {
@@ -97,18 +97,25 @@ mod mobile_cmds {
         err(mobile::set_conn(mobile::Conn { url, token: t.token }))?;
         Ok(mobile::health())
     }
-    /// Polls until approved (returns health) or rejected (Err). Stores the token on success.
+    /// Polls until approved (returns health), rejected or 5 min pass (Err "rejected" / "expired",
+    /// translated by the UI). Stores the token on success.
     #[tauri::command]
     pub async fn pair_wait(url: String, id: String, token: String) -> Result<mobile::Health, String> {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(300);
         loop {
-            match crate::pairing::status(&url, &id) {
+            let (u, i) = (url.clone(), id.clone());
+            let st = tauri::async_runtime::spawn_blocking(move || crate::pairing::status(&u, &i)).await.map_err(|e| e.to_string())?;
+            match st {
                 Ok(s) if s == "approved" => {
                     err(mobile::set_conn(mobile::Conn { url, token }))?;
                     return Ok(mobile::health());
                 }
                 Ok(s) if s == "pending" => {}
-                Ok(_) => return Err("cerere respinsă".into()),
+                Ok(_) => return Err("rejected".into()),
                 Err(e) => return Err(e.to_string()),
+            }
+            if std::time::Instant::now() >= deadline {
+                return Err("expired".into());
             }
             tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
         }

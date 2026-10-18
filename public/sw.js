@@ -1,11 +1,10 @@
 /**
- * vmui service worker — minimal app-shell cache so we can launch the PWA
- * even when the dev/local server is briefly unreachable. Read-only routes
- * are cached opportunistically via stale-while-revalidate; everything else
- * goes straight to the network.
+ * Vatra service worker — minimal app-shell cache so the PWA launches even when
+ * the server is briefly unreachable. HTML is network-first (authenticated pages
+ * must never be served stale), falling back to the last copy, then /offline.
  */
-const CACHE = "vmui-shell-v2";
-const SHELL = ["/", "/offline", "/manifest.webmanifest", "/icons/icon-192.svg", "/icons/icon-512.svg"];
+const CACHE = "vatra-shell-v3";
+const SHELL = ["/offline", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/badge-96.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -44,28 +43,25 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Read-only HTML routes — stale-while-revalidate, falling back to /offline.
+  // HTML routes — network-first, last good copy when offline, then /offline.
   if (req.headers.get("accept")?.includes("text/html")) {
     event.respondWith(
-      caches.match(req).then((hit) => {
-        const fresh = fetch(req)
-          .then((res) => {
-            if (res.ok) {
-              const copy = res.clone();
-              caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => undefined);
-            }
-            return res;
-          })
-          .catch(() => hit || caches.match("/offline"));
-        return hit || fresh;
-      }),
+      fetch(req)
+        .then((res) => {
+          if (res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => undefined);
+          }
+          return res;
+        })
+        .catch(() => caches.match(req).then((hit) => hit || caches.match("/offline"))),
     );
   }
 });
 
 // Web Push notifications.
 self.addEventListener("push", (event) => {
-  let data = { title: "vmui", body: "Update available", url: "/" };
+  let data = { title: "Vatra", body: "", url: "/" };
   try {
     if (event.data) data = { ...data, ...event.data.json() };
   } catch {
@@ -74,8 +70,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
-      icon: data.icon || "/icons/icon-192.svg",
-      badge: data.badge || "/icons/icon-192.svg",
+      icon: data.icon || "/icons/icon-192.png",
+      badge: data.badge || "/icons/badge-96.png",
       tag: data.tag,
       data: { url: data.url },
       vibrate: [10, 40, 10],

@@ -6,10 +6,16 @@ import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { inviteByToken } from "@/lib/home/family";
 import { eq } from "drizzle-orm";
+import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("auth.meta");
+  return { title: t("invite") };
+}
 
 export default async function InvitePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;

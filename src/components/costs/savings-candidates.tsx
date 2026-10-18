@@ -3,7 +3,7 @@
 import { ProviderTile } from "@/components/cloud/provider-tile";
 import { Badge } from "@/components/ui";
 import { HOURS_PER_MONTH } from "@/lib/utils";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useMoney } from "./use-money";
@@ -53,7 +53,7 @@ function CandidateCard({
   tone: "default" | "success";
 }) {
   return (
-    <motion.li {...entrance(index)}>
+    <m.li {...entrance(index)}>
       <Link
         href={`/instances/${encodeURIComponent(id)}`}
         className="surface card-hover flex min-h-14 items-center gap-3 p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
@@ -70,7 +70,7 @@ function CandidateCard({
           <span className="block text-xs tabular-nums text-muted">{secondary}</span>
         </span>
       </Link>
-    </motion.li>
+    </m.li>
   );
 }
 

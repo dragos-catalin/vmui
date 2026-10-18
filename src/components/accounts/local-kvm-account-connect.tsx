@@ -166,7 +166,7 @@ export function LocalKvmAccountConnect() {
           <ConnectField
             name="hostLabel"
             label={t("fields.hostLabel")}
-            placeholder="dragos-pc · WSL2 Ubuntu"
+            placeholder={t("fields.hostLabelPlaceholder")}
             hint={t("fields.hostLabelHint")}
             error={state.fieldErrors?.hostLabel}
             required
@@ -175,7 +175,7 @@ export function LocalKvmAccountConnect() {
           <ConnectField
             name="distro"
             label={t("fields.distro")}
-            placeholder="Ubuntu-24.04"
+            placeholder={t("fields.distroPlaceholder")}
             hint={t("fields.distroHint")}
             error={state.fieldErrors?.distro}
             required
@@ -203,7 +203,7 @@ export function LocalKvmAccountConnect() {
           </div>
           {kind !== "mac" && (
             <div className="grid gap-3 sm:grid-cols-2">
-              <ConnectField name="osUsername" label={t("fields.osUsername")} placeholder="dragos" hint={t("fields.osUsernameHint")} error={state.fieldErrors?.osUsername} />
+              <ConnectField name="osUsername" label={t("fields.osUsername")} placeholder={t("fields.osUsernamePlaceholder")} hint={t("fields.osUsernameHint")} error={state.fieldErrors?.osUsername} />
               <ConnectField
                 name="osPassword"
                 label={t("fields.osPassword")}

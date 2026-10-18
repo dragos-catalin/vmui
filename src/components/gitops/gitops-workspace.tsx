@@ -6,6 +6,7 @@ import { RelativeTime } from "@/components/settings/relative-time";
 import { Badge, Button, DataTable, EmptyState, PageHeader, PageSection, PageShell, type ColumnDef } from "@/components/ui";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useAction } from "@/hooks/use-action";
+import { useInterval } from "@/hooks/use-poll";
 import {
     deleteGitSourceAction,
     listGitHistoryAction,
@@ -14,9 +15,10 @@ import {
     toggleGitSourceAction,
 } from "@/server/actions/gitops";
 import { GitBranch, Pause, Play, Plus, RefreshCw, Trash2 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence } from "motion/react";
+import * as m from "motion/react-m";
 import { useFormatter, useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { SourceForm } from "./source-form";
 import { SyncTimeline, sourceState } from "./sync-timeline";
 import type { GitSourceLite, HistoryRow, InstanceLite } from "./types";
@@ -42,11 +44,7 @@ export function GitopsWorkspace({ instances }: { instances: InstanceLite[] }) {
     setLoaded(true);
   }, []);
 
-  useEffect(() => {
-    void refresh();
-    const id = setInterval(() => void refresh(), 5000);
-    return () => clearInterval(id);
-  }, [refresh]);
+  useInterval(() => void refresh(), 5000, { immediate: true });
 
   const sync = useAction(async (id: string) => toResult(await syncGitSourceNowAction({ id })), {
     success: t("toast.synced"),
@@ -109,7 +107,7 @@ export function GitopsWorkspace({ instances }: { instances: InstanceLite[] }) {
         cell: ({ row }) => (
           <span className="flex min-w-0 items-center gap-2 font-medium">
             <GitBranch className="size-3.5 shrink-0 text-muted" aria-hidden />
-            <span className="truncate">{row.original.name}</span>
+            <span className="truncate" title={row.original.name}>{row.original.name}</span>
           </span>
         ),
       },
@@ -179,7 +177,7 @@ export function GitopsWorkspace({ instances }: { instances: InstanceLite[] }) {
 
       <AnimatePresence initial={false}>
         {showAdd && (
-          <motion.div key="add" initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2 }}>
+          <m.div key="add" initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2 }}>
             <SourceForm
               instances={instances}
               onCancel={() => setShowAdd(false)}
@@ -188,7 +186,7 @@ export function GitopsWorkspace({ instances }: { instances: InstanceLite[] }) {
                 void refresh();
               }}
             />
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
 

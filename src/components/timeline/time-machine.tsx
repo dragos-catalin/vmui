@@ -1,11 +1,11 @@
 "use client";
 
-import { LineChartCard } from "@/components/charts";
+import { LineChartCard } from "@/components/monitoring/lazy-charts";
 import { Badge, EmptyState, Stat, StatGrid, ToggleGroup, type ToggleOption } from "@/components/ui";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { listTimelineInstancesAction, loadTimelineAction } from "@/server/actions/timeline";
 import { ArrowDown, ArrowUp, Clock, Cpu, MemoryStick, Server } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useFormatter, useTranslations } from "next-intl";
 import * as React from "react";
 
@@ -162,13 +162,13 @@ export function TimeMachine() {
           {t("events.title")}
         </h2>
         {nearby.length === 0 ? (
-          <EmptyState compact icon={<Server />} title={t("events.empty")} />
+          <EmptyState illustration="activity" compact icon={<Server />} title={t("events.empty")} />
         ) : (
           <ol className="relative space-y-3 pl-6 before:absolute before:bottom-1 before:left-[7px] before:top-1 before:w-px before:bg-border">
             {nearby.map((a, i) => {
               const ok = a.status === "ok";
               return (
-                <motion.li
+                <m.li
                   key={`${a.t}-${i}`}
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -184,7 +184,7 @@ export function TimeMachine() {
                     </time>
                   </div>
                   {a.message && <p className="mt-0.5 truncate text-xs text-fg-muted">{a.message}</p>}
-                </motion.li>
+                </m.li>
               );
             })}
           </ol>

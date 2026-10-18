@@ -2,7 +2,7 @@ import { Crosshair } from "lucide-react";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { tx } from "./i18n";
-import { api, cn, hexToRgb, rgbToHex, toast } from "./lib";
+import { api, cn, hexToRgb, rgbToHex, toast, useInterval } from "./lib";
 import { KELVIN_STEPS, LIGHT_SWATCHES, stateColor, type BleStatus, type LightDevice, type LightState, type LightsPayload, type Segment } from "./lights";
 import { Slider, Swatches, Switch } from "./ui";
 
@@ -27,11 +27,9 @@ export function useLights(pollMs = 5000) {
     }
     api.bleStatus().then((l) => setBle(Object.fromEntries(l.map((s) => [s.mac.toUpperCase(), s])))).catch(() => undefined);
   }, []);
-  React.useEffect(() => {
-    void refresh();
-    const id = setInterval(() => document.visibilityState === "visible" && void refresh(), pollMs);
-    return () => { clearInterval(id); window.clearTimeout(timer.current); };
-  }, [refresh, pollMs]);
+  // polls only while the page is shown and the window visible; refreshes at once on return
+  useInterval(() => void refresh(), pollMs);
+  React.useEffect(() => () => window.clearTimeout(timer.current), []);
   const later = React.useCallback(() => { window.clearTimeout(timer.current); timer.current = window.setTimeout(() => void refresh(), 800); }, [refresh]);
 
   /** Every op goes through here: busy flag, toast on failure, delayed refresh. */
@@ -73,7 +71,7 @@ export function HealthDot({ d, ble }: { d: LightDevice; ble?: BleStatus | undefi
   const latency = ble?.latencyMs ?? d.lastLatencyMs;
   const label = `${tx(`lights.health.${h}`, h)}${latency != null ? ` · ${latency} ms` : ""}${d.lastError ? ` · ${d.lastError}` : ""}`;
   return (
-    <span className="inline-flex items-center gap-1.5 text-[11px] text-muted tabular-nums" title={label}>
+    <span className="inline-flex items-center gap-1.5 text-xs text-muted tabular-nums" title={label}>
       <span className={cn("dot", h === "ok" && "text-ok bg-ok", h === "degraded" && "text-warn bg-warn", h === "offline" && "text-down bg-down", h === "unknown" && "text-dim bg-dim")} aria-hidden />
       <span className="sr-only">{t("lights.healthLabel")}: </span>{latency != null ? `${latency} ms` : tx(`lights.health.${h}`, h)}
     </span>

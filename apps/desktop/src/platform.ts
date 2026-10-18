@@ -12,9 +12,12 @@ export function usePlatform(): AppInfo & { mobile: boolean } {
   const i = React.useContext(Ctx);
   return { root: "", vmui: "", haUrl: "", displayUrl: "", version: "", ...(i ?? {}), mobile: i?.mobile ?? isMobileUA };
 }
-export function useAppInfo() {
-  const [info, setInfo] = React.useState<AppInfo | null>(null);
-  const refresh = React.useCallback(() => api.appInfo().then((i) => setInfo(i as AppInfo)).catch(() => setInfo({ root: "", vmui: "", haUrl: "", displayUrl: "", version: "?", mobile: isMobileUA })), []);
-  React.useEffect(() => void refresh(), [refresh]);
+export const FALLBACK_INFO: AppInfo = { root: "", vmui: "", haUrl: "", displayUrl: "", version: "?", mobile: isMobileUA };
+
+/** `initial` = app_info fetched by main.tsx before the first render (no blank frame). */
+export function useAppInfo(initial?: AppInfo | null) {
+  const [info, setInfo] = React.useState<AppInfo | null>(initial ?? null);
+  const refresh = React.useCallback(() => api.appInfo().then((i) => setInfo(i as AppInfo)).catch(() => setInfo(FALLBACK_INFO)), []);
+  React.useEffect(() => { if (!initial) void refresh(); }, [refresh, initial]);
   return { info, refresh };
 }

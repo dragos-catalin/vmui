@@ -55,7 +55,14 @@
     "rowsPerPage": "Rows per page",
     "sortAscending": "Sort ascending",
     "sortDescending": "Sort descending",
-    "actions": "Actions"
+    "actions": "Actions",
+    "confirm": "Confirm",
+    "actionFailed": "Action failed",
+    "typeToConfirm": "Type <code>{phrase}</code> to confirm",
+    "loadFailed": "Couldn't load this",
+    "noData": "No data",
+    "trend": "Trend",
+    "scrollRegion": "Scrollable content"
   },
   "home": {
     "title": "Home",
@@ -63,6 +70,7 @@
     "openHa": "Home Assistant",
     "haDown": "Home Assistant is not reachable",
     "haDownHint": "{error}. Showing the last known layout; controls will fail until it is back.",
+    "haNotConfigured": "Home Assistant isn't set up yet: add <code>HA_URL</code> and <code>HA_TOKEN</code> to <code>.private/credentials.env</code>. Showing the last known layout until then.",
     "noAccess": {
       "title": "No access to this home",
       "hint": "Ask the home owner to add you to the family and grant you some rooms."
@@ -89,7 +97,10 @@
         "title": "Nest Hub",
         "hint": "Bedroom kiosk panels and photos"
       },
-      "deskButton": { "title": "Desk button", "hint": "What each click does" },
+      "deskButton": {
+        "title": "Desk button",
+        "hint": "What each click does"
+      },
       "copilot": {
         "title": "Copilot signals",
         "hint": "Lights and cards for agent events"
@@ -98,7 +109,11 @@
     "quick": {
       "label": "Quick actions",
       "ambilight": "Ambilight",
-      "mode": { "movie": "Movie", "music": "Music", "off": "Warm room" },
+      "mode": {
+        "movie": "Movie",
+        "music": "Music",
+        "off": "Warm room"
+      },
       "modeApplied": "{name} on",
       "water": "Water",
       "waterProgress": "{ml} / {target} ml",
@@ -107,7 +122,8 @@
       "armFor": "Auto-open {n} min",
       "armed": "Intercom opens automatically for {n} min",
       "deskButton": "Desk button",
-      "failed": "Failed"
+      "failed": "Failed",
+      "addMl": "+{ml} ml"
     },
     "vitals": {
       "bedroom": "Bedroom",
@@ -139,7 +155,13 @@
       "open": "open",
       "closed": "closed",
       "off": "off",
+      "on": "on",
       "unavailable": "unavailable"
+    },
+    "error": {
+      "title": "The home could not be loaded",
+      "hint": "Home Assistant or the database did not answer in time. Your devices keep working; try again in a moment.",
+      "retry": "Try again"
     }
   }
 }

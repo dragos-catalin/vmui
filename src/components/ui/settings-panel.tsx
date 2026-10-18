@@ -44,7 +44,7 @@ export function SettingsPanel({
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
           aria-controls={bodyId}
-          className="flex min-w-0 flex-1 basis-full items-center gap-3 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] sm:basis-auto"
+          className="flex min-w-0 flex-1 basis-full items-center gap-3 rounded-md text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:basis-auto"
         >
           {icon && <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-[var(--color-bg-muted)] text-[var(--color-primary)] [&>svg]:size-4.5">{icon}</span>}
           <span className="min-w-0 flex-1">
@@ -84,7 +84,7 @@ export function Subsection({ title, hint, action, children, className, collapsib
   if (collapsible) {
     return (
       <details open={defaultOpen} className={cn("group rounded-xl border border-[var(--color-border)]", className)}>
-        <summary className="flex cursor-pointer list-none flex-wrap items-start justify-between gap-x-3 gap-y-1 rounded-xl p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] [&::-webkit-details-marker]:hidden">
+        <summary className="flex cursor-pointer list-none flex-wrap items-start justify-between gap-x-3 gap-y-1 rounded-xl p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
           <span className="min-w-0 flex-1">
             <span className="block text-xs font-medium uppercase tracking-wider text-muted">{title}</span>
             {hint && <span className="mt-0.5 block text-xs leading-snug text-muted">{hint}</span>}

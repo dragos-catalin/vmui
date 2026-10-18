@@ -56,7 +56,7 @@ export function ChartTooltip({
 export function ChartLegend({ payload, className }: { payload?: readonly LegendPayload[]; className?: string }) {
   if (!payload || payload.length === 0) return null;
   return (
-    <ul className={cn("flex flex-wrap items-center justify-center gap-x-3 gap-y-1 pt-2 text-[11px] text-fg-muted", className)}>
+    <ul className={cn("flex flex-wrap items-center justify-center gap-x-3 gap-y-1 pt-2 text-2xs text-fg-muted", className)}>
       {payload.map((p, i) => (
         <li key={`${String(p.dataKey ?? p.value ?? i)}`} className="inline-flex items-center gap-1.5">
           <span className="size-2 rounded-full" style={{ background: p.color ?? "var(--color-primary)" }} aria-hidden />

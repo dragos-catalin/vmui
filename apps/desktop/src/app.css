@@ -1,28 +1,54 @@
 @import "tailwindcss";
+@import "../../../brand/dist/css/vatra-theme.css";
+@import "../../../brand/dist/css/vatra-motion.css";
 
-@theme {
-  --color-bg: oklch(0.13 0.02 262);
-  --color-bg-2: oklch(0.16 0.02 262);
-  --color-surface: oklch(0.19 0.02 262 / 0.72);
-  --color-surface-2: oklch(0.24 0.025 262 / 0.85);
-  --color-border: oklch(0.95 0.02 80 / 0.1);
-  --color-border-2: oklch(0.95 0.02 80 / 0.2);
-  --color-fg: oklch(0.95 0.015 80);
-  --color-muted: oklch(0.72 0.02 80);
-  --color-dim: oklch(0.55 0.02 80);
-  --color-primary: oklch(0.74 0.14 262);
-  --color-accent: oklch(0.82 0.13 78);
-  --color-ok: oklch(0.78 0.15 160);
-  --color-warn: oklch(0.83 0.16 80);
-  --color-down: oklch(0.7 0.19 22);
-  --radius-lg: 18px;
-  --radius-xl: 24px;
-  --font-sans: "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Colour, radius and motion tokens come from the Vatra brand pack (brand/dist/css, generated —
+ * edit brand/scripts/tokens.mjs, never the output). Below: fonts, the desktop's historical names
+ * mapped onto the brand tokens (`inline` so `.dark` on <html> wins everywhere), and the few
+ * derived surfaces the shell needs. No raw colour values below this block. */
+@theme inline {
+  --font-sans: "Inter Variable", "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Inter Tight Variable", "Inter Variable", "Segoe UI Variable Display", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Cascadia Code", Consolas, ui-monospace, monospace;
+
+  --color-bg-2: var(--color-bg-muted);
+  --color-muted: var(--color-fg-muted);
+  --color-dim: var(--color-fg-soft);
+  --color-ok: var(--color-success);
+  --color-warn: var(--color-warning);
+  --color-down: var(--color-danger);
+  --color-border-2: var(--color-border-strong);
+
+  /* translucent card surfaces over the scene gradient (no blur on cards: DK-33) */
+  --color-glass: color-mix(in oklch, var(--color-surface) 80%, transparent);
+  --color-glass-2: color-mix(in oklch, var(--color-surface-2) 90%, transparent);
+  --color-hover: color-mix(in oklch, var(--color-surface-2) 96%, var(--color-fg) 4%);
+  --color-input: color-mix(in oklch, var(--color-bg) 70%, transparent);
+  --color-log: color-mix(in oklch, var(--color-bg) 88%, transparent);
+  --color-scrim: color-mix(in oklch, var(--color-bg) 72%, transparent);
+  --color-shadow: var(--shadow-tint);
+
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+
+  --z-sticky: 20;
+  --z-overlay: 50;
+  --z-modal: 60;
+  --z-toast: 70;
+  --z-splash: 90;
 }
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
+  --shadow-tint: color-mix(in oklch, var(--color-fg) 22%, transparent);
 }
+.dark {
+  color-scheme: dark;
+  --shadow-tint: color-mix(in oklch, black 70%, transparent);
+}
+
 html,
 body,
 #root {
@@ -40,50 +66,73 @@ input,
 textarea {
   user-select: text;
 }
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+}
 
-/* ambient gradient behind everything */
+/* one visible focus ring for every control (WCAG 2.4.7, DK-07) */
+:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}
+
+/* ambient warmth behind everything */
 .bg-scene {
   background:
-    radial-gradient(90% 60% at 85% -10%, oklch(0.3 0.08 262 / 0.6) 0%, transparent 60%),
-    radial-gradient(60% 50% at -10% 100%, oklch(0.32 0.08 78 / 0.35) 0%, transparent 60%),
+    radial-gradient(90% 60% at 85% -10%, color-mix(in oklch, var(--color-primary) 16%, transparent) 0%, transparent 60%),
+    radial-gradient(60% 50% at -10% 100%, color-mix(in oklch, var(--color-lit) 10%, transparent) 0%, transparent 60%),
     var(--color-bg);
 }
 
 .glass {
-  background: var(--color-surface);
+  background: var(--color-glass);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
+  box-shadow: 0 30px 60px -40px var(--color-shadow);
+}
+/* shell layers that float over content keep the blur */
+.glass.float {
   backdrop-filter: blur(20px);
-  box-shadow: 0 30px 60px -40px oklch(0 0 0 / 0.8);
 }
 
 /* interactive tile */
 .tile {
   @apply text-left transition-[transform,background-color,border-color] duration-200 ease-out;
-  background: var(--color-surface);
+  background: var(--color-glass);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
-  backdrop-filter: blur(20px);
-  box-shadow: 0 30px 60px -40px oklch(0 0 0 / 0.8);
+  box-shadow: 0 30px 60px -40px var(--color-shadow);
   padding: 16px;
   min-height: 108px;
+  width: 100%;
   display: grid;
   align-content: space-between;
   gap: 8px;
   cursor: default;
 }
 .tile:hover {
-  background: var(--color-surface-2);
-  border-color: var(--color-border-2);
+  background: var(--color-glass-2);
+  border-color: var(--color-border-strong);
 }
 .tile:active {
   transform: scale(0.985);
 }
-.tile.on {
-  border-color: oklch(from var(--color-accent) l c h / 0.5);
-  background: oklch(from var(--color-accent) l c h / 0.09);
+.tile:disabled,
+.tile[aria-disabled="true"] {
+  opacity: 0.6;
 }
-.tile .tile-more {
+/* a light / device that is ON: the amber "lit" state */
+.tile.on {
+  border-color: color-mix(in oklch, var(--color-lit) 55%, transparent);
+  background: color-mix(in oklch, var(--color-lit) 10%, var(--color-glass));
+}
+.tile.cool {
+  border-color: color-mix(in oklch, var(--color-info) 50%, transparent);
+  background: color-mix(in oklch, var(--color-info) 10%, var(--color-glass));
+}
+.tile-more {
   position: absolute;
   top: 6px;
   right: 6px;
@@ -92,20 +141,16 @@ textarea {
   justify-content: center;
   z-index: 1;
 }
-.tile.cool {
-  border-color: oklch(from var(--color-primary) l c h / 0.5);
-  background: oklch(from var(--color-primary) l c h / 0.1);
-}
 
 .btn {
   @apply inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors duration-150;
-  background: var(--color-surface-2);
+  background: var(--color-glass-2);
   border: 1px solid var(--color-border);
   color: var(--color-fg);
 }
 .btn:hover {
-  border-color: var(--color-border-2);
-  background: oklch(0.28 0.025 262 / 0.9);
+  border-color: var(--color-border-strong);
+  background: var(--color-hover);
 }
 .btn:disabled {
   opacity: 0.45;
@@ -113,30 +158,36 @@ textarea {
 }
 .btn.primary {
   background: var(--color-primary);
-  color: oklch(0.15 0.03 262);
+  color: var(--color-primary-fg);
   border-color: transparent;
 }
 .btn.primary:hover {
-  background: oklch(from var(--color-primary) calc(l + 0.05) c h);
+  background: color-mix(in oklch, var(--color-primary) 88%, var(--color-fg) 12%);
 }
 .btn.danger {
-  color: var(--color-down);
+  color: var(--color-danger);
+}
+.btn.danger.solid {
+  background: var(--color-danger);
+  color: var(--color-danger-fg);
+  border-color: transparent;
 }
 .btn.ghost {
   background: transparent;
   border-color: transparent;
-  color: var(--color-muted);
+  color: var(--color-fg-muted);
 }
 .btn.ghost:hover {
   color: var(--color-fg);
-  background: var(--color-surface);
+  background: var(--color-glass);
 }
 .btn.sm {
   @apply px-2.5 py-1.5 text-xs rounded-lg;
 }
+/* selected / pressed toggle (not "lit": that is for lights only) */
 .btn.on {
-  border-color: oklch(from var(--color-accent) l c h / 0.6);
-  background: oklch(from var(--color-accent) l c h / 0.14);
+  border-color: color-mix(in oklch, var(--color-primary) 60%, transparent);
+  background: color-mix(in oklch, var(--color-primary) 14%, transparent);
   color: var(--color-fg);
 }
 
@@ -146,30 +197,30 @@ textarea {
 }
 .field > span {
   font-size: 12px;
-  color: var(--color-muted);
+  color: var(--color-fg-muted);
 }
 .input {
-  @apply rounded-xl px-3 py-2 text-sm outline-none;
-  background: oklch(0.1 0.02 262 / 0.6);
-  border: 1px solid var(--color-border);
+  @apply rounded-xl px-3 py-2 text-sm;
+  background: var(--color-input);
+  border: 1px solid var(--color-border-strong);
   color: var(--color-fg);
 }
 .input:focus-visible {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px oklch(from var(--color-primary) l c h / 0.25);
 }
 
 /* range */
 input[type="range"] {
   -webkit-appearance: none;
   width: 100%;
+  min-width: 0;
   height: 24px;
   background: transparent;
 }
 input[type="range"]::-webkit-slider-runnable-track {
   height: 6px;
   border-radius: 3px;
-  background: linear-gradient(90deg, var(--color-primary) var(--v, 0%), oklch(0.3 0.02 262) var(--v, 0%));
+  background: linear-gradient(90deg, var(--color-primary) var(--v, 0%), var(--color-border) var(--v, 0%));
 }
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
@@ -178,10 +229,7 @@ input[type="range"]::-webkit-slider-thumb {
   margin-top: -6px;
   border-radius: 50%;
   background: var(--color-fg);
-  box-shadow: 0 2px 8px oklch(0 0 0 / 0.5);
-}
-input[type="range"]:focus-visible::-webkit-slider-thumb {
-  box-shadow: 0 0 0 4px oklch(from var(--color-primary) l c h / 0.35);
+  box-shadow: 0 2px 8px var(--color-shadow);
 }
 
 /* switch */
@@ -190,9 +238,9 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
   width: 40px;
   height: 22px;
   border-radius: 11px;
-  background: oklch(0.32 0.02 262);
-  border: 1px solid var(--color-border);
-  transition: background-color 0.2s;
+  background: var(--color-bg-muted);
+  border: 1px solid var(--color-border-strong);
+  transition: background-color var(--duration-base);
   flex: none;
 }
 .switch::after {
@@ -203,18 +251,16 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: var(--color-fg);
-  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  background: var(--color-fg-muted);
+  transition: transform var(--duration-base) var(--ease-out), background-color var(--duration-base);
 }
 .switch[aria-checked="true"] {
   background: var(--color-primary);
+  border-color: transparent;
 }
 .switch[aria-checked="true"]::after {
   transform: translateX(18px);
-}
-.switch:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px oklch(from var(--color-primary) l c h / 0.35);
+  background: var(--color-primary-fg);
 }
 
 .dot {
@@ -226,22 +272,21 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
 }
 
 /* nav */
-.nav a,
 .nav button {
   @apply flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors;
-  color: var(--color-muted);
+  color: var(--color-fg-muted);
+  border: 1px solid transparent;
 }
 .nav button:hover {
   color: var(--color-fg);
-  background: var(--color-surface);
+  background: var(--color-glass);
 }
 .nav button.on {
   color: var(--color-fg);
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border);
+  background: var(--color-glass-2);
+  border-color: var(--color-border);
 }
 
-/* page transition */
 /* bottom tabs (mobile) */
 .tabs {
   display: grid;
@@ -259,8 +304,8 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
   gap: 3px;
   padding: 8px 4px 6px;
   border-radius: 14px;
-  font-size: 11px;
-  color: var(--color-muted);
+  font-size: 12px;
+  color: var(--color-fg-muted);
   min-height: 56px;
 }
 .tabs button svg {
@@ -269,7 +314,7 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
 }
 .tabs button.on {
   color: var(--color-fg);
-  background: var(--color-surface-2);
+  background: var(--color-glass-2);
 }
 
 /* touch: bigger targets, no hover states */
@@ -283,7 +328,7 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
   .tile {
     min-height: 120px;
   }
-  .tile .tile-more {
+  .tile-more {
     min-width: 44px;
     min-height: 44px;
   }
@@ -309,27 +354,12 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
   }
 }
 
-/* page transition */
-.page {
-  animation: page-in 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-@keyframes page-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
 .log {
-  @apply rounded-xl p-3 text-[12px] leading-5;
-  font-family: Cascadia Code, Consolas, ui-monospace, monospace;
-  background: oklch(0.09 0.02 262 / 0.7);
+  @apply rounded-xl p-3 text-xs leading-5;
+  font-family: var(--font-mono);
+  background: var(--color-log);
   border: 1px solid var(--color-border);
-  color: var(--color-muted);
+  color: var(--color-fg-muted);
   white-space: pre-wrap;
   user-select: text;
   max-height: 340px;
@@ -338,9 +368,10 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
 
 ::-webkit-scrollbar {
   width: 10px;
+  height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: oklch(0.35 0.02 262);
+  background: var(--color-border-strong);
   border-radius: 5px;
   border: 2px solid var(--color-bg);
 }
@@ -349,5 +380,6 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
   * {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

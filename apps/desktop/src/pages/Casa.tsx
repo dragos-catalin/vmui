@@ -1,26 +1,20 @@
-import { DoorOpen, Droplets, Lightbulb, MonitorPlay, Radar, Snowflake, Thermometer, Tv, Zap } from "lucide-react";
+import { DoorOpen, Droplets, Lightbulb, MonitorPlay, MoreHorizontal, Radar, Snowflake, Thermometer, Tv, Zap } from "lucide-react";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { tx } from "../i18n";
-import { api, cn, num, rgbToHex, useAction, usePoll, type Ent } from "../lib";
-import { Card, Empty, Seg, Slider, Swatches } from "../ui";
+import { cn, hexToRgb, num, rgbToHex, useAction, type Ent } from "../lib";
+import { SWATCHES } from "../lights";
+import { Card, Empty, ErrorState, Loading, PageHeader, Seg, Slider, StaleBadge, Swatches, useFocusTrap } from "../ui";
+import { useDisplayState } from "./display-state";
 
 type Device = { id: string; name: string; kind: string; entity?: string; entities?: string[]; room: string; whiteOnly?: boolean; via: string };
-type State = {
-  rooms: Array<{ id: string; name: string }>;
-  devices: Device[];
-  entities: Record<string, Ent>;
-  inside?: { temp?: Ent | null; hum?: Ent | null } | null;
-  home?: { door?: Ent; presence?: Ent; lightsOn?: number; lightsTotal?: number } | null;
-  nutrition?: { water: { ml: number; glasses: number; targetMl: number } } | null;
-};
 const KELVIN = [2700, 3000, 4000, 5000, 6500];
 const HVAC = ["off", "cool", "heat", "dry", "fan_only", "auto"] as const;
 const MEDIA = ["turn_on", "turn_off", "play_pause", "previous_track", "next_track", "volume_down", "volume_up", "volume_mute"] as const;
 
 export function Casa() {
   const { t } = useTranslation();
-  const st = usePoll(() => api.vmuiGet<State>("/api/display/state"), 4000);
+  const st = useDisplayState(4000);
   const { busy, run } = useAction();
   const [room, setRoom] = React.useState("bedroom");
   const [open, setOpen] = React.useState<Device | null>(null);
@@ -31,10 +25,10 @@ export function Casa() {
       const cur = st.data.entities[optimistic.entity];
       st.setData({ ...st.data, entities: { ...st.data.entities, [optimistic.entity]: { state: optimistic.patch.state ?? cur?.state ?? "", attributes: { ...(cur?.attributes ?? {}), ...(optimistic.patch.attributes ?? {}) } } } });
     }
-    return run("send", async () => { await api.vmuiSend("POST", "/api/display/control", body); setTimeout(() => void st.refresh(), 800); });
+    return run("send", async () => { await st.control(body); setTimeout(() => void st.refresh(), 800); });
   }, [run, st]);
 
-  if (!s) return <div className="text-sm text-dim">{st.error ? t("common.vmuiDown", { error: st.error }) : t("common.loading")}</div>;
+  if (!s) return st.error ? <ErrorState title={t("common.vmuiDownTitle")} error={st.error} onRetry={() => void st.refresh()} /> : <Loading />;
   const rooms = s.rooms.filter((r) => s.devices.some((d) => d.room === r.id && d.entity));
   const devs = s.devices.filter((d) => d.room === room && d.entity && s.entities[d.entity]);
   const inside = Number(s.inside?.temp?.state);
@@ -43,19 +37,15 @@ export function Casa() {
 
   return (
     <div className="grid gap-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t("nav.casa")}</h1>
-          <p className="text-sm text-muted mt-1">
-            {Number.isFinite(inside) ? t("casa.inside", { temp: inside.toFixed(1) }) + (Number.isFinite(hum) ? ` · ${Math.round(hum)} %` : "") : ""}
-            {s.home ? ` · ${t("casa.lightsCount", { on: s.home.lightsOn ?? 0, total: s.home.lightsTotal ?? "–" })} · ${s.home.door?.state === "on" ? t("casa.doorOpen") : t("casa.doorClosed")}` : ""}
-          </p>
-        </div>
-        <Seg value={room} onChange={setRoom} options={rooms.map((r) => ({ id: r.id, label: tx(`rooms.${r.id}`, r.name) }))} />
-      </div>
+      <PageHeader title={<>{t("nav.casa")} {st.stale && <StaleBadge error={st.error} />}</>}
+        sub={<>
+          {Number.isFinite(inside) ? t("casa.inside", { temp: inside.toFixed(1) }) + (Number.isFinite(hum) ? ` · ${Math.round(hum)} %` : "") : ""}
+          {s.home ? ` · ${t("casa.lightsCount", { on: s.home.lightsOn ?? 0, total: s.home.lightsTotal ?? "–" })} · ${s.home.door?.state === "on" ? t("casa.doorOpen") : t("casa.doorClosed")}` : ""}
+        </>}
+        actions={<Seg value={room} onChange={setRoom} options={rooms.map((r) => ({ id: r.id, label: tx(`rooms.${r.id}`, r.name) }))} />} />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-        {devs.length === 0 && <div className="col-span-3"><Empty text={t("casa.emptyRoom")} /></div>}
+        {devs.length === 0 && <div className="col-span-full"><Empty text={t("casa.emptyRoom")} illustration="lights" /></div>}
         {devs.map((d) => <Tile key={d.id} d={d} e={s.entities[d.entity!]!} busy={busy === "send"} onTap={() => tap(d, s.entities[d.entity!]!, send)} onOpen={() => setOpen(d)} />)}
       </div>
 
@@ -65,7 +55,7 @@ export function Casa() {
           <button type="button" className="btn" onClick={() => send({ type: "ambilight", mode: "music" })}><Zap className="size-4" />{t("common.music")}</button>
           <button type="button" className="btn" onClick={() => send({ type: "ambilight", mode: "off" })}><Lightbulb className="size-4" />{t("casa.warmRoom")}</button>
           <button type="button" className="btn" onClick={() => send({ type: "script", name: "pc_wake" })}>{t("casa.wakePc")}</button>
-          <span className="mx-2 w-px bg-border" />
+          <span className="mx-2 w-px bg-border" aria-hidden />
           <button type="button" className="btn" onClick={() => send({ type: "water", ml: 250 })}><Droplets className="size-4" />{t("casa.water")}{water ? <span className="text-muted">· {t("casa.glassesToday", { count: water.glasses })}</span> : null}</button>
           <button type="button" className="btn ghost" onClick={() => send({ type: "water_undo" })}>{t("common.undo")}</button>
         </div>
@@ -109,18 +99,26 @@ function Tile({ d, e, busy, onTap, onOpen }: { d: Device; e: Ent; busy: boolean;
     on ? String(e.attributes.app_name ?? t("common.on")) : e.state === "unavailable" ? t("common.unavailable") : t("common.off");
   const rgb = Array.isArray(e.attributes.rgb_color) ? (e.attributes.rgb_color as number[]) : null;
   const tone = on && rgb ? rgbToHex(rgb[0] ?? 0, rgb[1] ?? 0, rgb[2] ?? 0) : undefined;
+  const body = (
+    <>
+      <span style={tone ? { color: tone } : undefined} className={cn(!tone && (on ? "text-lit-text" : "text-muted"))}>{icon}</span>
+      <div className="min-w-0">
+        <div className="text-xs text-muted truncate" title={d.via}>{d.via}</div>
+        <div className="font-medium truncate" title={d.name}>{d.name}</div>
+        <div className={cn("text-sm tabular-nums truncate", on ? "text-fg" : "text-muted")}>{value}</div>
+      </div>
+    </>
+  );
+  const cls = cn("tile", on && !passive && (d.kind === "ac" ? "cool" : "on"));
+  if (passive) return <div className={cls}>{body}</div>;
+  // a real <button>: Enter AND Space, and no click while an action is in flight (DK-21)
   return (
-    <div className={cn("tile relative", on && !passive && (d.kind === "ac" ? "cool" : "on"))} role={passive ? undefined : "button"} tabIndex={passive ? -1 : 0}
-      onClick={passive ? undefined : onTap} onKeyDown={(k) => k.key === "Enter" && !passive && onTap()} onContextMenu={(ev) => { ev.preventDefault(); if (!passive) onOpen(); }} aria-disabled={busy}>
-      <div className="flex items-start justify-between">
-        <span style={tone ? { color: tone } : undefined} className={cn(!tone && (on ? "text-accent" : "text-muted"))}>{icon}</span>
-        {!passive && <button type="button" className="btn ghost sm tile-more" onPointerDown={(ev) => ev.stopPropagation()} onClick={(ev) => { ev.stopPropagation(); onOpen(); }} aria-label={t("casa.settingsFor", { name: d.name })}>⋯</button>}
-      </div>
-      <div>
-        <div className="text-xs text-muted truncate">{d.via}</div>
-        <div className="font-medium truncate">{d.name}</div>
-        <div className={cn("text-sm tabular-nums", on ? "text-fg" : "text-dim")}>{value}</div>
-      </div>
+    <div className="relative">
+      <button type="button" className={cn(cls, "pr-12")} aria-pressed={on} aria-disabled={busy || undefined}
+        onClick={() => { if (!busy) onTap(); }} onContextMenu={(ev) => { ev.preventDefault(); onOpen(); }}>
+        {body}
+      </button>
+      <button type="button" className="btn ghost sm tile-more" onClick={onOpen} aria-label={t("casa.settingsFor", { name: d.name })} aria-haspopup="dialog"><MoreHorizontal className="size-4" /></button>
     </div>
   );
 }
@@ -131,21 +129,19 @@ function Sheet({ d, e, onClose, send }: { d: Device; e: Ent; onClose: () => void
   const rgb = Array.isArray(e.attributes.rgb_color) ? (e.attributes.rgb_color as number[]) : [255, 200, 120];
   const [hex, setHex] = React.useState(rgbToHex(rgb[0] ?? 0, rgb[1] ?? 0, rgb[2] ?? 0));
   const temp = num(e.attributes.temperature, 24);
-  React.useEffect(() => {
-    const k = (ev: KeyboardEvent) => ev.key === "Escape" && onClose();
-    window.addEventListener("keydown", k);
-    return () => window.removeEventListener("keydown", k);
-  }, [onClose]);
+  const ref = React.useRef<HTMLDivElement>(null);
+  const titleId = React.useId();
+  useFocusTrap(ref, onClose);
   return (
-    <div className="fixed inset-0 z-20 grid place-items-center bg-bg/60" onClick={onClose}>
-      <div className="glass w-[460px] p-5" role="dialog" aria-modal="true" aria-label={d.name} onClick={(ev) => ev.stopPropagation()}>
-        <h3 className="text-lg font-semibold">{d.name}</h3>
+    <div className="fixed inset-0 z-[var(--z-modal)] grid place-items-center bg-scrim p-4" onClick={onClose}>
+      <div ref={ref} className="glass float max-h-[90vh] w-full max-w-[460px] overflow-y-auto p-5" role="dialog" aria-modal="true" aria-labelledby={titleId} onClick={(ev) => ev.stopPropagation()}>
+        <h3 id={titleId} className="text-lg font-semibold break-words">{d.name}</h3>
         <p className="text-xs text-muted mb-4">{d.via} · {e.state}</p>
         {(d.kind === "light" || d.kind === "projector") && (
           <div className="grid gap-4">
             <div className="field"><span>{t("common.brightness")} · {bri} %</span><Slider value={bri} min={1} max={100} onChange={setBri} onCommit={(v) => void send({ type: "light", entity: d.entity, brightnessPct: v })} format={(v) => `${v} %`} /></div>
-            {!d.whiteOnly && <div className="field"><span>{t("common.color")}</span><Swatches value={hex} onChange={(h) => { setHex(h); const [r, g, b] = [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; void send({ type: "light", entity: d.entity, rgb: [r, g, b] }); }} colors={["#ffb347", "#ff5a5a", "#5ad1ff", "#7cff9a", "#c084fc", "#ff7ad9", "#ffffff"]} /></div>}
-            <div className="field"><span>{t("common.white")}</span><div className="flex gap-2">{KELVIN.map((k) => <button key={k} type="button" className="btn sm" onClick={() => void send({ type: "light", entity: d.entity, kelvin: k })}>{k} K</button>)}</div></div>
+            {!d.whiteOnly && <div className="field"><span>{t("common.color")}</span><Swatches value={hex} onChange={(h) => { setHex(h); void send({ type: "light", entity: d.entity, rgb: hexToRgb(h) }); }} colors={SWATCHES} /></div>}
+            <div className="field"><span>{t("common.white")}</span><div className="flex flex-wrap gap-2">{KELVIN.map((k) => <button key={k} type="button" className="btn sm" onClick={() => void send({ type: "light", entity: d.entity, kelvin: k })}>{k} K</button>)}</div></div>
           </div>
         )}
         {d.kind === "ac" && (

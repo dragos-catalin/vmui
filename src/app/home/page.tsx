@@ -8,6 +8,7 @@ import { accessView, currentHomeActor, journalUserId } from "@/lib/home/access";
 import { loadButtonBindings } from "@/lib/home/button-bindings";
 import { credential } from "@/lib/home/credentials";
 import { listInvites, listMembers, nonMembers } from "@/lib/home/family";
+import { ha } from "@/lib/home/ha-client";
 import { intercomState } from "@/lib/home/intercom";
 import { loadProfile } from "@/lib/nutrition/store";
 import { nutritionSummary } from "@/lib/nutrition/summary";
@@ -77,6 +78,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
     .filter((s) => s.entity_id.startsWith("light.") && s.entity_id !== "light.hyperhdr" && ((s.attributes.supported_color_modes as string[] | undefined) ?? []).some((m) => m === "rgb" || m === "hs" || m === "rgbw" || m === "rgbww" || m === "xy"))
     .map((s) => ({ id: s.entity_id, name: String(s.attributes.friendly_name ?? s.entity_id) }))
     .sort((a, b) => a.name.localeCompare(b.name));
+  const haConfigured = ha.configured();
   const initialTab = normalizeHomeTab(tab, access.canManage);
   const initialSection = normalizeSettingsSection(tab, section);
   return (
@@ -98,7 +100,9 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 
       {!avail.ok && (
         <Alert tone="warning" title={t("haDown")}>
-          {t("haDownHint", { error: avail.error ?? "" })}
+          {haConfigured
+            ? t("haDownHint", { error: avail.error ?? "" })
+            : t.rich("haNotConfigured", { code: (chunks) => <code className="rounded-sm bg-bg-muted px-1 font-mono text-xs">{chunks}</code> })}
         </Alert>
       )}
 

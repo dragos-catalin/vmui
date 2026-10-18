@@ -9,7 +9,7 @@ import { ok, type ActionResult } from "@/lib/action-result";
 import type { DrillCheck, DrillResult } from "@/lib/dr-drill";
 import { runDrDrillAction } from "@/server/actions/dr";
 import { AlertTriangle, ShieldCheck, XCircle, Zap } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useFormatter, useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -129,7 +129,7 @@ export function ChaosButton() {
             {result.checks.map((c, i) => {
               const Icon = CHECK_ICON[c.status];
               return (
-                <motion.li
+                <m.li
                   key={`${c.name}-${i}`}
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -144,7 +144,7 @@ export function ChaosButton() {
                     </span>
                     <span className="mt-0.5 block break-words text-xs text-muted">{c.detail}</span>
                   </span>
-                </motion.li>
+                </m.li>
               );
             })}
           </ul>

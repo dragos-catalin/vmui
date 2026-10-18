@@ -9,7 +9,7 @@ import type { ActionResult } from "@/lib/action-result";
 import type { AlertChannelRow, AlertRuleRow } from "@/lib/db/schema";
 import { createAlertRuleAction, deleteAlertRuleAction, evaluateRulesNowAction, toggleAlertRuleAction } from "@/server/actions/alerts";
 import { BellRing, Play, Plus, Trash2 } from "lucide-react";
-import { motion } from "motion/react";
+import * as Mo from "motion/react-m";
 import { useTranslations } from "next-intl";
 import * as React from "react";
 import { toast } from "sonner";
@@ -148,7 +148,7 @@ export function AlertRulesPanel({ rules, channels }: Props) {
         </Button>
       </div>
 
-      <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+      <Mo.div initial={{ y: 6 }} animate={{ y: 0 }} transition={{ duration: 0.2 }}>
         <DataTable
           columns={columns}
           data={rules}
@@ -183,7 +183,7 @@ export function AlertRulesPanel({ rules, channels }: Props) {
             </Button>
           )}
         />
-      </motion.div>
+      </Mo.div>
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent title={t("sheet.title")} description={t("sheet.description")}>

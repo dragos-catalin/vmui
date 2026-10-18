@@ -227,7 +227,7 @@ export function ApiKeysManager({ keys, catalog }: { keys: ApiKeyView[]; catalog:
 
       <PageSection title={t("createTitle")} description={t("createDescription")}>
         <form
-          className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_9rem_8rem_auto] sm:items-end"
+          className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto_auto] md:items-end"
           onSubmit={(e) => {
             e.preventDefault();
             if (name.trim()) void create.run();
@@ -265,7 +265,7 @@ export function ApiKeysManager({ keys, catalog }: { keys: ApiKeyView[]; catalog:
           </Button>
 
           {role === "operator" && (
-            <div className="space-y-3 sm:col-span-4">
+            <div className="min-w-0 space-y-3 md:col-span-4">
               <Field label={t("scopes")} hint={t("scopesHint")}>
                 <ToggleGroup value={preset} onValueChange={setPreset} options={presetOptions} size="sm" aria-label={t("scopes")} />
               </Field>
@@ -298,7 +298,7 @@ export function ApiKeysManager({ keys, catalog }: { keys: ApiKeyView[]; catalog:
                     ariaLabel={t("scopeEntities")}
                   />
                 )}
-                <Input value={entityText} onChange={(e) => setEntityText(e.target.value)} placeholder="light.moodlight, climate.bedroom_ac" className="font-mono text-xs" aria-label={t("scopeEntities")} />
+                <Input value={entityText} onChange={(e) => setEntityText(e.target.value)} placeholder={t("entitiesPlaceholder")} className="font-mono text-xs" aria-label={t("scopeEntities")} />
               </Subsection>
 
               <Subsection title={t("scopePcActions")} collapsible defaultOpen={false}>
@@ -311,7 +311,7 @@ export function ApiKeysManager({ keys, catalog }: { keys: ApiKeyView[]; catalog:
               </Subsection>
 
               <Field label={t("scopeScripts")} hint={t("scopeScriptsHint")}>
-                <Input value={scriptText} onChange={(e) => setScriptText(e.target.value)} placeholder="movie_mode_on, copilot_done" className="font-mono text-xs" />
+                <Input value={scriptText} onChange={(e) => setScriptText(e.target.value)} placeholder={t("scriptsPlaceholder")} className="font-mono text-xs" />
               </Field>
             </div>
           )}

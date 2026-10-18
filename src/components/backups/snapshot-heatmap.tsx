@@ -72,7 +72,12 @@ export function SnapshotHeatmap({ events }: { events: SnapshotEvent[] }) {
   const weekdayLetters = [1, 3, 5].map((dow) => format.dateTime(new Date(Date.UTC(2024, 0, 7 + dow)), { weekday: "narrow", timeZone: "UTC" }));
 
   return (
-    <div className="overflow-x-auto">
+    <div
+      role="region"
+      aria-label={t("ariaLabel", { weeks: WEEKS })}
+      tabIndex={0}
+      className="overflow-x-auto rounded-[var(--radius-sm)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+    >
       <div className="inline-block">
         <div className="mb-1 ml-7 grid" style={{ gridTemplateColumns: `repeat(${WEEKS}, 14px)`, gap: "2px" }}>
           {monthLabels.map((m) => (

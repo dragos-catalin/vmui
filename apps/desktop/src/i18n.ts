@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
+import { setSwatchTranslator } from "./lights";
 import en from "./locales/en.json";
 import ro from "./locales/ro.json";
 
@@ -14,9 +15,10 @@ declare module "i18next" {
   }
 }
 
-/** Language comes from Rust (app data lang.txt, shared with the tray); "ro" when unavailable. */
-export async function initI18n() {
-  const saved = await invoke<string>("lang_get").catch(() => null);
+/** Language comes from Rust (app data lang.txt, shared with the tray); "ro" when unavailable.
+ *  `saved` lets main.tsx fetch it in parallel with app_info. */
+export async function initI18n(saved?: string | null) {
+  if (saved === undefined) saved = await invoke<string>("lang_get").catch(() => null);
   const lng: Lang = saved === "en" ? "en" : "ro";
   await i18n.use(initReactI18next).init({
     resources: { ro: { translation: ro }, en: { translation: en } },
@@ -25,6 +27,7 @@ export async function initI18n() {
     interpolation: { escapeValue: false },
   });
   document.documentElement.lang = lng;
+  setSwatchTranslator((k, f) => tx(k, f));
 }
 
 /** Persist in Rust (rebuilds the tray labels) and switch the UI even if persisting failed. */

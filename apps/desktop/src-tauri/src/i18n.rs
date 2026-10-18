@@ -45,6 +45,12 @@ fn extra(key: &str, en: bool) -> Option<&'static str> {
         ("turnOn", true) => "Turn on",
         ("turnOff", false) => "Stinge",
         ("turnOff", true) => "Turn off",
+        ("actDone", false) => "gata",
+        ("actDone", true) => "done",
+        ("actFailed", false) => "nu a mers",
+        ("actFailed", true) => "it did not work",
+        ("cantOpen", false) => "nu pot deschide {url}: {error}",
+        ("cantOpen", true) => "cannot open {url}: {error}",
         _ => return None,
     })
 }

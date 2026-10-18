@@ -412,5 +412,15 @@
       "label": "Wikimedia Commons",
       "description": "Picture of the day on Commons."
     }
+  },
+  "accents": {
+    "ember": "Ember",
+    "indigo": "Indigo",
+    "mint": "Mint",
+    "rose": "Rose",
+    "amber": "Amber",
+    "violet": "Violet",
+    "cyan": "Cyan",
+    "orange": "Orange"
   }
 }

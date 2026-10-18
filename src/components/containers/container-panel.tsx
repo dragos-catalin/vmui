@@ -5,6 +5,7 @@ import { Alert, Badge, Button, DataTable, EmptyState, Switch, type ColumnDef } f
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useAction } from "@/hooks/use-action";
+import { useEventSource } from "@/hooks/use-poll";
 import { err, ok, type ActionResult } from "@/lib/action-result";
 import type { ContainerListResult, ContainerRow } from "@/lib/containers";
 import { containerActionAction, inspectContainerAction } from "@/server/actions/containers";
@@ -48,29 +49,20 @@ export function ContainerPanel({
   const [showStats, setShowStats] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
 
-  useEffect(() => {
-    const qs = showStats ? "interval=10&stats=1" : "interval=5";
-    const ev = new EventSource(`/api/instances/${encodeURIComponent(instanceId)}/containers/stream?${qs}`);
-    ev.addEventListener("snapshot", (e) => {
-      try {
-        setData(JSON.parse((e as MessageEvent).data) as ContainerListResult);
+  const qs = showStats ? "interval=10&stats=1" : "interval=5";
+  useEventSource<ContainerListResult | { message?: string }>(`/api/instances/${encodeURIComponent(instanceId)}/containers/stream?${qs}`, {
+    // the server also sends a named `error` event carrying { message }
+    events: ["snapshot", "error"],
+    onMessage: (payload, event) => {
+      if (event === "snapshot") {
+        setData(payload as ContainerListResult);
         setStreamError(null);
-      } catch {
-        /* ignore */
+      } else {
+        const msg = (payload as { message?: string }).message;
+        if (msg) setStreamError(msg);
       }
-    });
-    ev.addEventListener("error", (e) => {
-      try {
-        const m = JSON.parse((e as MessageEvent).data) as { message?: string };
-        if (m?.message) setStreamError(m.message);
-      } catch {
-        /* ignore */
-      }
-    });
-    return () => {
-      ev.close();
-    };
-  }, [instanceId, showStats]);
+    },
+  });
 
   const summaryRef = useRef(onSummary);
   summaryRef.current = onSummary;
@@ -356,20 +348,15 @@ export function ContainerPanel({
 function ContainerLogs({ instanceId, row }: { instanceId: string; row: ContainerRow }) {
   const t = useTranslations("ops.containers");
   const [lines, setLines] = useState<string[]>([]);
-
-  useEffect(() => {
-    const url = `/api/instances/${encodeURIComponent(instanceId)}/containers/${encodeURIComponent(row.id || row.name)}/logs?rt=${row.runtime}`;
-    const ev = new EventSource(url);
-    ev.addEventListener("log", (e) => {
-      try {
-        const { line } = JSON.parse((e as MessageEvent).data) as { line: string };
-        setLines((prev) => (prev.length > 1000 ? [...prev.slice(-800), line] : [...prev, line]));
-      } catch {
-        /* ignore */
-      }
-    });
-    return () => ev.close();
-  }, [instanceId, row]);
+  const url = `/api/instances/${encodeURIComponent(instanceId)}/containers/${encodeURIComponent(row.id || row.name)}/logs?rt=${row.runtime}`;
+  useEventSource<{ line?: string }>(url, {
+    events: ["log"],
+    onOpen: () => setLines([]),
+    onMessage: ({ line }) => {
+      if (typeof line !== "string") return;
+      setLines((prev) => (prev.length > 1000 ? [...prev.slice(-800), line] : [...prev, line]));
+    },
+  });
 
   return <LogViewer lines={lines} height="h-[70dvh]" loading={lines.length === 0} emptyLabel={t("logs.empty")} />;
 }

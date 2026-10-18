@@ -1,22 +1,26 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const PORT = 3737;
-const BASE_URL = `http://127.0.0.1:${PORT}`;
+// PW_BASE_URL = an already-running server (cloud e2e VM: scripts/e2e-cloud/vm-run.sh) -> no webServer.
+const EXTERNAL = process.env.PW_BASE_URL;
+const BASE_URL = EXTERNAL ?? `http://127.0.0.1:${PORT}`;
 
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: false,
-  reporter: process.env.CI ? "list" : [["list"]],
+  reporter: [["list"], ["html", { open: "never" }]],
   use: {
     baseURL: BASE_URL,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
-  webServer: {
-    command: "pnpm dev",
-    url: BASE_URL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
+  webServer: EXTERNAL
+    ? undefined
+    : {
+        command: "pnpm dev",
+        url: BASE_URL,
+        reuseExistingServer: !process.env.CI,
+        timeout: 120_000,
+      },
 });

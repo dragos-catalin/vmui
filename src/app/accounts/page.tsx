@@ -52,11 +52,13 @@ export default async function AccountsPage() {
         description={t("description")}
         badge={<Badge variant="muted">{t("count", { count: accounts.length })}</Badge>}
         actions={
-          <Button asChild>
-            <Link href="/accounts/new">
-              <Plus className="size-4" aria-hidden /> {t("add")}
-            </Link>
-          </Button>
+          accounts.length > 0 ? (
+            <Button asChild>
+              <Link href="/accounts/new">
+                <Plus className="size-4" aria-hidden /> {t("add")}
+              </Link>
+            </Button>
+          ) : undefined
         }
       />
       <AccountsView accounts={cards} />

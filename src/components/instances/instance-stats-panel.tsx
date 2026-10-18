@@ -14,7 +14,7 @@ import {
     Network,
     WifiOff,
 } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useFormatter, useTranslations } from "next-intl";
 import {
     formatBps,
@@ -144,7 +144,7 @@ function LiveBadge({ running }: { running: boolean }) {
     <Badge variant={running ? "success" : "muted"} className="gap-1.5">
       {running ? (
         <>
-          <motion.span
+          <m.span
             className="inline-block h-1.5 w-1.5 rounded-full bg-current"
             animate={{ opacity: [1, 0.3, 1] }}
             transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
@@ -180,7 +180,7 @@ function Tile({
   ariaLabel: string;
 }) {
   return (
-    <motion.div layout className="rounded-[var(--radius-md)] border border-border bg-bg-muted p-3">
+    <m.div layout className="rounded-[var(--radius-md)] border border-border bg-bg-muted p-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted">
           <Icon className="h-3 w-3" aria-hidden />
@@ -192,7 +192,7 @@ function Tile({
       <div className="mt-2">
         <Sparkline values={history} width={260} height={42} className={cn("w-full", colorClass)} ariaLabel={ariaLabel} />
       </div>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -218,7 +218,7 @@ function DualTile({
   trendLabel: (name: string) => string;
 }) {
   return (
-    <motion.div layout className="rounded-[var(--radius-md)] border border-border bg-bg-muted p-3">
+    <m.div layout className="rounded-[var(--radius-md)] border border-border bg-bg-muted p-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted">
           <Icon className="h-3 w-3" aria-hidden />
@@ -255,6 +255,6 @@ function DualTile({
           />
         </div>
       </div>
-    </motion.div>
+    </m.div>
   );
 }

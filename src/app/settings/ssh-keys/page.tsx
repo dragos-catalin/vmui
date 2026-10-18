@@ -5,9 +5,15 @@ import { PageHeader, PageShell } from "@/components/ui";
 import { listInstances } from "@/server/queries";
 import { listSshKeys } from "@/server/queries/ssh-keys";
 import { KeyRound } from "lucide-react";
+import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("settings.access.sshKeys");
+  return { title: t("title") };
+}
 
 export default async function SshKeysPage() {
   const [keys, vms, t] = await Promise.all([listSshKeys(), listInstances(), getTranslations("settings.access.sshKeys")]);

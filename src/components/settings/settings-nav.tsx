@@ -1,7 +1,9 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { ScrollFade } from "@/components/ui/scroll-fade";
 import { Database, KeyRound, Plug, Settings2, ShieldCheck, Users, Workflow, type LucideIcon } from "lucide-react";
+import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
 import { SETTINGS_HUB_SECTIONS, type SettingsHubSection } from "./sections";
 
@@ -20,33 +22,46 @@ export function SettingsNav({ value, onChange }: { value: SettingsHubSection; on
   return (
     <nav
       aria-label={t("label")}
-      className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:px-0 lg:sticky lg:top-20 lg:overflow-visible"
+      className="-mx-4 min-w-0 px-4 sm:mx-0 sm:px-0 lg:sticky lg:top-20"
     >
-      <ul className="flex w-max snap-x snap-mandatory gap-1 lg:w-auto lg:flex-col">
+      <ScrollFade label={t("label")} activeKey={value} className="lg:overflow-visible" innerClassName="lg:w-auto">
+      <ul className="flex snap-x snap-mandatory gap-1 lg:flex-col">
         {SETTINGS_HUB_SECTIONS.map((id) => {
           const Icon = ICON[id];
           const active = id === value;
+          const title = t(`${id}.title`);
+          const hint = t(`${id}.hint`);
           return (
             <li key={id} className="snap-start">
               <button
                 type="button"
                 onClick={() => onChange(id)}
                 aria-current={active ? "page" : undefined}
+                title={hint}
                 className={cn(
-                  "flex min-h-10 w-full items-center gap-2.5 whitespace-nowrap rounded-[var(--radius-md)] px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-                  active ? "bg-surface font-medium text-fg shadow-sm" : "text-fg-muted hover:bg-bg-muted hover:text-fg",
+                  "relative flex min-h-10 w-full items-center gap-2.5 whitespace-nowrap rounded-[var(--radius-md)] px-3 py-2 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                  active ? "font-medium text-fg" : "text-fg-muted hover:bg-bg-muted hover:text-fg",
                 )}
               >
-                <Icon className="size-4 shrink-0" aria-hidden />
-                <span className="min-w-0">
-                  <span className="block truncate">{t(`${id}.title`)}</span>
-                  <span className="hidden truncate text-xs font-normal text-fg-muted lg:block">{t(`${id}.hint`)}</span>
+                {active && (
+                  <m.span
+                    layoutId="settings-nav-active"
+                    aria-hidden
+                    className="absolute inset-0 rounded-[var(--radius-md)] bg-surface shadow-sm"
+                    transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                  />
+                )}
+                <Icon className="relative size-4 shrink-0" aria-hidden />
+                <span className="relative min-w-0">
+                  <span className="block truncate">{title}</span>
+                  <span className="hidden truncate text-xs font-normal text-fg-muted lg:block">{hint}</span>
                 </span>
               </button>
             </li>
           );
         })}
       </ul>
+      </ScrollFade>
     </nav>
   );
 }

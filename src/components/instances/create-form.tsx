@@ -6,7 +6,7 @@ import type { InstanceTemplate, ProviderId } from "@/lib/providers/types";
 import { cn } from "@/lib/utils";
 import { createInstanceAction, type CreateInstanceState } from "@/server/actions/instances";
 import { Apple, MonitorSmartphone, Server } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useMemo, useState } from "react";
@@ -124,7 +124,7 @@ export function CreateInstanceForm({
             const Icon = tpl.platform === "macos" ? Apple : tpl.platform === "windows" ? MonitorSmartphone : Server;
             const active = tpl.id === templateId;
             return (
-              <motion.button
+              <m.button
                 type="button"
                 key={tpl.id}
                 onClick={() => setTemplateId(tpl.id)}
@@ -148,7 +148,7 @@ export function CreateInstanceForm({
                   <div className="font-semibold">{tpl.label}</div>
                   <div className="mt-1 text-xs text-muted">{tpl.description}</div>
                 </div>
-              </motion.button>
+              </m.button>
             );
           })}
         </div>

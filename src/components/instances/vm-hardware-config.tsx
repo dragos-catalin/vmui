@@ -10,7 +10,8 @@ import {
     type HostCapabilities,
 } from "@/server/actions/local-kvm";
 import { Cpu, MemoryStick, Save } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence } from "motion/react";
+import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
 import { useEffect, useId, useState } from "react";
 
@@ -200,7 +201,7 @@ export function VmHardwareConfig({
 
         <AnimatePresence>
           {vmRunning && (dirty || savedNextBoot) && (
-            <motion.div
+            <m.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
@@ -210,7 +211,7 @@ export function VmHardwareConfig({
               <Alert tone="warning" className="text-xs">
                 {t("runningWarning")}
               </Alert>
-            </motion.div>
+            </m.div>
           )}
         </AnimatePresence>
 
@@ -281,7 +282,7 @@ function Pills<T extends number>({
       {options.map((opt) => {
         const active = opt === value;
         return (
-          <motion.button
+          <m.button
             key={opt}
             type="button"
             layout
@@ -296,14 +297,14 @@ function Pills<T extends number>({
             }
           >
             {active && (
-              <motion.span
+              <m.span
                 layoutId={`pill-bg-${groupId}`}
                 className="absolute inset-0 -z-10 rounded-full bg-[color-mix(in_oklch,var(--color-primary)_18%,transparent)]"
                 transition={{ type: "spring", stiffness: 380, damping: 32 }}
               />
             )}
             {renderLabel ? renderLabel(opt) : opt}
-          </motion.button>
+          </m.button>
         );
       })}
     </div>

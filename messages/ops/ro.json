@@ -174,7 +174,7 @@
   },
   "builds": {
     "title": "Build-uri și registre",
-    "description": "Configurează registre de containere, apoi construiește și publică imagini local pe gazda vmui sau la distanță pe orice VM accesibil.",
+    "description": "Configurează registre de containere, apoi construiește și publică imagini local pe gazda Vatra sau la distanță pe orice VM accesibil.",
     "viewContainers": "Containere",
     "finished": "finalizat",
     "timeline": "Progresul build-ului",
@@ -199,7 +199,7 @@
       "pushed": "Publicare"
     },
     "location": {
-      "local": "Local (gazda vmui)",
+      "local": "Local (gazda Vatra)",
       "remote": "La distanță (VM)",
       "remoteOn": "La distanță · {name}"
     },
@@ -292,7 +292,7 @@
     },
     "empty": {
       "title": "Nicio sursă Git încă",
-      "description": "Adaugă un depozit și vmui îl va interoga periodic și va aplica modificările compose pe VM-ul țintă."
+      "description": "Adaugă un depozit și Vatra îl va interoga periodic și va aplica modificările compose pe VM-ul țintă."
     },
     "confirmDelete": {
       "title": "Ștergi „{name}”?",
@@ -512,7 +512,8 @@
     },
     "graph": {
       "title": "Graf",
-      "hint": "Trage pentru rotire · scroll pentru zoom · clic pe un nod pentru detalii."
+      "hint": "Trage pentru rotire · scroll pentru zoom · clic pe un nod pentru detalii.",
+      "aria": "Graf de topologie cu {nodes, plural, =1 {# nod} few {# noduri} other {# de noduri}} și {edges, plural, =1 {# relație} few {# relații} other {# de relații}}. Aceleași noduri apar în listă pe ecrane mici și în panoul de detalii."
     },
     "legend": {
       "title": "Tipuri de noduri"
@@ -520,7 +521,9 @@
     "list": {
       "title": "Noduri",
       "description": "Atinge un nod pentru detalii.",
-      "truncated": "{count, plural, =1 {încă # nod ascuns} few {încă # noduri ascunse} other {încă # de noduri ascunse}}"
+      "truncated": "{count, plural, =1 {încă # nod ascuns} few {încă # noduri ascunse} other {încă # de noduri ascunse}}",
+      "emptyTitle": "Niciun nod nu se potrivește filtrelor",
+      "emptyDescription": "Reactivează un filtru de furnizor sau de cont ca să vezi noduri."
     },
     "kinds": {
       "account": "Cont",
@@ -572,7 +575,7 @@
     "toolCall": "Unealtă · {tool}",
     "toolLines": "{count, plural, =1 {# linie} few {# linii} other {# de linii}}",
     "thinking": "Se gândește…",
-    "placeholder": "Întreabă vmui…",
+    "placeholder": "Întreabă Vatra…",
     "send": "Trimite",
     "hint": "Enter trimite · Shift+Enter pentru rând nou",
     "errorPrefix": "Eroare: {error}"
@@ -637,7 +640,7 @@
   },
   "restore": {
     "title": "Restaurare",
-    "description": "Lansează un VM nou dintr-un backup reușit. Inter-cloud: alege orice cont și regiune — vmui predă snapshot-ul furnizorului și apelează createInstance.",
+    "description": "Lansează un VM nou dintr-un backup reușit. Inter-cloud: alege orice cont și regiune — Vatra predă snapshot-ul furnizorului și apelează createInstance.",
     "jobsCount": "{count, plural, =1 {# backup} few {# backup-uri} other {# de backup-uri}}",
     "openBackups": "Deschide backup-urile",
     "progress": "Pasul {step} din {total}",
@@ -1039,7 +1042,7 @@
   },
   "keyRotation": {
     "title": "Rotirea cheilor SSH",
-    "description": "Trimite o cheie publică nouă pe fiecare VM selectată și elimină cheile anterioare gestionate de vmui. Necesită o cheie de sondare pe cont.",
+    "description": "Trimite o cheie publică nouă pe fiecare VM selectată și elimină cheile anterioare gestionate de Vatra. Necesită o cheie de sondare pe cont.",
     "manageKeys": "Gestionează cheile SSH",
     "noKeys": "Nicio cheie SSH configurată",
     "noKeysHint": "Adaugă una mai întâi în Setări → Chei SSH.",
@@ -1047,7 +1050,7 @@
     "rotated": "{ok, plural, =1 {1 VM rotită} few {# VM-uri rotite} other {# de VM-uri rotite}}{failed, plural, =0 {} other {, # eșuate}}",
     "rotateFailed": "{failed, plural, =1 {1 VM a eșuat} few {# VM-uri au eșuat} other {# de VM-uri au eșuat}}",
     "confirmTitle": "Rotești cheile SSH pe {count, plural, =1 {1 VM} few {# VM-uri} other {# de VM-uri}}?",
-    "confirmHint": "Cheia „{key}” se instalează pentru utilizatorul {user}; cheile anterioare gestionate de vmui sunt eliminate. Tastează cuvântul de mai jos pentru a continua.",
+    "confirmHint": "Cheia „{key}” se instalează pentru utilizatorul {user}; cheile anterioare gestionate de Vatra sunt eliminate. Tastează cuvântul de mai jos pentru a continua.",
     "confirmButton": "Rotește cheile",
     "confirmWord": "ROTESTE",
     "selectAll": "Selectează toate VM-urile accesibile",

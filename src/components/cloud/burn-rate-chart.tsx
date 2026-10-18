@@ -1,6 +1,7 @@
 "use client";
 
-import { LineChartCard, type AnomalyMarker } from "@/components/charts";
+import type { AnomalyMarker } from "@/components/charts";
+import { LineChartCard } from "@/components/monitoring/lazy-charts";
 import { useFormatter, useTranslations } from "next-intl";
 
 export interface BurnDay {

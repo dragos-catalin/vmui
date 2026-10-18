@@ -11,7 +11,13 @@
       "living_room": "Living room",
       "kitchen": "Kitchen",
       "office": "Office"
-    }
+    },
+    "hintKeys": "Or focus a device and use the arrow keys (Shift = bigger steps).",
+    "position": "{name}: {room}, {x}% across, {y}% down",
+    "movable": "movable device",
+    "legend": "Rooms",
+    "legendOn": "{n, plural, =0 {all off} other {# on}}",
+    "legendTotal": "{n, plural, one {# device} other {# devices}}"
   },
   "kinds": {
     "light": "Light",

@@ -1,6 +1,7 @@
 "use client";
 
 import { Alert, Button, Field, Input, PageSection, Textarea } from "@/components/ui";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     generateSshKeyAction,
@@ -66,7 +67,7 @@ export function SshKeyComposer({ onChanged }: { onChanged?: () => void }) {
               <Textarea name="publicKey" rows={2} required placeholder={t("publicKeyPlaceholder")} className="font-mono text-xs" spellCheck={false} />
             </Field>
             <Field label={`${t("privateKey")} (${t("optional")})`} hint={t("privateKeyHint")}>
-              <Textarea name="privateKey" rows={4} placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" className="font-mono text-[11px]" spellCheck={false} />
+              <Textarea name="privateKey" rows={4} placeholder={t("privateKeyPlaceholder")} className="font-mono text-2xs" spellCheck={false} />
             </Field>
             <Button type="submit" loading={importPending} className="justify-self-start">
               {t("save")}
@@ -81,15 +82,15 @@ export function SshKeyComposer({ onChanged }: { onChanged?: () => void }) {
                 <Input id={`${ids}-gname`} name="name" required placeholder={t("generateNamePlaceholder")} />
               </Field>
               <Field label={t("algorithm")}>
-                <select
-                  name="algo"
-                  defaultValue="ed25519"
-                  aria-label={t("algorithm")}
-                  className="flex h-9 w-full rounded-[var(--radius-md)] border border-border bg-surface px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                >
-                  <option value="ed25519">{t("algoEd25519")}</option>
-                  <option value="rsa">{t("algoRsa")}</option>
-                </select>
+                <Select name="algo" defaultValue="ed25519">
+                  <SelectTrigger aria-label={t("algorithm")}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ed25519">{t("algoEd25519")}</SelectItem>
+                    <SelectItem value="rsa">{t("algoRsa")}</SelectItem>
+                  </SelectContent>
+                </Select>
               </Field>
               <Field label={`${t("passphrase")} (${t("optional")})`}>
                 <Input id={`${ids}-gpass`} name="passphrase" type="password" autoComplete="off" />

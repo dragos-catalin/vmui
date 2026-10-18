@@ -4,7 +4,7 @@ import { Badge, PageSection, Progress } from "@/components/ui";
 import type { Achievement } from "@/lib/achievements";
 import { cn } from "@/lib/utils";
 import { Archive, Award, Bot, Boxes, Camera, Flame, Globe, Rocket, RotateCcw, type LucideIcon } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
 
 const ICONS: Record<string, LucideIcon> = { Rocket, Boxes, Camera, Archive, RotateCcw, Globe, Bot, Award, Flame };
@@ -40,7 +40,7 @@ function AchievementCard({ a, index, featured = false }: { a: Achievement; index
   const key = a.id as ItemKey;
 
   return (
-    <motion.article
+    <m.article
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, delay: Math.min(index, 12) * 0.03 }}
@@ -64,6 +64,6 @@ function AchievementCard({ a, index, featured = false }: { a: Achievement; index
         <p className="text-xs text-fg-muted">{t(`items.${key}.description`)}</p>
         <Progress size="sm" value={pct} tone={a.unlocked ? "warning" : "default"} label={t("progress", { progress: a.progress, goal: a.goal })} />
       </div>
-    </motion.article>
+    </m.article>
   );
 }

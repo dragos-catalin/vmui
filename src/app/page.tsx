@@ -1,6 +1,7 @@
+import { VatraMark } from "@/components/brand/vatra-mark";
 import { CostAnomalyBanner } from "@/components/dashboard/cost-anomaly-banner";
 import { DashboardRail } from "@/components/dashboard/dashboard-rail";
-import { HeroCanvas } from "@/components/dashboard/hero-canvas";
+import { HeroScene } from "@/components/dashboard/hero-scene";
 import { computeSpendRows } from "@/components/dashboard/spend-rows";
 import { BackgroundSync } from "@/components/instances/background-sync";
 import { InstancesExplorer } from "@/components/instances/instances-explorer";
@@ -10,12 +11,18 @@ import { getCurrentUser } from "@/lib/auth";
 import { formatUsd, HOURS_PER_MONTH } from "@/lib/utils";
 import { listAccounts, listAuditLog, listInstancesWithPrices } from "@/server/queries";
 import { listAccountHistory } from "@/server/queries/history";
-import { ArrowRight, Cloud, Layers, Play, Server, Sparkles, Square, Wallet } from "lucide-react";
+import { ArrowRight, Layers, Play, Server, Sparkles, Square, Wallet } from "lucide-react";
+import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { Suspense } from "react";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("dashboard");
+  return { title: t("meta.title") };
+}
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -77,13 +84,13 @@ export default async function DashboardPage() {
         aria-labelledby="dashboard-title"
         className="relative overflow-hidden rounded-[var(--radius-xl)] border border-border bg-gradient-to-br from-[color-mix(in_oklch,var(--color-primary)_14%,var(--color-surface))] to-surface p-5 sm:p-7"
       >
-        <HeroCanvas />
+        <HeroScene />
         <div className="relative flex flex-wrap items-end justify-between gap-4">
           <div className="min-w-0">
             <Badge variant="info" className="mb-2">
               <Sparkles className="size-3" aria-hidden /> {t("hero.live")}
             </Badge>
-            <h1 id="dashboard-title" className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            <h1 id="dashboard-title" className="font-display text-2xl font-semibold tracking-[-0.01em] sm:text-3xl">
               {t(`greeting.${greetingKey(hour)}`, { name })}
             </h1>
             <p className="mt-1 max-w-xl text-sm text-muted">{t("hero.summary", { accounts: accounts.length })}</p>
@@ -96,7 +103,9 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      <CostAnomalyBanner />
+      <Suspense fallback={null}>
+        <CostAnomalyBanner />
+      </Suspense>
 
       <StatGrid cols={4}>
         <Stat
@@ -136,6 +145,7 @@ export default async function DashboardPage() {
       >
         {instances.length === 0 ? (
           <EmptyState
+            bare
             icon={<Server />}
             title={t("instances.emptyTitle")}
             description={t("instances.emptyDescription")}
@@ -166,18 +176,16 @@ async function Welcome() {
   const t = await getTranslations("dashboard.welcome");
   const features = ["feature1", "feature2", "feature3", "feature4"] as const;
   return (
-    <PageShell width="narrow" className="pt-6 sm:pt-12">
-      <section aria-labelledby="welcome-title" className="surface space-y-5 p-6 sm:p-8">
-        <div className="grid size-12 place-items-center rounded-[var(--radius-lg)] bg-gradient-to-br from-primary to-accent text-primary-fg shadow-[var(--shadow-glow)]" aria-hidden>
-          <Cloud className="size-6" />
-        </div>
+    <PageShell width="narrow" className="grid min-h-[60dvh] place-items-center">
+      <section aria-labelledby="welcome-title" className="surface w-full max-w-2xl space-y-6 p-6 sm:p-10">
+        <VatraMark size={48} state="intro" className="text-fg" />
         <div>
-          <h1 id="welcome-title" className="text-2xl font-semibold tracking-tight">
+          <h1 id="welcome-title" className="text-balance font-display text-3xl font-semibold tracking-[-0.01em]">
             {t("title")}
           </h1>
-          <p className="mt-1 text-sm text-muted">{t("description")}</p>
+          <p className="mt-2 text-pretty text-base text-fg-muted">{t("description")}</p>
         </div>
-        <ul className="space-y-2 text-sm text-muted">
+        <ul className="space-y-2 text-sm text-fg-muted">
           {features.map((f) => (
             <li key={f} className="flex items-start gap-2">
               <span aria-hidden className="mt-2 size-1.5 shrink-0 rounded-full bg-primary" />
@@ -185,13 +193,13 @@ async function Welcome() {
             </li>
           ))}
         </ul>
-        <div className="flex flex-wrap gap-2">
-          <Button asChild>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button asChild size="lg" className="w-full sm:w-auto">
             <Link href="/accounts/new">
               {t("connect")} <ArrowRight className="size-4" aria-hidden />
             </Link>
           </Button>
-          <Button asChild variant="secondary">
+          <Button asChild size="lg" variant="secondary" className="w-full sm:w-auto">
             <Link href="/accounts">{t("allAccounts")}</Link>
           </Button>
         </div>

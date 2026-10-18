@@ -130,7 +130,7 @@ export function TotpCard() {
     return (
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
         {/* eslint-disable-next-line @next/next/no-img-element -- data: URL from the server, next/image cannot optimise it */}
-        <img src={stage.qr} alt={t("qrAlt")} width={180} height={180} className="size-[180px] shrink-0 self-center rounded-[var(--radius-md)] border border-border bg-white p-1 sm:self-start" />
+        <img src={stage.qr} alt={t("qrAlt")} width={180} height={180} className="size-[180px] shrink-0 self-center rounded-[var(--radius-md)] border border-border bg-[oklch(1_0_0)] p-1 sm:self-start" />
         <div className="min-w-0 flex-1 space-y-3 text-sm">
           <p className="text-fg-muted">{t("step1")}</p>
           <p className="text-fg-muted">

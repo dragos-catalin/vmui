@@ -5,7 +5,7 @@ import { RelativeTime } from "@/components/settings/relative-time";
 import { Badge, Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { Check, ChevronDown, X } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
 import type { BuildRow, InstanceLite, RegistryLite } from "./types";
 
@@ -56,7 +56,7 @@ export function BuildRunCard({
       : t("location.remoteOn", { name: instance ? (instance.name ?? instance.providerInstanceId) : (build.instanceId ?? "—") });
 
   return (
-    <motion.article
+    <m.article
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
@@ -129,6 +129,6 @@ export function BuildRunCard({
           />
         </div>
       )}
-    </motion.article>
+    </m.article>
   );
 }

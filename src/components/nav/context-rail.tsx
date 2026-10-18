@@ -30,8 +30,8 @@ export function useContextRail(node: React.ReactNode): React.ReactPortal | null 
 
 export function RailCard({ title, icon, children, className }: { title: string; icon?: React.ReactNode; children: React.ReactNode; className?: string }) {
   return (
-    <section aria-label={title} className={cn("surface p-4", className)}>
-      <h2 className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted">
+    <section aria-label={title} className={cn("surface p-4 sm:p-5", className)}>
+      <h2 className="mb-2 flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wider text-fg-muted">
         {icon}
         {title}
       </h2>
@@ -103,12 +103,12 @@ function QuickLink({ item, active, label }: { item: NavItem; active: boolean; la
       href={item.href}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex items-center gap-2 rounded-[var(--radius-sm)] px-2 py-1 text-sm transition-colors",
-        active ? "bg-[color-mix(in_oklch,var(--color-primary)_14%,transparent)] text-fg" : "text-muted hover:bg-[color-mix(in_oklch,var(--color-fg)_6%,transparent)] hover:text-fg",
+        "flex min-h-7 items-center gap-2 rounded-[var(--radius-sm)] px-2 py-1 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+        active ? "bg-[color-mix(in_oklch,var(--color-primary)_14%,transparent)] text-fg" : "text-fg-muted hover:bg-[color-mix(in_oklch,var(--color-fg)_6%,transparent)] hover:text-fg",
       )}
     >
-      <Icon className={cn("size-4 shrink-0", active && "text-primary")} aria-hidden />
-      <span className="truncate">{label}</span>
+      <Icon className={cn("size-4 shrink-0", active && "text-primary-text")} aria-hidden />
+      <span className="truncate" title={label}>{label}</span>
     </Link>
   );
 }
@@ -129,7 +129,7 @@ function QuickLinksCard({ pathname }: { pathname: string }) {
           <QuickLink key={it.href} item={it} active={isNavActive(pathname, it)} label={label(it.id)} />
         ))}
       </div>
-      <h3 className="mb-1 mt-3 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-muted">
+      <h3 className="mb-1 mt-3 flex items-center gap-1.5 text-2xs font-medium uppercase tracking-wider text-fg-muted">
         <History className="size-3" aria-hidden />
         {t("rail.recent")}
       </h3>

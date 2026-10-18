@@ -1,4 +1,7 @@
 {
+  "meta": {
+    "title": "Dashboard"
+  },
   "greeting": {
     "morning": "Good morning{name}",
     "afternoon": "Good afternoon{name}",
@@ -47,7 +50,7 @@
     "description": "{count, plural, =0 {No instances} one {# instance} other {# instances}} across {providers, plural, one {# provider} other {# providers}}",
     "launch": "Launch new",
     "emptyTitle": "No instances yet",
-    "emptyDescription": "Launch one to get started — vmui syncs from your accounts automatically.",
+    "emptyDescription": "Launch one to get started — Vatra syncs from your accounts automatically.",
     "emptyAction": "Launch instance"
   },
   "activity": {
@@ -56,7 +59,7 @@
     "viewAll": "All activity"
   },
   "welcome": {
-    "title": "Welcome to vmui",
+    "title": "Welcome to Vatra",
     "description": "Connect a cloud account to start managing virtual machines from one place.",
     "feature1": "One-click start / stop / reboot on any instance",
     "feature2": "Smart connect: .rdp for Windows, SSH + VNC for macOS, SSH for Linux",

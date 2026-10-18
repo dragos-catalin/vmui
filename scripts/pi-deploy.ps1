@@ -34,7 +34,11 @@ if (-not (Test-Path '.next\BUILD_ID')) { throw '.next/BUILD_ID missing — run w
 # Windows tar + ssh: stream tracked + untracked-but-not-ignored files, then .next.
 $list = Join-Path $root '.copilot-tmp\pi\files.txt'
 New-Item -ItemType Directory -Force (Split-Path $list) | Out-Null
-git ls-files -co --exclude-standard -- . ':!cli' ':!vfio' ':!toolkit' ':!tests' ':!test' ':!*.png' ':!*.jpg' | Set-Content $list -Encoding utf8
+# PNG/JPG stay excluded (screenshots, brand/dist exports) EXCEPT public/: `next start` serves it
+# from the source tree, so the PWA icons, maskable icons and the push badge must ship.
+$src = git ls-files -co --exclude-standard -- . ':!cli' ':!vfio' ':!toolkit' ':!tests' ':!test' ':!*.png' ':!*.jpg'
+$pub = git ls-files -co --exclude-standard -- 'public/*.png' 'public/**/*.png'
+@($src) + @($pub) | Sort-Object -Unique | Set-Content $list -Encoding utf8
 $n = (Get-Content $list).Count
 Write-Host "syncing $n source files + .next -> ${Pi}:$Dest"
 ssh -o BatchMode=yes $Pi "mkdir -p $Dest/.private"

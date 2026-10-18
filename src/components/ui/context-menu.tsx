@@ -13,9 +13,9 @@ export const ContextMenuSub = ContextMenuPrimitive.Sub;
 export const ContextMenuRadioGroup = ContextMenuPrimitive.RadioGroup;
 
 const contentClass =
-  "z-50 min-w-52 overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-1 text-sm shadow-2xl backdrop-blur-md " +
-  "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 " +
-  "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95";
+  "z-[var(--z-modal)] min-w-52 overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] p-1 text-sm shadow-[var(--shadow-lg)] backdrop-blur-md " +
+  "data-[state=open]:animate-in data-[state=closed]:animate-out " +
+  "";
 
 const itemClass =
   "relative flex cursor-pointer select-none items-center gap-2 rounded-[var(--radius-sm)] px-2.5 py-1.5 text-sm outline-none transition-colors " +
@@ -72,7 +72,7 @@ export const ContextMenuCheckboxItem = React.forwardRef<
   >
     <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
       <ContextMenuPrimitive.ItemIndicator>
-        <Check className="h-3.5 w-3.5" />
+        <Check className="h-3.5 w-3.5" aria-hidden />
       </ContextMenuPrimitive.ItemIndicator>
     </span>
     {children}
@@ -87,7 +87,7 @@ export const ContextMenuRadioItem = React.forwardRef<
   <ContextMenuPrimitive.RadioItem ref={ref} className={cn(itemClass, "pl-7", className)} {...props}>
     <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
       <ContextMenuPrimitive.ItemIndicator>
-        <Circle className="h-2 w-2 fill-current" />
+        <Circle className="h-2 w-2 fill-current" aria-hidden />
       </ContextMenuPrimitive.ItemIndicator>
     </span>
     {children}
@@ -105,7 +105,7 @@ export const ContextMenuSubTrigger = React.forwardRef<
     {...props}
   >
     {children}
-    <ChevronRight className="ml-auto h-4 w-4 opacity-60" />
+    <ChevronRight className="ml-auto h-4 w-4 opacity-60" aria-hidden />
   </ContextMenuPrimitive.SubTrigger>
 ));
 ContextMenuSubTrigger.displayName = "ContextMenuSubTrigger";
@@ -116,7 +116,7 @@ export const ContextMenuLabel = ({
   ...props
 }: React.ComponentPropsWithoutRef<typeof ContextMenuPrimitive.Label> & { inset?: boolean }) => (
   <ContextMenuPrimitive.Label
-    className={cn("px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted", inset && "pl-7", className)}
+    className={cn("px-2.5 py-1.5 text-2xs font-semibold uppercase tracking-wider text-fg-muted", inset && "pl-7", className)}
     {...props}
   />
 );
@@ -129,5 +129,5 @@ export const ContextMenuSeparator = ({
 );
 
 export const ContextMenuShortcut = ({ className, ...props }: React.HTMLAttributes<HTMLSpanElement>) => (
-  <span className={cn("ml-auto text-[11px] tracking-widest text-muted", className)} {...props} />
+  <span className={cn("ml-auto text-2xs tracking-widest text-fg-muted", className)} {...props} />
 );

@@ -5,7 +5,8 @@ import { useAction } from "@/hooks/use-action";
 import type { InstanceSecretRow } from "@/lib/db/schema";
 import { deleteInstanceSecretAction, setInstanceSecretAction } from "@/server/actions/extras-2";
 import { KeyRound, Trash2 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence } from "motion/react";
+import * as m from "motion/react-m";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -103,7 +104,7 @@ export function SecretsVaultClient({
           <ul className="divide-y divide-border rounded-[var(--radius-md)] border border-border text-xs">
             <AnimatePresence initial={false}>
               {rows.map((r, i) => (
-                <motion.li
+                <m.li
                   key={r.id}
                   layout
                   initial={{ opacity: 0, y: 6 }}
@@ -128,7 +129,7 @@ export function SecretsVaultClient({
                   >
                     <Trash2 className="h-3.5 w-3.5" aria-hidden />
                   </Button>
-                </motion.li>
+                </m.li>
               ))}
             </AnimatePresence>
           </ul>

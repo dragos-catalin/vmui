@@ -3,7 +3,7 @@
 import { ContainerPanel, type HostSummary } from "@/components/containers/container-panel";
 import { Badge, Button, EmptyState, PageSection, Stat, StatGrid } from "@/components/ui";
 import { Play, Server, Square, TerminalSquare } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useCallback, useState } from "react";
@@ -73,7 +73,7 @@ export function ContainersOverview({ hosts }: { hosts: ContainerHost[] }) {
         const summary = summaries[host.id];
         const name = host.name ?? host.providerInstanceId;
         return (
-          <motion.div
+          <m.div
             key={host.id}
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
@@ -108,7 +108,7 @@ export function ContainersOverview({ hosts }: { hosts: ContainerHost[] }) {
             >
               <ContainerPanel instanceId={host.id} onSummary={onSummary} />
             </PageSection>
-          </motion.div>
+          </m.div>
         );
       })}
     </>

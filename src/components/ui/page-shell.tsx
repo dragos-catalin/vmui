@@ -41,20 +41,20 @@ export function PageHeader({
 }) {
   return (
     <header className={cn("space-y-2", className)}>
-      {breadcrumbs && <div className="text-xs text-muted">{breadcrumbs}</div>}
+      {breadcrumbs && <div className="text-xs text-fg-muted">{breadcrumbs}</div>}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
           {icon && (
-            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-bg-muted text-primary [&>svg]:size-5" aria-hidden>
+            <span className="grid size-9 shrink-0 place-items-center rounded-[var(--radius-md)] bg-bg-muted text-primary-text [&>svg]:size-5" aria-hidden>
               {icon}
             </span>
           )}
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="font-display text-2xl font-semibold tracking-tight">{title}</h1>
+              <h1 className="min-w-0 break-words font-display text-2xl font-semibold tracking-[-0.01em]">{title}</h1>
               {badge}
             </div>
-            {description && <p className="mt-1 text-sm text-muted">{description}</p>}
+            {description && <p className="mt-1 text-sm text-fg-muted">{description}</p>}
           </div>
         </div>
         {actions && <div className="flex min-w-0 flex-wrap gap-2 sm:shrink-0">{actions}</div>}
@@ -84,18 +84,14 @@ export function PageSection({
     <section id={id} aria-labelledby={titleId} className={cn("surface min-w-0 p-4 sm:p-5", className)}>
       <header className="mb-4 flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
         <div className="min-w-0 flex-1 basis-[12rem]">
-          <h2 id={titleId} className="text-sm font-semibold">
+          <h2 id={titleId} className="font-display text-base font-semibold tracking-[-0.01em]">
             {title}
           </h2>
-          {description && <p className="mt-0.5 text-xs leading-snug text-muted">{description}</p>}
+          {description && <p className="mt-0.5 text-xs leading-snug text-fg-muted">{description}</p>}
         </div>
         {action && <div className="flex min-w-0 flex-wrap items-center gap-2 sm:shrink-0">{action}</div>}
       </header>
       {children}
     </section>
   );
-}
-
-export function ContextRail({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <aside className={cn("hidden w-[var(--spacing-rail)] shrink-0 space-y-4 2xl:block", className)}>{children}</aside>;
 }

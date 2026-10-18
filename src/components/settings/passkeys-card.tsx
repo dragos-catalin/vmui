@@ -93,7 +93,7 @@ export function PasskeysCard() {
         cell: ({ row }) => (
           <span className="flex min-w-0 items-center gap-2 font-medium">
             <KeyRound className="size-3.5 shrink-0 text-fg-muted" aria-hidden />
-            <span className="truncate">{row.original.label}</span>
+            <span className="truncate" title={row.original.label}>{row.original.label}</span>
           </span>
         ),
       },

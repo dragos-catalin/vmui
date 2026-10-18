@@ -2,12 +2,19 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Panel, Subsection } from "@/components/ui/settings-panel";
+import { SkeletonList } from "@/components/ui/skeleton";
+import { useAction } from "@/hooks/use-action";
 import { usePairedDevices } from "@/hooks/use-poll";
+import { err, ok, type ActionResult } from "@/lib/action-result";
 import { Check, Laptop, Smartphone, Trash2, X } from "lucide-react";
+import { AnimatePresence } from "motion/react";
+import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
 import * as React from "react";
 import { toast } from "sonner";
+import { EASE_OUT } from "./home-motion";
 
 type T = ReturnType<typeof useTranslations<"notify.devices">>;
 
@@ -17,9 +24,23 @@ const PLATFORM_KEYS = ["android", "ios", "windows", "macos", "linux", "web"] as 
  *  pairing request pops up here (and as a toast) within a second. */
 export function PairedDevicesCard() {
   const t = useTranslations("notify.devices");
+  const common = useTranslations("common");
+  const confirm = useConfirm();
   const { data, pending } = usePairedDevices();
   const [busy, setBusy] = React.useState<string | null>(null);
   const announced = React.useRef(new Set<string>());
+  const action = useAction(
+    async (body: Record<string, unknown>): Promise<ActionResult> => {
+      try {
+        const r = await fetch("/api/devices", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+        const j = (await r.json()) as { ok: boolean; error?: string };
+        return j.ok ? ok() : err(j.error ?? t("opError"));
+      } catch (e) {
+        return err(e instanceof Error ? e.message : String(e));
+      }
+    },
+    { refresh: false, error: t("opError") },
+  );
 
   React.useEffect(() => {
     for (const p of pending) {
@@ -32,16 +53,13 @@ export function PairedDevicesCard() {
 
   const op = async (body: Record<string, unknown>, okMsg: string) => {
     setBusy(String(body.id));
-    try {
-      const r = await fetch("/api/devices", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-      const j = (await r.json()) as { ok: boolean; error?: string };
-      if (!j.ok) throw new Error(j.error ?? t("opError"));
-      toast.success(okMsg);
-    } catch (e) {
-      toast.error(String(e).replace(/^Error:\s*/, ""));
-    } finally {
-      setBusy(null);
-    }
+    const r = await action.run(body);
+    setBusy(null);
+    if (r.ok) toast.success(okMsg);
+  };
+  const revoke = async (id: string, name: string) => {
+    const yes = await confirm({ title: t("revokeConfirm", { name }), tone: "danger", confirmText: t("revoke"), cancelText: common("cancel") });
+    if (yes) await op({ op: "revoke", id }, t("revoked", { name }));
   };
 
   const approved = data?.devices.filter((d) => d.status === "approved") ?? [];
@@ -64,16 +82,16 @@ export function PairedDevicesCard() {
               <li key={p.id} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
                 <Icon platform={p.platform} />
                 <div className="min-w-0">
-                  <div className="min-w-0 truncate text-sm font-medium">{p.name}</div>
+                  <div className="min-w-0 truncate text-sm font-medium" title={p.name}>{p.name}</div>
                   <div className="truncate text-xs text-muted">{platformLabel(t, p.platform)} · {t("requestFrom", { ip: p.lastIp ?? t("unknownIp") })}</div>
                 </div>
                 <div className="font-mono text-lg tabular-nums tracking-widest">{p.code}</div>
                 <div className="col-span-3 flex justify-end gap-2">
-                  <Button size="sm" variant="ghost" className="shrink-0" aria-label={t("reject")} disabled={busy === p.id} onClick={() => void op({ op: "reject", id: p.id }, t("rejected"))}>
-                    <X className="size-4" /><span className="hidden sm:inline">{t("reject")}</span>
+                  <Button size="sm" variant="ghost" className="shrink-0" disabled={busy === p.id} onClick={() => void op({ op: "reject", id: p.id }, t("rejected"))}>
+                    <X className="size-4" aria-hidden /><span className="sr-only sm:not-sr-only">{t("reject")}</span>
                   </Button>
-                  <Button size="sm" className="shrink-0" aria-label={t("approve")} disabled={busy === p.id} onClick={() => void op({ op: "approve", id: p.id, code: p.code }, t("approved", { name: p.name }))}>
-                    <Check className="size-4" /><span className="hidden sm:inline">{t("approve")}</span>
+                  <Button size="sm" className="shrink-0" disabled={busy === p.id} onClick={() => void op({ op: "approve", id: p.id, code: p.code }, t("approved", { name: p.name }))}>
+                    <Check className="size-4" aria-hidden /><span className="sr-only sm:not-sr-only">{t("approve")}</span>
                   </Button>
                 </div>
               </li>
@@ -83,16 +101,25 @@ export function PairedDevicesCard() {
       )}
 
       {!data ? (
-        <p className="text-xs text-muted">{t("loading")}</p>
+        <div role="status" aria-label={t("loading")}>
+          <SkeletonList rows={2} />
+        </div>
       ) : approved.length === 0 && data.pending.length === 0 ? (
         <p className="text-sm text-muted">{t("empty")}</p>
       ) : (
-        <ul className="divide-y divide-[var(--color-border)]">
-          {approved.map((d) => (
-            <li key={d.id} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 py-2.5">
+        <ul className="divide-y divide-border">
+          <AnimatePresence initial={false}>
+          {approved.map((d, i) => (
+            <m.li
+              key={d.id}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0, transition: { duration: 0.22, ease: EASE_OUT, delay: Math.min(i, 8) * 0.035 } }}
+              exit={{ opacity: 0, x: 32, transition: { duration: 0.18 } }}
+              className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 py-2.5"
+            >
               <Icon platform={d.platform} />
               <div className="min-w-0">
-                <div className="min-w-0 truncate text-sm font-medium">{d.name}</div>
+                <div className="min-w-0 truncate text-sm font-medium" title={d.name}>{d.name}</div>
                 <div className="truncate text-xs text-muted" title={d.approvedBy ? t("approvedBy", { name: d.approvedBy }) : undefined}>
                   {[
                     platformLabel(t, d.platform),
@@ -102,11 +129,12 @@ export function PairedDevicesCard() {
                   ].filter(Boolean).join(" · ")}
                 </div>
               </div>
-              <Button size="sm" variant="ghost" className="shrink-0" aria-label={t("revokeAria", { name: d.name })} disabled={busy === d.id} onClick={() => { if (confirm(t("revokeConfirm", { name: d.name }))) void op({ op: "revoke", id: d.id }, t("revoked", { name: d.name })); }}>
-                <Trash2 className="size-4" /><span className="hidden sm:inline">{t("revoke")}</span>
+              <Button size="sm" variant="ghost" className="shrink-0" aria-label={t("revokeAria", { name: d.name })} disabled={busy === d.id} onClick={() => void revoke(d.id, d.name)}>
+                <Trash2 className="size-4" aria-hidden /><span className="hidden sm:inline">{t("revoke")}</span>
               </Button>
-            </li>
+            </m.li>
           ))}
+          </AnimatePresence>
         </ul>
       )}
       {revoked.length > 0 && <p className="mt-3 text-xs text-muted">{t("revokedCount", { count: revoked.length })}</p>}
@@ -115,7 +143,7 @@ export function PairedDevicesCard() {
 }
 
 function Icon({ platform }: { platform: string }) {
-  return /android|ios|iphone/i.test(platform) ? <Smartphone className="size-5 text-muted-foreground" /> : <Laptop className="size-5 text-muted-foreground" />;
+  return /android|ios|iphone/i.test(platform) ? <Smartphone className="size-5 text-fg-muted" aria-hidden /> : <Laptop className="size-5 text-fg-muted" aria-hidden />;
 }
 
 function platformLabel(t: T, platform: string): string {

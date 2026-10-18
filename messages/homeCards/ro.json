@@ -11,7 +11,13 @@
       "living_room": "Sufragerie",
       "kitchen": "Bucătărie",
       "office": "Birou"
-    }
+    },
+    "hintKeys": "Sau focalizează un dispozitiv și folosește săgețile (Shift = pași mai mari).",
+    "position": "{name}: {room}, {x}% pe orizontală, {y}% pe verticală",
+    "movable": "dispozitiv mutabil",
+    "legend": "Camere",
+    "legendOn": "{n, plural, =0 {totul oprit} one {# pornit} few {# pornite} other {# pornite}}",
+    "legendTotal": "{n, plural, one {# dispozitiv} few {# dispozitive} other {# de dispozitive}}"
   },
   "kinds": {
     "light": "Lumină",

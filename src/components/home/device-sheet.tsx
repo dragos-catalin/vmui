@@ -17,11 +17,15 @@ import {
 } from "@/server/actions/home";
 import type { PlacedDevice } from "@/server/queries/home";
 import { ExternalLink, Minus, Play, Plus, Power, Volume1, Volume2, VolumeX } from "lucide-react";
+import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
 import * as React from "react";
-import { toast } from "sonner";
 import { KIND_ICON, useKindLabel } from "./device-icon";
+import { SPRING } from "./home-motion";
+import { useHomeAction } from "./use-home-action";
 import { brightnessPct, hexToRgb, isOn, kelvinOf, kelvinToCss, rgbOf, rgbToHex, useEntity, useHomeStates } from "./use-home-states";
+
+const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
 const PRESETS: Array<{ id: "cinema" | "ocean" | "forest" | "violet" | "rose" | "daylight"; rgb: [number, number, number] }> = [
   { id: "cinema", rgb: [255, 120, 40] },
@@ -36,29 +40,35 @@ const HVAC_MODES = ["off", "cool", "heat", "dry", "fan_only", "auto", "heat_cool
 type HvacMode = (typeof HVAC_MODES)[number];
 const isHvacMode = (m: string): m is HvacMode => (HVAC_MODES as readonly string[]).includes(m);
 
-export function DeviceSheet({ device, haUrl, onClose, readOnly = false }: { device: PlacedDevice | null; haUrl: string | null; onClose: () => void; readOnly?: boolean }) {
+export function DeviceSheet({ device, haUrl, onClose, readOnly = false, layoutId }: { device: PlacedDevice | null; haUrl: string | null; onClose: () => void; readOnly?: boolean; layoutId?: string }) {
   const t = useTranslations("homeCards.device");
   const kindLabel = useKindLabel();
   return (
     <Sheet open={device !== null} onOpenChange={(o) => !o && onClose()}>
       {device && (
         <SheetContent title={device.name} description={t("subtitle", { kind: kindLabel(device.kind), via: device.via })}>
-          <DeviceBody device={device} haUrl={haUrl} readOnly={readOnly} />
+          <DeviceBody device={device} haUrl={haUrl} readOnly={readOnly} layoutId={layoutId} />
         </SheetContent>
       )}
     </Sheet>
   );
 }
 
-function DeviceBody({ device, haUrl, readOnly }: { device: PlacedDevice; haUrl: string | null; readOnly: boolean }) {
+function DeviceBody({ device, haUrl, readOnly, layoutId }: { device: PlacedDevice; haUrl: string | null; readOnly: boolean; layoutId?: string }) {
   const t = useTranslations("homeCards.device");
   const s = useEntity(device.entity);
   const Icon = KIND_ICON[device.kind];
+  const on = isOn(s);
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center gap-3 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[color-mix(in_oklch,var(--color-bg-muted)_60%,transparent)] p-3">
-        <span className="grid size-10 shrink-0 place-items-center rounded-full bg-[var(--color-surface)] text-[var(--color-fg)]">
-          <Icon className="h-5 w-5" />
+      {/* Shares a layoutId with the tile / plan dot that opened it: the surface morphs into this header. */}
+      <m.div
+        layoutId={layoutId}
+        transition={SPRING}
+        className="flex flex-wrap items-center gap-3 rounded-[var(--radius-lg)] border border-border bg-[color-mix(in_oklch,var(--color-bg-muted)_60%,transparent)] p-3"
+      >
+        <span className={cn("grid size-10 shrink-0 place-items-center rounded-full", on ? "bg-lit text-lit-fg" : "bg-surface text-fg")}>
+          <Icon className="size-5" aria-hidden />
         </span>
         <div className="min-w-0 flex-1 basis-[10rem]">
           <p className="text-sm font-semibold">{friendlyState(device, s, t)}</p>
@@ -66,7 +76,7 @@ function DeviceBody({ device, haUrl, readOnly }: { device: PlacedDevice; haUrl: 
         </div>
         {device.ambilight && <Badge variant="info">{t("ambilightZone", { zone: device.ambilight })}</Badge>}
         {readOnly && <Badge variant="muted">{t("viewOnly")}</Badge>}
-      </div>
+      </m.div>
 
       {!readOnly && (device.kind === "light" || device.kind === "strip" || device.kind === "projector") ? (
         device.entity ? <LightControls entity={device.entity} whiteOnly={device.whiteOnly} /> : <StaticStrip device={device} />
@@ -82,9 +92,9 @@ function DeviceBody({ device, haUrl, readOnly }: { device: PlacedDevice; haUrl: 
           href={`${haUrl}/config/entities?search=${encodeURIComponent(device.entity)}`}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-[var(--color-fg)]"
+          className={cn("inline-flex items-center gap-1.5 rounded-sm text-xs text-muted hover:text-fg", FOCUS)}
         >
-          {t("openInHa")} <ExternalLink className="h-3 w-3" />
+          {t("openInHa")} <ExternalLink className="size-3" aria-hidden />
         </a>
       )}
     </div>
@@ -138,20 +148,18 @@ function LightControls({ entity, whiteOnly }: { entity: string; whiteOnly?: bool
   const minK = (s?.attributes.min_color_temp_kelvin as number | undefined) ?? 2000;
   const maxK = (s?.attributes.max_color_temp_kelvin as number | undefined) ?? 6500;
 
-  const call = async (p: Parameters<typeof setLightAction>[0]) => {
-    const r = await setLightAction(p);
-    if (!r.ok) toast.error(r.error);
-  };
+  const light = useHomeAction(setLightAction);
+  const toggle = useHomeAction(toggleEntityAction);
+  const call = (p: Parameters<typeof setLightAction>[0]) => void light.run(p);
 
   return (
     <div className="space-y-5">
       <Field inline label={t("power")}>
         <Switch
           checked={on}
-          onCheckedChange={async (v) => {
+          onCheckedChange={(v) => {
             patch(entity, { state: v ? "on" : "off" });
-            const r = await toggleEntityAction({ entity, on: v });
-            if (!r.ok) toast.error(r.error);
+            void toggle.run({ entity, on: v });
           }}
           aria-label={t("power")}
         />
@@ -193,8 +201,11 @@ function LightControls({ entity, whiteOnly }: { entity: string; whiteOnly?: bool
       {hasRgb && (
         <div className="space-y-2">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-            <span className="min-w-0 truncate text-sm">{t("colour")}</span>
-            <label className="relative inline-flex h-7 w-12 shrink-0 cursor-pointer overflow-hidden rounded-full border border-[var(--color-border)]" style={{ background: hex }}>
+            <span className="min-w-0 truncate text-sm" title={t("colour")}>{t("colour")}</span>
+            <label
+              className="relative inline-flex h-7 w-12 shrink-0 cursor-pointer overflow-hidden rounded-full border border-border-strong focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring"
+              style={{ background: hex }}
+            >
               <input
                 type="color"
                 value={hex}
@@ -222,9 +233,11 @@ function LightControls({ entity, whiteOnly }: { entity: string; whiteOnly?: bool
                   call({ entity, rgb: p.rgb, transition: 0.4 });
                 }}
                 className={cn(
-                  "aspect-square rounded-full border-2 transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]",
-                  hex === rgbToHex(p.rgb) ? "border-[var(--color-fg)]" : "border-transparent",
+                  "aspect-square rounded-full border-2 transition-transform hover:scale-105",
+                  FOCUS,
+                  hex === rgbToHex(p.rgb) ? "border-fg" : "border-transparent",
                 )}
+                aria-pressed={hex === rgbToHex(p.rgb)}
                 style={{ background: `rgb(${p.rgb.join(" ")})` }}
               />
             ))}
@@ -251,46 +264,48 @@ function ClimateControls({ entity }: { entity: string }) {
   const target = typeof s?.attributes.temperature === "number" ? s.attributes.temperature : 24;
   const current = s?.attributes.current_temperature as number | undefined;
   const step = (s?.attributes.target_temp_step as number | undefined) ?? 1;
+  const climate = useHomeAction(setClimateAction);
 
-  const setTemp = async (t: number) => {
-    patch(entity, { attributes: { temperature: t } });
-    const r = await setClimateAction({ entity, temperature: t });
-    if (!r.ok) toast.error(r.error);
+  const setTemp = (temp: number) => {
+    patch(entity, { attributes: { temperature: temp } });
+    void climate.run({ entity, temperature: temp });
   };
 
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-center gap-6 py-2">
         <Button variant="outline" size="icon" aria-label={t("lower")} onClick={() => setTemp(Math.max(16, target - step))}>
-          <Minus className="h-4 w-4" />
+          <Minus className="size-4" aria-hidden />
         </Button>
         <div className="text-center">
-          <div className="text-5xl font-semibold tabular-nums tracking-tight">{target}°</div>
+          <div className="text-5xl font-semibold tabular-nums tracking-tight" aria-live="polite">{target}°</div>
           <div className="text-xs text-muted">{current !== undefined ? t("room", { t: current }) : t("target")}</div>
         </div>
         <Button variant="outline" size="icon" aria-label={t("raise")} onClick={() => setTemp(Math.min(30, target + step))}>
-          <Plus className="h-4 w-4" />
+          <Plus className="size-4" aria-hidden />
         </Button>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-        {modes.map((m) => (
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-2">
+        {modes.map((mode) => (
           <button
-            key={m}
+            key={mode}
             type="button"
-            onClick={async () => {
-              patch(entity, { state: m });
-              const r = await setClimateAction({ entity, hvacMode: m });
-              if (!r.ok) toast.error(r.error);
+            aria-pressed={s?.state === mode}
+            title={t(`hvac.${mode}`)}
+            onClick={() => {
+              patch(entity, { state: mode });
+              void climate.run({ entity, hvacMode: mode });
             }}
             className={cn(
-              "min-w-0 truncate rounded-[var(--radius-md)] border px-2 py-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]",
-              s?.state === m
-                ? "border-[var(--color-primary)] bg-[color-mix(in_oklch,var(--color-primary)_16%,transparent)] text-[var(--color-fg)]"
-                : "border-[var(--color-border)] text-muted hover:text-[var(--color-fg)]",
+              "min-h-9 min-w-0 text-balance rounded-[var(--radius-md)] border px-2 py-2 text-xs font-medium leading-tight transition-colors",
+              FOCUS,
+              s?.state === mode
+                ? "border-primary bg-[color-mix(in_oklch,var(--color-primary)_16%,transparent)] text-fg"
+                : "border-border text-muted hover:text-fg",
             )}
           >
-            {t(`hvac.${m}`)}
+            {t(`hvac.${mode}`)}
           </button>
         ))}
       </div>
@@ -299,10 +314,7 @@ function ClimateControls({ entity }: { entity: string }) {
         <Field inline label={t("fan")}>
           <NativeSelect
             value={String(s?.attributes.fan_mode ?? "")}
-            onChange={async (e) => {
-              const r = await setClimateAction({ entity, fanMode: e.target.value });
-              if (!r.ok) toast.error(r.error);
-            }}
+            onChange={(e) => void climate.run({ entity, fanMode: e.target.value })}
             aria-label={t("fanMode")}
           >
             {fanModes.map((f) => (
@@ -324,33 +336,31 @@ function MediaControls({ entity }: { entity: string }) {
   const s = useEntity(entity);
   const on = isOn(s);
   const vol = typeof s?.attributes.volume_level === "number" ? Math.round(s.attributes.volume_level * 100) : null;
-  const send = async (command: Parameters<typeof mediaCommandAction>[0]["command"]) => {
-    const r = await mediaCommandAction({ entity, command });
-    if (!r.ok) toast.error(r.error);
-  };
+  const media = useHomeAction(mediaCommandAction);
+  const send = (command: Parameters<typeof mediaCommandAction>[0]["command"]) => void media.run({ entity, command });
   return (
     <div className="space-y-4">
       {s?.attributes.media_title ? (
-        <p className="truncate text-sm">
+        <p className="truncate text-sm" title={String(s.attributes.media_title)}>
           <span className="text-muted">{t("nowPlaying")} · </span>
           {String(s.attributes.media_title)}
         </p>
       ) : null}
       <div className="grid grid-cols-5 gap-2">
         <Button variant={on ? "primary" : "outline"} size="icon" aria-label={on ? t("turnOff") : t("turnOn")} onClick={() => send(on ? "turn_off" : "turn_on")}>
-          <Power className="h-4 w-4" />
+          <Power className="size-4" aria-hidden />
         </Button>
         <Button variant="outline" size="icon" aria-label={t("playPause")} onClick={() => send("play_pause")} disabled={!on}>
-          <Play className="h-4 w-4" />
+          <Play className="size-4" aria-hidden />
         </Button>
         <Button variant="outline" size="icon" aria-label={t("volumeDown")} onClick={() => send("volume_down")} disabled={!on}>
-          <Volume1 className="h-4 w-4" />
+          <Volume1 className="size-4" aria-hidden />
         </Button>
         <Button variant="outline" size="icon" aria-label={t("volumeUp")} onClick={() => send("volume_up")} disabled={!on}>
-          <Volume2 className="h-4 w-4" />
+          <Volume2 className="size-4" aria-hidden />
         </Button>
         <Button variant="outline" size="icon" aria-label={t("mute")} onClick={() => send("volume_mute")} disabled={!on}>
-          <VolumeX className="h-4 w-4" />
+          <VolumeX className="size-4" aria-hidden />
         </Button>
       </div>
       {vol !== null && <p className="text-xs tabular-nums text-muted">{t("volume", { pct: vol })}</p>}
@@ -364,12 +374,22 @@ function SensorReadout({ device }: { device: PlacedDevice }) {
   const t = useTranslations("homeCards.device");
   const s = useEntity(device.entity);
   if (!s) return null;
+  const binary = device.kind !== "sensor";
+  const yes = s.state === "on";
+  const stateText = device.kind === "door" ? (yes ? t("state.open") : t("state.closed")) : yes ? t("state.someoneHere") : t("state.nobody");
   return (
-    <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] p-4 text-center">
-      <div className="text-4xl font-semibold tabular-nums tracking-tight">
-        {device.kind === "sensor" ? Number(s.state).toFixed(1) : s.state === "on" ? "●" : "○"}
-        <span className="ml-1 text-base text-muted">{String(s.attributes.unit_of_measurement ?? "")}</span>
-      </div>
+    <div className="rounded-[var(--radius-lg)] border border-border p-4 text-center">
+      {binary ? (
+        <div className="flex items-center justify-center gap-2 text-2xl font-semibold tracking-tight">
+          <span aria-hidden className={cn("size-3 rounded-full", yes ? "bg-lit" : "border-2 border-border-strong")} />
+          {stateText}
+        </div>
+      ) : (
+        <div className="text-4xl font-semibold tabular-nums tracking-tight">
+          {Number(s.state).toFixed(1)}
+          <span className="ml-1 text-base text-muted">{String(s.attributes.unit_of_measurement ?? "")}</span>
+        </div>
+      )}
       <p className="mt-1 text-xs text-muted">{t("sensor.updated", { ago: timeAgo(s.last_updated, t) })}</p>
     </div>
   );
@@ -395,19 +415,21 @@ function ExtraRow({ id }: { id: string }) {
   const t = useTranslations("homeCards.device");
   const s = useEntity(id);
   const { patch } = useHomeStates();
+  const toggle = useHomeAction(toggleEntityAction);
+  const press = useHomeAction(toggleEntityAction, { success: t("sent") });
+  const select = useHomeAction(selectOptionAction);
   const domain = id.split(".")[0];
   const label = String(s?.attributes.friendly_name ?? id).replace(/^(AC Mami|AC|Mic Enable LED ARGB|Temperature and humidity sensor)\s*/, "");
   if (!s) return null;
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-2.5">
-      <span className="min-w-0 truncate text-sm">{label || id}</span>
+      <span className="min-w-0 truncate text-sm" title={label || id}>{label || id}</span>
       {domain === "switch" ? (
         <Switch
           checked={s.state === "on"}
-          onCheckedChange={async (v) => {
+          onCheckedChange={(v) => {
             patch(id, { state: v ? "on" : "off" });
-            const r = await toggleEntityAction({ entity: id, on: v });
-            if (!r.ok) toast.error(r.error);
+            void toggle.run({ entity: id, on: v });
           }}
           aria-label={label}
         />
@@ -415,10 +437,9 @@ function ExtraRow({ id }: { id: string }) {
         <NativeSelect
           className="h-8 max-w-[160px] text-xs"
           value={s.state}
-          onChange={async (e) => {
+          onChange={(e) => {
             patch(id, { state: e.target.value });
-            const r = await selectOptionAction({ entity: id, option: e.target.value });
-            if (!r.ok) toast.error(r.error);
+            void select.run({ entity: id, option: e.target.value });
           }}
           aria-label={label}
         >
@@ -432,10 +453,8 @@ function ExtraRow({ id }: { id: string }) {
         <Button
           size="sm"
           variant="outline"
-          onClick={async () => {
-            const r = await toggleEntityAction({ entity: id, on: true });
-            r.ok ? toast.success(t("sent")) : toast.error(r.error);
-          }}
+          loading={press.pending}
+          onClick={() => void press.run({ entity: id, on: true })}
         >
           {t("press")}
         </Button>
@@ -454,7 +473,7 @@ function SliderField({ label, value, children }: { label: string; value: string;
   return (
     <div className="space-y-1.5">
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-xs text-muted">
-        <span className="min-w-0 truncate">{label}</span>
+        <span className="min-w-0 truncate" title={label}>{label}</span>
         <span className="tabular-nums">{value}</span>
       </div>
       {children}
@@ -474,7 +493,8 @@ function NativeSelect({ className, ...props }: React.SelectHTMLAttributes<HTMLSe
   return (
     <select
       className={cn(
-        "h-9 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color-mix(in_oklch,var(--color-primary)_55%,transparent)]",
+        "h-9 rounded-[var(--radius-md)] border border-border-strong bg-surface px-2 text-sm",
+        FOCUS,
         className,
       )}
       {...props}

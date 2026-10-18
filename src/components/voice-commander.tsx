@@ -1,5 +1,6 @@
 "use client";
 
+import { startNavProgress } from "@/components/nav/nav-progress";
 import { Mic, MicOff, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
@@ -112,6 +113,7 @@ export function VoiceCommander() {
     }
     if (best) {
       toast.success(t("goingTo", { label: t(`commands.${best.cmd.key}`) }));
+      startNavProgress(best.cmd.href);
       router.push(best.cmd.href);
       setOpen(false);
     } else {
@@ -122,8 +124,8 @@ export function VoiceCommander() {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-20 z-[90] flex justify-center px-4 sm:bottom-8">
-      <div className="flex w-full max-w-md items-center gap-3 rounded-full border border-border bg-surface p-2 shadow-2xl">
+    <div className="pointer-events-none fixed inset-x-0 bottom-20 z-[var(--z-toast)] flex justify-center px-4 sm:bottom-8">
+      <div role="region" aria-label={t("hint")} className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-full border border-border bg-surface p-2 shadow-[var(--shadow-lg)]">
         {!supported ? (
           <span className="px-3 text-sm text-fg-muted">{t("unsupported")}</span>
         ) : (
@@ -131,12 +133,13 @@ export function VoiceCommander() {
             <button
               type="button"
               onClick={listening ? stop : start}
-              className={`flex h-10 w-10 items-center justify-center rounded-full focus-visible:ring-2 focus-visible:ring-primary ${listening ? "bg-danger text-danger-fg animate-pulse" : "bg-primary text-primary-fg"}`}
+              aria-pressed={listening}
+              className={`flex size-10 shrink-0 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${listening ? "bg-danger text-danger-fg motion-safe:animate-pulse" : "bg-primary text-primary-fg"}`}
               aria-label={listening ? t("stop") : t("start")}
             >
               {listening ? <MicOff className="h-4 w-4" aria-hidden /> : <Mic className="h-4 w-4" aria-hidden />}
             </button>
-            <span className="flex-1 truncate font-mono text-xs text-fg-muted">
+            <span className="min-w-0 flex-1 truncate font-mono text-xs text-fg-muted" aria-live="polite">
               {listening ? (transcript || t("listening")) : t("hint")}
             </span>
           </>
@@ -145,9 +148,9 @@ export function VoiceCommander() {
           type="button"
           onClick={() => { stop(); setOpen(false); }}
           aria-label={t("close")}
-          className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-surface-muted focus-visible:ring-2 focus-visible:ring-primary"
+          className="flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
-          <X className="h-3 w-3" aria-hidden />
+          <X className="size-4" aria-hidden />
         </button>
       </div>
     </div>

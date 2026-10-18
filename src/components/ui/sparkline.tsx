@@ -1,6 +1,7 @@
 "use client";
 
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
+import { useTranslations } from "next-intl";
 import { useId } from "react";
 
 interface SparklineProps {
@@ -12,13 +13,19 @@ interface SparklineProps {
 }
 
 /**
- * Tiny inline SVG sparkline. No deps beyond framer-motion (already in app).
- * Values come from the server already sorted oldest -> newest.
+ * Tiny inline SVG sparkline. Values come from the server already sorted oldest -> newest.
+ * The draw-in animation is skipped automatically under reduced motion (MotionConfig in the provider).
  */
 export function Sparkline({ values, width = 96, height = 24, className, ariaLabel }: SparklineProps) {
   const gradId = useId();
+  const t = useTranslations("common");
   if (values.length === 0) {
-    return <span className={`inline-block text-[10px] text-muted ${className ?? ""}`}>—</span>;
+    return (
+      <span className={`inline-block text-2xs text-fg-muted ${className ?? ""}`} title={t("noData")}>
+        <span aria-hidden>—</span>
+        <span className="sr-only">{t("noData")}</span>
+      </span>
+    );
   }
   const max = Math.max(...values);
   const min = Math.min(...values);
@@ -30,15 +37,14 @@ export function Sparkline({ values, width = 96, height = 24, className, ariaLabe
     return [x, y] as const;
   });
   const linePath = pts.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
-  const areaPath =
-    `${linePath} L${(pts.at(-1)?.[0] ?? 0).toFixed(1)},${height} L0,${height} Z`;
+  const areaPath = `${linePath} L${(pts.at(-1)?.[0] ?? 0).toFixed(1)},${height} L0,${height} Z`;
   return (
     <svg
       width={width}
       height={height}
       viewBox={`0 0 ${width} ${height}`}
       role="img"
-      aria-label={ariaLabel ?? "trend"}
+      aria-label={ariaLabel ?? t("trend")}
       className={className}
       preserveAspectRatio="none"
     >
@@ -48,14 +54,14 @@ export function Sparkline({ values, width = 96, height = 24, className, ariaLabe
           <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
         </linearGradient>
       </defs>
-      <motion.path
+      <m.path
         d={areaPath}
         fill={`url(#${gradId})`}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
+        transition={{ duration: 0.36, ease: "easeOut" }}
       />
-      <motion.path
+      <m.path
         d={linePath}
         fill="none"
         stroke="currentColor"
@@ -64,9 +70,8 @@ export function Sparkline({ values, width = 96, height = 24, className, ariaLabe
         strokeLinejoin="round"
         initial={{ pathLength: 0, opacity: 0 }}
         animate={{ pathLength: 1, opacity: 1 }}
-        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
       />
     </svg>
   );
 }
-

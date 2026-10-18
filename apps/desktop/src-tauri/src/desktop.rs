@@ -3,8 +3,9 @@
 use crate::i18n::{t, tf};
 use crate::{lights, stack};
 use serde_json::{json, Value};
-use std::sync::Mutex;
-use std::time::Duration;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant};
 use tauri::image::Image;
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
@@ -12,9 +13,23 @@ use tauri::{AppHandle, Emitter, Manager, Wry};
 use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
-const TRAY_OK: &[u8] = include_bytes!("../icons/tray-ok-32.png");
-const TRAY_WARN: &[u8] = include_bytes!("../icons/tray-warn-32.png");
-const TRAY_DOWN: &[u8] = include_bytes!("../icons/tray-down-32.png");
+// Vatra tray marks: `-dark` = light lines for a dark taskbar, `-light` = dark lines for a light one.
+// 32 px PNGs: Windows scales them for the tray (tauri's Image has no multi-size ICO loader here).
+const TRAY_OK_DARK: &[u8] = include_bytes!("../icons/tray/tray-ok-dark-32.png");
+const TRAY_OK_LIGHT: &[u8] = include_bytes!("../icons/tray/tray-ok-light-32.png");
+const TRAY_WARN_DARK: &[u8] = include_bytes!("../icons/tray/tray-warn-dark-32.png");
+const TRAY_WARN_LIGHT: &[u8] = include_bytes!("../icons/tray/tray-warn-light-32.png");
+const TRAY_DOWN_DARK: &[u8] = include_bytes!("../icons/tray/tray-down-dark-32.png");
+const TRAY_DOWN_LIGHT: &[u8] = include_bytes!("../icons/tray/tray-down-light-32.png");
+const TRAY_ACTIVE_DARK: &[u8] = include_bytes!("../icons/tray/tray-active-dark-32.png");
+const TRAY_ACTIVE_LIGHT: &[u8] = include_bytes!("../icons/tray/tray-active-light-32.png");
+
+/// Started by the logon task with `--hidden`: the window stays in the tray until asked for.
+static HIDDEN_START: AtomicBool = AtomicBool::new(false);
+/// The frontend called `app_ready` (first paint done).
+static READY: AtomicBool = AtomicBool::new(false);
+/// Process start, for the cold-start log line.
+static START: OnceLock<Instant> = OnceLock::new();
 
 const OPEN_SHORTCUT: &str = "ctrl+alt+v";
 const OPEN_SHORTCUT_LABEL: &str = "Ctrl+Alt+V";
@@ -39,6 +54,10 @@ struct Tray {
     items: Mutex<Option<TrayItems>>,
     tooltip: Mutex<String>,
     offline: Mutex<Option<Vec<String>>>,
+    /// Any registry light on (from the 60 s lights read): the "active" amber badge.
+    lights_on: Mutex<bool>,
+    /// Last icon set, so an unchanged state costs no main-thread call.
+    icon_key: Mutex<String>,
 }
 
 #[derive(Default)]
@@ -47,13 +66,60 @@ pub(crate) struct State {
     pub(crate) last: Mutex<Option<stack::Health>>,
 }
 
-fn icon_for(state: &str) -> Image<'static> {
-    let bytes = match state {
-        "ok" => TRAY_OK,
-        "down" => TRAY_DOWN,
-        _ => TRAY_WARN,
+/// Windows taskbar theme (Settings > Personalisation > Colours > "Windows mode").
+#[cfg(windows)]
+fn taskbar_light() -> bool {
+    use winreg::enums::HKEY_CURRENT_USER;
+    use winreg::RegKey;
+    RegKey::predef(HKEY_CURRENT_USER)
+        .open_subkey(r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize")
+        .and_then(|k| k.get_value::<u32, _>("SystemUsesLightTheme"))
+        .map(|v| v == 1)
+        .unwrap_or(false)
+}
+
+#[cfg(not(windows))]
+fn taskbar_light() -> bool {
+    false
+}
+
+/// down/warn win over "active"; ok + a light on shows the amber flame badge.
+fn icon_key(state: &str, lit: bool, light: bool) -> String {
+    let s = match state {
+        "down" => "down",
+        "ok" if lit => "active",
+        "ok" => "ok",
+        _ => "warn",
+    };
+    format!("{s}-{}", if light { "light" } else { "dark" })
+}
+
+fn icon_for(key: &str) -> Image<'static> {
+    let bytes = match key {
+        "ok-dark" => TRAY_OK_DARK,
+        "ok-light" => TRAY_OK_LIGHT,
+        "down-dark" => TRAY_DOWN_DARK,
+        "down-light" => TRAY_DOWN_LIGHT,
+        "active-dark" => TRAY_ACTIVE_DARK,
+        "active-light" => TRAY_ACTIVE_LIGHT,
+        "warn-light" => TRAY_WARN_LIGHT,
+        _ => TRAY_WARN_DARK,
     };
     Image::from_bytes(bytes).expect("tray png")
+}
+
+fn update_icon(app: &AppHandle) {
+    let state = app.state::<State>().last.lock().unwrap().as_ref().map(|h| h.state.clone()).unwrap_or_else(|| "warn".into());
+    let lit = *app.state::<Tray>().lights_on.lock().unwrap();
+    let key = icon_key(&state, lit, taskbar_light());
+    if *app.state::<Tray>().icon_key.lock().unwrap() == key {
+        return;
+    }
+    if let Some(tray) = app.tray_by_id("main") {
+        if tray.set_icon(Some(icon_for(&key))).is_ok() {
+            *app.state::<Tray>().icon_key.lock().unwrap() = key;
+        }
+    }
 }
 
 pub fn show_main(app: &AppHandle) {
@@ -68,53 +134,62 @@ use crate::err;
 
 // ---------------------------------------------------------------- commands (window -> rust)
 
+/// Cached health from the tray loop; `fresh` (or no cache yet) runs a refresh, which also emits `health`.
 #[tauri::command]
-async fn health() -> stack::Health {
-    stack::health()
+async fn health(app: AppHandle, fresh: Option<bool>) -> stack::Health {
+    if !fresh.unwrap_or(false) {
+        if let Some(h) = app.state::<State>().last.lock().unwrap().clone() {
+            return h;
+        }
+    }
+    let a = app.clone();
+    let _ = tauri::async_runtime::spawn_blocking(move || refresh(&a)).await;
+    app.state::<State>().last.lock().unwrap().clone().unwrap_or_default()
 }
 
 #[tauri::command]
 async fn tasks() -> Vec<stack::TaskState> {
-    stack::task_states()
+    tauri::async_runtime::spawn_blocking(stack::task_states).await.unwrap_or_default()
 }
 
 #[tauri::command]
 async fn task_action(name: String, action: String) -> Result<(), String> {
-    err(match action.as_str() {
+    blocking(move || match action.as_str() {
         "start" => stack::task_start(&name),
         "stop" => stack::task_stop(&name),
         _ => stack::task_restart(&name),
     })
+    .await
 }
 
 #[tauri::command]
 async fn tail_log(name: String, lines: Option<usize>) -> Result<String, String> {
-    err(stack::tail_log(&name, lines.unwrap_or(200)))
+    blocking(move || stack::tail_log(&name, lines.unwrap_or(200))).await
 }
 
 #[tauri::command]
 async fn open_path(what: String) -> Result<(), String> {
-    err(stack::open_path(&what))
+    blocking(move || stack::open_path(&what)).await
 }
 
 #[tauri::command]
 async fn settings_get() -> Result<Value, String> {
-    err(stack::read_settings())
+    blocking(stack::read_settings).await
 }
 
 #[tauri::command]
 async fn settings_set(patch: Value) -> Result<Value, String> {
-    err(stack::write_settings(patch))
+    blocking(move || stack::write_settings(patch)).await
 }
 
 #[tauri::command]
 async fn ambilight_configure() -> Result<String, String> {
-    err(stack::ambilight_configure())
+    blocking(stack::ambilight_configure).await
 }
 
 #[tauri::command]
 async fn hyper_instances() -> Result<Vec<stack::HyperInstance>, String> {
-    err(stack::hyper_instances())
+    blocking(stack::hyper_instances).await
 }
 
 /// Raw JSON-API to one or all instances; the UI builds the command objects
@@ -122,37 +197,40 @@ async fn hyper_instances() -> Result<Vec<stack::HyperInstance>, String> {
 #[tauri::command]
 async fn hyper_send(commands: Vec<Value>, instances: Option<Vec<u32>>) -> Result<Vec<String>, String> {
     let inst = instances.unwrap_or_else(|| stack::HYPER_INSTANCES.to_vec());
-    Ok(stack::hyper_all(&commands, &inst))
+    blocking(move || Ok(stack::hyper_all(&commands, &inst))).await
 }
 
 #[tauri::command]
 async fn ambilight_mode(app: AppHandle, mode: String) -> Result<(), String> {
-    set_mode(&app, &mode)
+    match tauri::async_runtime::spawn_blocking(move || set_mode(&app, &mode)).await {
+        Ok(r) => r,
+        Err(e) => Err(e.to_string()),
+    }
 }
 
 #[tauri::command]
 async fn pc_action(action: String, value: Option<i64>) -> Result<String, String> {
-    err(stack::pc_action(&action, value))
+    blocking(move || stack::pc_action(&action, value)).await
 }
 
 #[tauri::command]
 async fn ha_call(domain: String, service: String, data: Value) -> Result<Value, String> {
-    err(stack::ha_post(&format!("services/{domain}/{service}"), data))
+    blocking(move || stack::ha_post(&format!("services/{domain}/{service}"), data)).await
 }
 
 #[tauri::command]
 async fn vmui_get(path: String) -> Result<Value, String> {
-    err(stack::vmui_get(&path))
+    blocking(move || stack::vmui_get(&path)).await
 }
 
 #[tauri::command]
 async fn vmui_send(method: String, path: String, body: Value) -> Result<Value, String> {
-    err(stack::vmui_send(&method, &path, body))
+    blocking(move || stack::vmui_send(&method, &path, body)).await
 }
 
 #[tauri::command]
 async fn devices_list() -> Result<Value, String> {
-    err(stack::pi_get("/api/devices", 8))
+    blocking(|| stack::pi_get("/api/devices", 8)).await
 }
 
 #[tauri::command]
@@ -203,11 +281,32 @@ async fn lang_set(app: AppHandle, lang: String) -> Result<(), String> {
 }
 
 /// Network/BLE calls can take seconds; keep them off the async runtime's workers.
-async fn blocking<T: Send + 'static>(f: impl FnOnce() -> anyhow::Result<T> + Send + 'static) -> Result<T, String> {
+pub(crate) async fn blocking<T: Send + 'static>(f: impl FnOnce() -> anyhow::Result<T> + Send + 'static) -> Result<T, String> {
     match tauri::async_runtime::spawn_blocking(f).await {
         Ok(r) => err(r),
         Err(e) => Err(e.to_string()),
     }
+}
+
+/// First paint done in the window: show it (unless this is the `--hidden` logon start) and log the cold
+/// start to desktop.log. Returns whether the window was shown (the splash only animates then).
+#[tauri::command]
+fn app_ready(app: AppHandle, cold_start_ms: Option<f64>, render_ms: Option<f64>) -> bool {
+    let first = !READY.swap(true, Ordering::SeqCst);
+    let hidden = HIDDEN_START.load(Ordering::SeqCst);
+    if first {
+        let process_ms = START.get().map(|s| s.elapsed().as_millis() as i64).unwrap_or(-1);
+        stack::log(&format!(
+            "cold_start_ms={} render_ms={} process_ms={process_ms} hidden={hidden}",
+            cold_start_ms.map(|v| v.round() as i64).unwrap_or(-1),
+            render_ms.map(|v| v.round() as i64).unwrap_or(-1)
+        ));
+    }
+    if first && !hidden {
+        show_main(&app);
+        return true;
+    }
+    false
 }
 
 #[tauri::command]
@@ -215,7 +314,7 @@ async fn devices_op(op: String, id: String, code: Option<String>, name: Option<S
     let mut body = json!({"op": op, "id": id});
     if let Some(c) = code { body["code"] = json!(c); }
     if let Some(n) = name { body["name"] = json!(n); }
-    let v = err(stack::pi_post("/api/devices", body))?;
+    let v = blocking(move || stack::pi_post("/api/devices", body)).await?;
     if v["ok"].as_bool() == Some(true) { Ok(()) } else { Err(v["error"].as_str().unwrap_or("eroare").to_string()) }
 }
 
@@ -279,14 +378,14 @@ fn capture_on(h: &stack::Health) -> bool {
     if room.is_empty() { h.grabber == Some(true) } else { room.contains(&Some(true)) }
 }
 
-/// Locale strings may already carry the "vmui — " / "vmui · " prefix; never print it twice.
+/// Locale strings may already carry an app-name prefix; never print it twice.
 fn bare(s: &str) -> &str {
-    s.strip_prefix("vmui — ").or_else(|| s.strip_prefix("vmui · ")).unwrap_or(s)
+    ["Vatra — ", "Vatra · ", "vmui — ", "vmui · "].iter().find_map(|p| s.strip_prefix(p)).unwrap_or(s)
 }
 
 fn tooltip_text(detail: &str) -> String {
     // NOTIFYICONDATAW.szTip holds 128 UTF-16 units incl. the terminator
-    let s = format!("vmui — {}", bare(detail));
+    let s = format!("Vatra · {}", bare(detail));
     let mut out = String::new();
     let mut n = 0;
     for c in s.chars() {
@@ -321,18 +420,16 @@ fn refresh(app: &AppHandle) {
     let h = stack::health();
     let mode = app.state::<State>().mode.lock().unwrap().clone();
     if let Some(items) = items(app) {
-        let _ = items.status.set_text(format!("vmui · {}", bare(&h.detail)));
+        let _ = items.status.set_text(format!("Vatra · {}", bare(&h.detail)));
         let _ = items.capture.set_checked(capture_on(&h));
         let _ = items.movie.set_checked(mode == "movie");
         let _ = items.music.set_checked(mode == "music");
         let _ = items.off.set_checked(mode == "off");
     }
-    if let Some(tray) = app.tray_by_id("main") {
-        let _ = tray.set_icon(Some(icon_for(&h.state)));
-    }
     set_tooltip(app, tooltip_text(&h.detail));
     let _ = app.emit("health", &h);
     *app.state::<State>().last.lock().unwrap() = Some(h);
+    update_icon(app);
 }
 
 fn item(app: &AppHandle, id: &str, label: &str) -> tauri::Result<MenuItem<Wry>> {
@@ -350,7 +447,7 @@ fn offline_label(app: &AppHandle) -> String {
 fn build_menu(app: &AppHandle) -> tauri::Result<(Menu<Wry>, TrayItems)> {
     let detail = app.state::<State>().last.lock().unwrap().as_ref().map(|h| h.detail.clone()).unwrap_or_else(|| t("starting"));
     let mode = app.state::<State>().mode.lock().unwrap().clone();
-    let status = MenuItem::with_id(app, "status", format!("vmui · {}", bare(&detail)), false, None::<&str>)?;
+    let status = MenuItem::with_id(app, "status", format!("Vatra · {}", bare(&detail)), false, None::<&str>)?;
     let open = MenuItem::with_id(app, "open", t("open"), true, Some(OPEN_SHORTCUT_LABEL))?;
     let movie = CheckMenuItem::with_id(app, "mode:movie", t("movie"), true, mode == "movie", None::<&str>)?;
     let music = CheckMenuItem::with_id(app, "mode:music", t("music"), true, mode == "music", None::<&str>)?;
@@ -455,13 +552,14 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
     // prefixed it to every later one ("vmui — pornire… vmui — …", D-002).
     // The text is set once via NIM_MODIFY below and on every refresh.
     TrayIconBuilder::with_id("main")
-        .icon(icon_for("warn"))
+        .icon(icon_for(&icon_key("warn", false, taskbar_light())))
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, ev| {
             let id = ev.id().as_ref().to_string();
             let app = app.clone();
-            std::thread::spawn(move || on_menu(&app, &id));
+            // the runtime's blocking pool reuses threads instead of one OS thread per click
+            tauri::async_runtime::spawn_blocking(move || on_menu(&app, &id));
         })
         .on_tray_icon_event(|tray, event| {
             if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
@@ -584,13 +682,22 @@ fn on_menu(app: &AppHandle, id: &str) {
 fn refresh_offline(app: &AppHandle) {
     let Ok(v) = lights::lights_get() else { return };
     *app.state::<Tray>().offline.lock().unwrap() = Some(lights::offline_names(&v));
+    let lit = v["devices"].as_array().into_iter().flatten().any(|d| d["enabled"].as_bool().unwrap_or(true) && d["state"]["on"].as_bool() == Some(true));
+    *app.state::<Tray>().lights_on.lock().unwrap() = lit;
     let label = offline_label(app);
     if let Some(items) = items(app) {
         let _ = items.offline.set_text(label);
     }
+    update_icon(app);
+}
+
+/// Window on screen (visible and not minimised): the health loop runs every 15 s then, 60 s otherwise.
+fn window_visible(app: &AppHandle) -> bool {
+    app.get_webview_window("main").is_some_and(|w| w.is_visible().unwrap_or(false) && !w.is_minimized().unwrap_or(false))
 }
 
 pub fn run() {
+    let _ = START.set(Instant::now());
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_main(app)))
         .plugin(tauri_plugin_window_state::Builder::default().with_state_flags(tauri_plugin_window_state::StateFlags::all() & !tauri_plugin_window_state::StateFlags::VISIBLE).build())
@@ -625,16 +732,40 @@ pub fn run() {
                 });
                 // window-state restores visibility on its own; `--hidden`
                 // (the logon task) must win, so hide explicitly after it ran.
+                // A normal start stays hidden too until the frontend calls
+                // `app_ready` after its first paint (no empty frame).
                 if std::env::args().any(|a| a == "--hidden") {
+                    HIDDEN_START.store(true, Ordering::SeqCst);
                     let _ = w.hide();
                 } else {
-                    let _ = w.show();
+                    let s = app.handle().clone();
+                    std::thread::spawn(move || {
+                        std::thread::sleep(Duration::from_secs(4));
+                        if !READY.load(Ordering::SeqCst) {
+                            stack::log("app_ready not called within 4 s: showing the window anyway");
+                            show_main(&s);
+                        }
+                    });
                 }
             }
             let h = app.handle().clone();
-            std::thread::spawn(move || loop {
-                refresh(&h);
-                std::thread::sleep(Duration::from_secs(15));
+            std::thread::spawn(move || {
+                let mut last: Option<Instant> = None;
+                let mut was_visible = false;
+                loop {
+                    let visible = window_visible(&h);
+                    if visible != was_visible {
+                        // the window's pollers pause while it is in the tray
+                        let _ = h.emit("visibility", visible);
+                    }
+                    let every = Duration::from_secs(if visible { 15 } else { 60 });
+                    if last.is_none_or(|t| t.elapsed() >= every) || (visible && !was_visible) {
+                        refresh(&h);
+                        last = Some(Instant::now());
+                    }
+                    was_visible = visible;
+                    std::thread::sleep(Duration::from_secs(5));
+                }
             });
             let o = app.handle().clone();
             std::thread::spawn(move || loop {
@@ -654,6 +785,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             health,
+            app_ready,
             tasks,
             devices_list,
             devices_op,

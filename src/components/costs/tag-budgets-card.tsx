@@ -12,7 +12,8 @@ import {
     type TagBudgetEvalResult,
 } from "@/server/actions/tag-budgets";
 import { AlertTriangle, Plus, Trash2 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence } from "motion/react";
+import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
 import { useEffect, useId, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -115,7 +116,7 @@ export function TagBudgetsCard() {
             const tone = exceeded ? "danger" : pct > 80 ? "warning" : "success";
             const tagLabel = b.tagValue ? `${b.tagKey}=${b.tagValue}` : b.tagKey;
             return (
-              <motion.div
+              <m.div
                 key={b.id}
                 layout
                 initial={{ opacity: 0, y: 6 }}
@@ -154,7 +155,7 @@ export function TagBudgetsCard() {
                   </Button>
                 </div>
                 <Progress value={Math.min(100, pct)} size="sm" tone={tone} className="mt-2" />
-              </motion.div>
+              </m.div>
             );
           })}
         </AnimatePresence>

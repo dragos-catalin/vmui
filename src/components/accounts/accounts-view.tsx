@@ -6,10 +6,11 @@ import { Badge, Button, DataTable, EmptyState, ToggleGroup, type ColumnDef } fro
 import { Sparkline } from "@/components/ui/sparkline";
 import { formatUsd, HOURS_PER_MONTH } from "@/lib/utils";
 import { ArrowRight, KeyRound, LayoutGrid, List } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, ViewTransition } from "react";
+import { accountMorphName } from "./account-hero";
 import { DeleteAccountButton } from "./delete-account-button";
 
 export type AccountHealthTone = "ok" | "warn" | "bad";
@@ -48,6 +49,7 @@ export function AccountsView({ accounts }: { accounts: AccountCardData[] }) {
   if (accounts.length === 0) {
     return (
       <EmptyState
+        fill
         icon={<KeyRound />}
         title={t("empty.title")}
         description={t("empty.description")}
@@ -116,11 +118,12 @@ function AccountsGrid({ accounts }: { accounts: AccountCardData[] }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 3xl:grid-cols-4">
       {accounts.map((a, i) => (
-        <motion.div
-          key={a.id}
+        <ViewTransition key={a.id} name={accountMorphName(a.id)}>
+        <m.div
+          layoutId={accountMorphName(a.id)}
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.2, delay: Math.min(i, 12) * 0.03 }}
+          transition={{ duration: 0.2, delay: Math.min(i, 8) * 0.035 }}
           className="surface card-hover flex min-w-0 flex-col gap-3 p-4"
         >
           <div className="flex items-start gap-3">
@@ -129,10 +132,11 @@ function AccountsGrid({ accounts }: { accounts: AccountCardData[] }) {
               <Link
                 href={`/accounts/${encodeURIComponent(a.id)}`}
                 className="block truncate font-semibold hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                title={a.name}
               >
                 {a.name}
               </Link>
-              <p className="truncate font-mono text-xs text-muted">{a.meta ?? <ProviderName provider={a.provider} />}</p>
+              <p className="truncate font-mono text-xs text-muted" title={a.meta ?? undefined}>{a.meta ?? <ProviderName provider={a.provider} />}</p>
             </div>
             <HealthBadge health={a.health} reasons={a.healthReasons} />
           </div>
@@ -154,11 +158,12 @@ function AccountsGrid({ accounts }: { accounts: AccountCardData[] }) {
 
           {a.runningSeries.length >= 2 && (
             <div className="flex items-center justify-between gap-2 rounded-[var(--radius-md)] border border-border bg-surface-muted px-3 py-2">
-              <span className="text-[11px] text-muted">{t("trend")}</span>
+              <span className="text-2xs text-muted">{t("trend")}</span>
               <Sparkline values={a.runningSeries} ariaLabel={t("trendAria", { name: a.name })} className="text-success" />
             </div>
           )}
-        </motion.div>
+        </m.div>
+        </ViewTransition>
       ))}
     </div>
   );
@@ -183,10 +188,16 @@ function AccountsTable({ accounts }: { accounts: AccountCardData[] }) {
         header: t("columns.name"),
         cell: ({ row }) => (
           <div className="min-w-0">
-            <Link href={`/accounts/${encodeURIComponent(row.original.id)}`} className="block truncate font-medium hover:text-primary">
-              {row.original.name}
-            </Link>
-            {row.original.meta && <span className="block truncate font-mono text-xs text-muted">{row.original.meta}</span>}
+            <ViewTransition name={accountMorphName(row.original.id)}>
+              <Link
+                href={`/accounts/${encodeURIComponent(row.original.id)}`}
+                className="block truncate font-medium hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                title={row.original.name}
+              >
+                {row.original.name}
+              </Link>
+            </ViewTransition>
+            {row.original.meta && <span className="block truncate font-mono text-xs text-muted" title={row.original.meta}>{row.original.meta}</span>}
           </div>
         ),
       },

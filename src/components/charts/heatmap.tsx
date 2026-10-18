@@ -29,7 +29,12 @@ export function HeatmapGrid({ rows, cols, values, label, max, cellClassName = "h
   }, [values, max]);
   const toneVar = `var(--color-${tone})`;
   return (
-    <div role="img" aria-label={ariaLabel} className={cn("min-w-0 overflow-x-auto", className)}>
+    <div
+      role="region"
+      aria-label={ariaLabel}
+      tabIndex={0}
+      className={cn("min-w-0 overflow-x-auto rounded-[2px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring", className)}
+    >
       <div
         className="grid gap-1"
         style={{ gridTemplateColumns: `${showRowLabels ? "auto " : ""}repeat(${cols.length}, minmax(0.5rem, 1fr))` }}
@@ -38,7 +43,7 @@ export function HeatmapGrid({ rows, cols, values, label, max, cellClassName = "h
           <>
             {showRowLabels && <span aria-hidden />}
             {cols.map((c) => (
-              <span key={c} className="truncate text-center text-[10px] text-fg-muted" aria-hidden>
+              <span key={c} className="truncate text-center text-2xs text-fg-muted" aria-hidden>
                 {c}
               </span>
             ))}
@@ -58,6 +63,7 @@ export function HeatmapGrid({ rows, cols, values, label, max, cellClassName = "h
               return (
                 <span
                   key={`${r}-${c}`}
+                  role="img"
                   title={text}
                   aria-label={text}
                   className={cn("block min-w-2 rounded-[2px]", cellClassName)}

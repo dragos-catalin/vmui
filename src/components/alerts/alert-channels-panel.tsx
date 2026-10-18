@@ -9,7 +9,8 @@ import type { ActionResult } from "@/lib/action-result";
 import type { AlertChannelRow } from "@/lib/db/schema";
 import { createAlertChannelAction, deleteAlertChannelAction, testAlertChannelAction } from "@/server/actions/alerts";
 import { Bell, Hash, Mail, MessageCircle, Plus, Send, Trash2, Webhook } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence } from "motion/react";
+import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
 import * as React from "react";
 
@@ -129,7 +130,7 @@ export function AlertChannelsPanel({ channels }: { channels: AlertChannelRow[] }
             {channels.map((c, i) => {
               const Icon = KIND_ICON[c.kind] ?? Bell;
               return (
-                <motion.li
+                <m.li
                   key={c.id}
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -166,7 +167,7 @@ export function AlertChannelsPanel({ channels }: { channels: AlertChannelRow[] }
                       <Trash2 className="size-4" aria-hidden />
                     </Button>
                   </div>
-                </motion.li>
+                </m.li>
               );
             })}
           </AnimatePresence>

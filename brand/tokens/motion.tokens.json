@@ -1,0 +1,111 @@
+{
+  "duration": {
+    "instant": {
+      "$type": "duration",
+      "$value": {
+        "value": 80,
+        "unit": "ms"
+      }
+    },
+    "fast": {
+      "$type": "duration",
+      "$value": {
+        "value": 140,
+        "unit": "ms"
+      }
+    },
+    "base": {
+      "$type": "duration",
+      "$value": {
+        "value": 220,
+        "unit": "ms"
+      }
+    },
+    "slow": {
+      "$type": "duration",
+      "$value": {
+        "value": 360,
+        "unit": "ms"
+      }
+    },
+    "page": {
+      "$type": "duration",
+      "$value": {
+        "value": 420,
+        "unit": "ms"
+      }
+    },
+    "splash": {
+      "$type": "duration",
+      "$value": {
+        "value": 1100,
+        "unit": "ms"
+      }
+    }
+  },
+  "easing": {
+    "out": {
+      "$type": "cubicBezier",
+      "$value": [
+        0.16,
+        1,
+        0.3,
+        1
+      ]
+    },
+    "inOut": {
+      "$type": "cubicBezier",
+      "$value": [
+        0.65,
+        0,
+        0.35,
+        1
+      ]
+    },
+    "emphasized": {
+      "$type": "cubicBezier",
+      "$value": [
+        0.2,
+        0,
+        0,
+        1
+      ]
+    }
+  },
+  "spring": {
+    "default": {
+      "$type": "spring",
+      "$value": {
+        "stiffness": 380,
+        "damping": 32,
+        "mass": 0.9
+      }
+    },
+    "soft": {
+      "$type": "spring",
+      "$value": {
+        "stiffness": 220,
+        "damping": 28,
+        "mass": 1
+      }
+    }
+  },
+  "logo": {
+    "riseMs": {
+      "$type": "number",
+      "$value": 2100
+    },
+    "flameMs": {
+      "$type": "number",
+      "$value": 1800
+    },
+    "introMs": {
+      "$type": "number",
+      "$value": 1150
+    },
+    "stagger": {
+      "$type": "number",
+      "$value": 700
+    }
+  }
+}

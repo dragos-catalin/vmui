@@ -4,7 +4,7 @@ import { Badge, Button } from "@/components/ui";
 import type { InstanceRow } from "@/lib/db/schema";
 import type { PricedRow } from "@/lib/pricing";
 import { Apple, MonitorSmartphone, Plug, Server } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { CostPill } from "./cost-pill";
@@ -37,17 +37,17 @@ export function RunningVmsStrip({
           </Badge>
         </h2>
       </div>
-      <ul className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-1 sm:px-1 xl:mx-0 xl:grid xl:grid-cols-3 xl:overflow-visible xl:px-0 3xl:grid-cols-4">
+      <ul className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 [mask-image:linear-gradient(to_right,transparent,black_1rem,black_calc(100%-2rem),transparent)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-1 sm:px-1 xl:mx-0 xl:grid xl:grid-cols-3 xl:overflow-visible xl:px-0 xl:[mask-image:none] 3xl:grid-cols-4">
         {instances.map((i, idx) => (
-          <motion.li
+          <m.li
             key={i.id}
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2, delay: Math.min(idx, 12) * 0.03 }}
+            transition={{ duration: 0.2, delay: Math.min(idx, 8) * 0.035 }}
             className="w-[min(18rem,85vw)] shrink-0 snap-start xl:w-auto"
           >
             <RunningCard instance={i} price={priceMap?.[i.id]} />
-          </motion.li>
+          </m.li>
         ))}
       </ul>
     </section>
@@ -61,6 +61,8 @@ function RunningCard({ instance, price }: { instance: InstanceRow; price?: Price
   const label = instanceLabel(instance);
   const href = `/instances/${encodeURIComponent(instance.id)}`;
   return (
+    // No morph name here: the explorer below renders the same instance, and a
+    // duplicate view-transition name aborts the list → detail transition.
     <article className="surface card-hover group relative min-w-0 overflow-hidden p-2" aria-label={label}>
       {isKvm ? (
         <VmScreenshot
@@ -82,7 +84,7 @@ function RunningCard({ instance, price }: { instance: InstanceRow; price?: Price
           <Link href={href} className="block truncate text-sm font-semibold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" title={label}>
             {label}
           </Link>
-          <div className="truncate text-[11px] text-muted">
+          <div className="truncate text-2xs text-muted" title={`${instance.region} · ${instance.instanceType ?? t("noType")}`}>
             {instance.region} · {instance.instanceType ?? t("noType")}
           </div>
           {price && (
@@ -92,7 +94,7 @@ function RunningCard({ instance, price }: { instance: InstanceRow; price?: Price
           )}
         </div>
         <Button asChild variant="secondary" size="icon" className="shrink-0">
-          <Link href={href} aria-label={t("open", { name: label })}>
+          <Link href={href} aria-label={t("open", { name: label })} title={t("open", { name: label })}>
             <Plug className="size-4" aria-hidden />
           </Link>
         </Button>
@@ -100,7 +102,7 @@ function RunningCard({ instance, price }: { instance: InstanceRow; price?: Price
 
       {isKvm && (
         <div className="px-1 pt-1">
-          <InstanceStatsInline accountId={instance.accountId} enabled providerInstanceId={instance.providerInstanceId} instanceId={instance.id} />
+          <InstanceStatsInline enabled instanceId={instance.id} />
         </div>
       )}
     </article>

@@ -64,12 +64,12 @@ export function ResourcesExplorer({ rows }: { rows: CachedResourceRow[] }) {
         accessorFn: (r) => r.name ?? "",
         id: "name",
         header: t("columns.name"),
-        cell: ({ row }) => <span className="block max-w-[16rem] truncate font-medium">{row.original.name ?? "—"}</span>,
+        cell: ({ row }) => <span className="block max-w-[16rem] truncate font-medium" title={row.original.name ?? undefined}>{row.original.name ?? "—"}</span>,
       },
       {
         accessorKey: "externalId",
         header: t("columns.id"),
-        cell: ({ row }) => <code className="block max-w-[14rem] truncate font-mono text-xs text-muted">{row.original.externalId}</code>,
+        cell: ({ row }) => <code className="block max-w-[14rem] truncate font-mono text-xs text-muted" title={row.original.externalId}>{row.original.externalId}</code>,
       },
       {
         accessorFn: (r) => providerLabel(r.provider),
@@ -99,7 +99,7 @@ export function ResourcesExplorer({ rows }: { rows: CachedResourceRow[] }) {
         accessorFn: (r) => r.attachedToInstanceId ?? "",
         id: "linked",
         header: t("columns.linked"),
-        cell: ({ row }) => <code className="block max-w-[12rem] truncate font-mono text-xs text-muted">{row.original.attachedToInstanceId ?? "—"}</code>,
+        cell: ({ row }) => <code className="block max-w-[12rem] truncate font-mono text-xs text-muted" title={row.original.attachedToInstanceId ?? undefined}>{row.original.attachedToInstanceId ?? "—"}</code>,
       },
       {
         accessorFn: (r) => r.monthlyUsd ?? 0,

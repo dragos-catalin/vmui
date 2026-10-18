@@ -5,7 +5,8 @@ import { useAction } from "@/hooks/use-action";
 import type { InstanceRunbookRow } from "@/lib/db/schema";
 import { deleteRunbookAction, upsertRunbookAction } from "@/server/actions/extras";
 import { BookOpen, Pencil, Plus, Trash2 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence } from "motion/react";
+import * as m from "motion/react-m";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -83,7 +84,7 @@ export function RunbookEditorClient({
       <div className="space-y-3">
         <AnimatePresence initial={false}>
           {editing && (
-            <motion.form
+            <m.form
               key="editor"
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
@@ -123,7 +124,7 @@ export function RunbookEditorClient({
                   </Button>
                 </div>
               </Subsection>
-            </motion.form>
+            </m.form>
           )}
         </AnimatePresence>
 
@@ -144,7 +145,7 @@ export function RunbookEditorClient({
           <div className="space-y-2">
             <AnimatePresence initial={false}>
               {rows.map((r, i) => (
-                <motion.div
+                <m.div
                   key={r.id}
                   layout
                   initial={{ opacity: 0, y: 6 }}
@@ -177,7 +178,7 @@ export function RunbookEditorClient({
                       </Button>
                     </div>
                   </Subsection>
-                </motion.div>
+                </m.div>
               ))}
             </AnimatePresence>
           </div>

@@ -1,6 +1,6 @@
 {
   "brand": {
-    "tagline": "control multi-cloud",
+    "tagline": "casă și mașini",
     "commandPalette": "Paletă de comenzi",
     "encryption": "AES-256-GCM la stocare"
   },
@@ -93,7 +93,7 @@
   },
   "shortcuts": {
     "title": "Scurtături de taste",
-    "description": "Mișcă-te prin vmui fără să lași tastatura.",
+    "description": "Mișcă-te prin Vatra fără să lași tastatura.",
     "palette": "Deschide paleta de comenzi",
     "help": "Arată acest ajutor",
     "search": "Focalizează căutarea din panou",
@@ -184,5 +184,7 @@
     "spendHeatmap": "Heatmap cheltuieli",
     "webhookDeliveries": "Coadă webhook",
     "cis": "CIS Linux"
-  }
+  },
+  "skipToContent": "Sari la conținut",
+  "splash": "Vatra pornește"
 }

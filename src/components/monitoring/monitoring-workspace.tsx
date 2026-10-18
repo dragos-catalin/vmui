@@ -1,12 +1,12 @@
 "use client";
 
-import { AreaChartCard } from "@/components/charts";
+import { AreaChartCard } from "./lazy-charts";
 import { Badge, Button, DataTable, EmptyState, PageSection, type ColumnDef } from "@/components/ui";
 import { useAction } from "@/hooks/use-action";
 import type { ActionResult } from "@/lib/action-result";
 import { deployNodeExporterAction, generatePromConfigAction } from "@/server/actions/monitoring";
-import { Activity, Download, ExternalLink, Server } from "lucide-react";
-import { motion } from "motion/react";
+import { Activity, BarChart3, Download, ExternalLink, Server } from "lucide-react";
+import * as m from "motion/react-m";
 import { useFormatter, useTranslations } from "next-intl";
 import * as React from "react";
 
@@ -118,8 +118,39 @@ export function MonitoringWorkspace({ instances, samples, grafanaUrl }: Props) {
     [t, format, results],
   );
 
+  const generateProm = () =>
+    startProm(async () => {
+      const r = await generatePromConfigAction();
+      if (r.ok) setYaml(r.yaml);
+    });
+
+  if (instances.length === 0 && samples.length === 0) {
+    return (
+      <EmptyState
+        fill
+        icon={<Server />}
+        title={t("hosts.empty.title")}
+        description={t("hosts.empty.description")}
+        action={
+          grafanaUrl ? (
+            <Button variant="outline" asChild>
+              <a href={grafanaUrl} target="_blank" rel="noreferrer noopener">
+                {t("grafana.open")} <ExternalLink className="size-4" aria-hidden />
+              </a>
+            </Button>
+          ) : undefined
+        }
+      />
+    );
+  }
+
   return (
     <div className="space-y-4">
+      {samples.length === 0 ? (
+        <section aria-label={t("charts.noSamples")} className="surface p-4 sm:p-5">
+          <EmptyState bare compact icon={<BarChart3 />} title={t("charts.noSamples")} description={t("charts.noSamplesHint")} />
+        </section>
+      ) : (
       <div className="grid gap-3 xl:grid-cols-3">
         <AreaChartCard
           title={t("charts.cpu")}
@@ -157,16 +188,20 @@ export function MonitoringWorkspace({ instances, samples, grafanaUrl }: Props) {
           emptyTitle={t("charts.noSamples")}
         />
       </div>
+      )}
 
       <PageSection title={t("hosts.title")} description={t("hosts.description")}>
-        <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+        {instances.length === 0 ? (
+          <EmptyState bare compact icon={<Server />} title={t("hosts.empty.title")} description={t("hosts.empty.description")} />
+        ) : (
+        <m.div initial={{ y: 6 }} animate={{ y: 0 }} transition={{ duration: 0.2 }}>
           <DataTable
             columns={columns}
             data={instances}
             dense
             searchable
             getRowId={(r) => r.id}
-            emptyState={<EmptyState compact icon={<Server />} title={t("hosts.empty.title")} description={t("hosts.empty.description")} />}
+            emptyState={<EmptyState compact bare icon={<Server />} title={t("hosts.empty.title")} description={t("hosts.empty.description")} />}
             rowActions={(i) => (
               <Button
                 size="sm"
@@ -179,32 +214,34 @@ export function MonitoringWorkspace({ instances, samples, grafanaUrl }: Props) {
               </Button>
             )}
           />
-        </motion.div>
+        </m.div>
+        )}
       </PageSection>
 
       <PageSection
         title={t("prom.title")}
         description={t("prom.description")}
         action={
-          <Button
-            size="sm"
-            variant="secondary"
-            loading={promPending}
-            onClick={() =>
-              startProm(async () => {
-                const r = await generatePromConfigAction();
-                if (r.ok) setYaml(r.yaml);
-              })
-            }
-          >
-            <Download className="size-4" aria-hidden /> {t("prom.generate")}
-          </Button>
+          yaml ? (
+            <Button size="sm" variant="secondary" loading={promPending} onClick={generateProm}>
+              <Download className="size-4" aria-hidden /> {t("prom.regenerate")}
+            </Button>
+          ) : undefined
         }
       >
         {yaml ? (
           <pre className="max-h-80 overflow-auto rounded-[var(--radius-md)] border border-border bg-bg-muted p-3 font-mono text-xs leading-relaxed">{yaml}</pre>
         ) : (
-          <EmptyState compact title={t("prom.empty")} />
+          <EmptyState
+            compact
+            bare
+            title={t("prom.empty")}
+            action={
+              <Button size="sm" loading={promPending} onClick={generateProm}>
+                <Download className="size-4" aria-hidden /> {t("prom.generate")}
+              </Button>
+            }
+          />
         )}
       </PageSection>
 
@@ -226,7 +263,7 @@ export function MonitoringWorkspace({ instances, samples, grafanaUrl }: Props) {
             <iframe src={grafanaUrl} className="h-[600px] w-full" title={t("grafana.title")} />
           </div>
         ) : (
-          <EmptyState compact title={t("grafana.emptyTitle")} description={t("grafana.emptyHint")} />
+          <EmptyState compact bare title={t("grafana.emptyTitle")} description={t("grafana.emptyHint")} />
         )}
       </PageSection>
     </div>

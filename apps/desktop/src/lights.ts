@@ -78,4 +78,32 @@ export function slugFor(name: string, mac: string): string {
 }
 
 export const KELVIN_STEPS = [2700, 3000, 4000, 5000, 6500];
-export const LIGHT_SWATCHES = ["#ffb347", "#ff5a5a", "#5ad1ff", "#7cff9a", "#c084fc", "#ff7ad9", "#ffffff"];
+
+// Light colours are DATA (sent to bulbs/strips), not UI tokens, so hex is correct here.
+/** The one light-colour palette (light controls, Casa sheet, ambilight solid colour). */
+export const SWATCHES = ["#ffb347", "#ff5a5a", "#5ad1ff", "#7cff9a", "#c084fc", "#ff7ad9", "#ffffff"];
+export const LIGHT_SWATCHES = SWATCHES;
+/** Ambilight idle colours (dim reds/browns for the strip and glow at rest). */
+export const IDLE_SWATCHES = ["#000000", "#a00000", "#500000", "#7a3b00", "#3b1f6b", "#0b3d5c", "#1f4d2b"];
+/** Wall paint presets for the ambilight wall compensation. */
+export const WALL_SWATCHES = ["#439ebf", "#c8b89a", "#e6e1d8", "#9aa3ad", "#b48a6b", "#6b7b8c"];
+/** Accent colours for the Nest Hub / Turzx screens. */
+export const SCREEN_ACCENTS = ["#7c9cff", "#f2b85a", "#34d399", "#f472b6", "#a78bfa", "#22d3ee", "#fb923c"];
+
+const SWATCH_KEYS: Record<string, string> = {
+  "#ffb347": "amber", "#ff5a5a": "red", "#5ad1ff": "sky", "#7cff9a": "green", "#c084fc": "violet", "#ff7ad9": "pink", "#ffffff": "white",
+  "#000000": "off", "#a00000": "deepRed", "#500000": "ember", "#7a3b00": "brown", "#3b1f6b": "plum", "#0b3d5c": "navy", "#1f4d2b": "forest",
+  "#439ebf": "teal", "#c8b89a": "sand", "#e6e1d8": "cream", "#9aa3ad": "grey", "#b48a6b": "wood", "#6b7b8c": "slate",
+  "#7c9cff": "periwinkle", "#f2b85a": "gold", "#34d399": "mint", "#f472b6": "rose", "#a78bfa": "lavender", "#22d3ee": "cyan", "#fb923c": "orange",
+};
+
+/** Accessible colour name for a swatch (falls back to the hex). */
+export function swatchName(hex: string): string {
+  const k = SWATCH_KEYS[hex.toLowerCase()];
+  return k ? swatchLabel(`swatch.${k}`, hex) : hex;
+}
+let swatchLabel: (key: string, fallback: string) => string = (_k, f) => f;
+/** i18n.ts wires the translator in (keeps this module free of the i18n import cycle). */
+export function setSwatchTranslator(f: (key: string, fallback: string) => string) {
+  swatchLabel = f;
+}

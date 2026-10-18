@@ -1,8 +1,26 @@
-# vmui desktop — tray + control window
+# Vatra desktop (vmui) — tray + control window
 
-Tauri 2 (Rust) + React 19 + Tailwind v4. One tray icon whose colour is the
-health of the home stack, and a native window to configure everything that
-used to need the browser. Replaced `ambilight/tray.py` (pystray) on
+Tauri 2 (Rust) + React 19 + Tailwind v4. One tray icon (the Vatra mark) whose
+state is the health of the home stack, and a native window to configure
+everything that used to need the browser. Product name / window title is
+**Vatra**; the binary stays `vmui-desktop.exe` (`mainBinaryName`) because the
+`vmui-tray` task and its watchdog launch it by that name.
+
+Brand: `src/app.css` imports the generated tokens and logo motion from
+`brand/dist/css/vatra-{theme,motion}.css` (repo root, allowed in
+`vite.config.ts` `server.fs.allow`) and maps the desktop's older names onto
+them. Dark by default; Settings → Theme = System / Dark / Light (localStorage
+`vatra:theme`). Tray icons: `src-tauri/icons/tray/tray-{ok,warn,down,active}-{dark,light}-32.png`
+(picked from `HKCU\…\Themes\Personalize\SystemUsesLightTheme`; `active` =
+health ok and any registry light on).
+
+Cold start: the window is created hidden; `index.html` paints an inline splash
+(brand background + mark intro), `main.tsx` fetches `lang_get` and `app_info`
+in parallel, renders, then calls `app_ready` after two frames. Rust shows the
+window (never on a `--hidden` start; a 4 s safety timer shows it if the call
+never comes) and appends `cold_start_ms=<n> render_ms=<n> process_ms=<n> hidden=<bool>`
+to `.copilot-tmp/service-logs/desktop.log`. The splash mark then morphs into
+the title-bar mark. Replaced `ambilight/tray.py` (pystray) on
 2026-09-19; the Task Scheduler entry `vmui-tray` now runs
 `src-tauri/target/release/vmui-desktop.exe --hidden` at logon.
 
@@ -80,7 +98,7 @@ cd apps\desktop; pnpm exec tauri android dev        # live reload on the connect
 | Ambilight  | HyperHDR JSON-API (ws :8090), `ambilight/settings.json`, `scripts/ambilight.ps1 -Configure`  | modes (HA scripts), capture toggle, per-instance effect/colour, idle colours, wall compensation, smoothing, HDR  |
 | Casă       | vmui `/api/display/state` + `/api/display/control` (Pi)                                      | rooms → device tiles (tap = toggle, ⋯ = sheet), scenes, water                                                    |
 | Ecrane     | vmui `/api/desktop/settings` (Pi)                                                            | Nest Hub + Turzx settings, same schemas as the `/home` cards                                                     |
-| Servicii   | `schtasks`, `.copilot-tmp/service-logs/*.log`                                                | start/stop/restart every `vmui-*` task, tail logs                                                                |
+| Sistem     | the tray's `health` event (task states), `.copilot-tmp/service-logs/*.log`                   | start/stop/restart every `vmui-*` task, tail logs                                                                |
 | PC         | `scripts/pc-action.ps1` (fixed verbs), autostart plugin                                      | lock / display off / sleep / volume / maintenance verbs, autostart toggle                                        |
 | Notificări | vmui `/api/notify*` (Pi); desktop via `notify_*` commands over the SSE stream in `notify.rs` | active / history / settings (quiet hours, per-kind on/off + break-quiet, FCM, HA fallback, water nudge, battery) |
 
@@ -116,15 +134,32 @@ vmui calls to the Pi through vite (`/vmui`). Anything that goes to
 `/api/display/control` hits REAL devices — route it to a stub in Playwright
 (`page.route('**/vmui/api/display/control*', …)`) before clicking tiles.
 
+## Polling budget
+
+- Tray health loop: ONE `schtasks /query /fo csv /nh` for all tasks + 3 HTTP
+  checks, every 15 s while the window is visible, 60 s while it is in the tray.
+  The result is cached (`health` command returns it; `health(fresh=true)`
+  re-checks) and pushed as the `health` event; the Sistem page reads it.
+- Rust emits `visibility` when the window shows/hides; `usePoll` /
+  `useInterval` (src/lib.ts) only tick while the page is shown AND the window
+  is visible, and show a stale badge when a refresh failed over old data.
+- Visited pages stay mounted (hidden); Casa and PC share one
+  `/api/display/state` poll (`pages/display-state.ts`).
+- Notifications SSE (`notify.rs`): reconnects after 60 s without a byte (the
+  Pi pings every 25 s).
+
 ## Gotchas
 
 - `tauri-plugin-window-state` restores visibility and defeats `--hidden`;
   the plugin is built without `StateFlags::VISIBLE` and `setup()` hides
-  explicitly when the flag is present.
+  explicitly when the flag is present. A normal start is shown by `app_ready`
+  (or the 4 s fallback), never by `setup()`.
 - Closing the window hides it (`CloseRequested` → `prevent_close`). Quit only
   from the tray.
-- Nested buttons inside a clickable tile need `onPointerDown` +
-  `onClick` `stopPropagation` (the tile is a `role=button` div).
+- Casa tiles are real `<button>`s; the ⋯ settings button is a sibling
+  positioned over the tile (no nested buttons).
+- Use `confirmDialog()` (src/ui.tsx, `<ConfirmHost/>` is mounted in the
+  shell), not `window.confirm()`.
 - Windows drops toasts from an exe with no AppUserModelID. `notify::run`
   registers `HKCU\Software\Classes\AppUserModelId\ro.dragoscatalin.vmui`
   (name + icon) and calls `SetCurrentProcessExplicitAppUserModelID` before

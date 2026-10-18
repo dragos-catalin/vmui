@@ -18,7 +18,8 @@ import { headers } from "next/headers";
  * the browser. vmui binds 127.0.0.1:3737 so "127.0.0.1" is the default; if
  * users tunnel through another hostname they need to set VMUI_WEBAUTHN_RP.
  */
-const RP_NAME = "vmui";
+// Display name shown by the OS passkey sheet; the RP id (hostname) is what binds credentials.
+const RP_NAME = "Vatra";
 
 async function rpConfig(): Promise<{ rpID: string; origin: string }> {
   const hdr = await headers();

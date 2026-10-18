@@ -9,7 +9,7 @@ import { ok, type ActionResult } from "@/lib/action-result";
 import { cn } from "@/lib/utils";
 import { listAccountRegionsForRestoreAction, listSuccessfulBackupJobsAction, restoreFromBackupAction } from "@/server/actions/restore";
 import { Archive, CheckCircle2, Cloud, RotateCcw } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useFormatter, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -134,7 +134,7 @@ export function RestoreWizard() {
             {jobs.slice(0, 50).map((j, i) => {
               const selected = j.id === form.backupJobId;
               return (
-                <motion.li key={j.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: Math.min(i, 12) * 0.03 }}>
+                <m.li key={j.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: Math.min(i, 12) * 0.03 }}>
                   <button
                     type="button"
                     role="radio"
@@ -158,7 +158,7 @@ export function RestoreWizard() {
                       <span className="block tabular-nums">{formatBytes(j.sizeBytes, format)}</span>
                     </span>
                   </button>
-                </motion.li>
+                </m.li>
               );
             })}
           </ul>

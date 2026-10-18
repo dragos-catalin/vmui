@@ -1,6 +1,6 @@
 {
   "title": "Setări",
-  "description": "Mediu local, securitate, acces și automatizări pentru acest host vmui.",
+  "description": "Mediu local, securitate, acces și automatizări pentru acest host Vatra.",
   "nav": {
     "label": "Secțiuni de setări",
     "general": { "title": "General", "hint": "Mediu, aspect, furnizori" },
@@ -17,8 +17,8 @@
   "integrations": {
     "codai": {
       "title": "codai",
-      "description": "Transformă orice VM gestionat de vmui într-un mediu codai (BYO). vmui rămâne local; codai vede doar conexiunea de ieșire a daemonului.",
-      "intro": "Creează o cheie API în consola codai (<code>codai_…</code>). Este criptată la repaus cu cheia master vmui și nu mai este afișată niciodată — doar prefixul și lungimea.",
+      "description": "Transformă orice VM gestionat de Vatra într-un mediu codai (BYO). Vatra rămâne local; codai vede doar conexiunea de ieșire a daemonului.",
+      "intro": "Creează o cheie API în consola codai (<code>codai_…</code>). Este criptată la repaus cu cheia master Vatra și nu mai este afișată niciodată — doar prefixul și lungimea.",
       "gatewayUrl": "URL gateway",
       "gatewayUrlHint": "Baza API-ului de medii. Lasă implicit dacă nu găzduiești singur codai.",
       "apiKey": "Cheie API",
@@ -31,7 +31,7 @@
       "testOk": "Conectat — {count, plural, =0 {niciun proiect încă} one {# proiect} few {# proiecte} other {# de proiecte}}",
       "clear": "Șterge cheia",
       "clearConfirm": "Ștergi cheia API codai?",
-      "clearHint": "Mediile legate continuă să funcționeze; vmui nu mai poate provizion sau interoga până adaugi o cheie nouă.",
+      "clearHint": "Mediile legate continuă să funcționeze; Vatra nu mai poate provizion sau interoga până adaugi o cheie nouă.",
       "saved": "Setările codai au fost salvate",
       "cleared": "Cheia API codai a fost ștearsă"
     }
@@ -39,7 +39,7 @@
   "general": {
     "environment": {
       "title": "Mediu",
-      "description": "Cum este configurată această instanță vmui.",
+      "description": "Cum este configurată această instanță Vatra.",
       "masterKey": "Cheia principală de criptare",
       "masterKeyHint": "AES-256-GCM. Criptează toate credențialele cloud stocate. Dacă o pierzi, fiecare cont trebuie adăugat din nou — generează una nouă cu <cmd>pnpm keygen</cmd>.",
       "set": "setată",
@@ -57,7 +57,7 @@
     },
     "telemetry": {
       "title": "Inventar",
-      "description": "Ce știe vmui despre flota ta.",
+      "description": "Ce știe Vatra despre flota ta.",
       "accounts": "Conturi",
       "instances": "Instanțe",
       "auditEntries": "Intrări de audit"
@@ -70,7 +70,7 @@
       "accent": "Accent",
       "surface": "Suprafață",
       "density": "Densitate",
-      "vibe": "Preset",
+      "vibe": "Presetare",
       "motion": "Animații",
       "motionReduced": "Reduse",
       "motionFull": "Complete",
@@ -80,7 +80,7 @@
     },
     "pwa": {
       "title": "Aplicație și notificări",
-      "description": "Instalează vmui pe ecranul principal și primește notificări push pentru evenimente VM, build și alerte.",
+      "description": "Instalează Vatra pe ecranul principal și primește notificări push pentru evenimente VM, build și alerte.",
       "install": "Instalare",
       "push": "Notificări push",
       "pushHint": "Necesită <code>VAPID_PUBLIC_KEY</code>, <code>VAPID_PRIVATE_KEY</code> și opțional <code>VAPID_SUBJECT</code> în .env. Generează-le cu <code>pnpm dlx web-push generate-vapid-keys</code>.",
@@ -94,7 +94,7 @@
     },
     "shortcuts": {
       "title": "Scurtături de taste",
-      "description": "Navighează prin vmui fără să lași tastatura.",
+      "description": "Navighează prin Vatra fără să lași tastatura.",
       "palette": "Deschide paleta de comenzi",
       "help": "Arată scurtăturile",
       "search": "Focus pe căutare în panou",
@@ -179,7 +179,7 @@
     },
     "sessions": {
       "title": "Sesiuni active",
-      "description": "Fiecare browser autentificat în acest vmui. Revocă-le pe cele pe care nu le recunoști.",
+      "description": "Fiecare browser autentificat în acest Vatra. Revocă-le pe cele pe care nu le recunoști.",
       "count": "{count, plural, =1 {# sesiune activă} other {# sesiuni active}}",
       "empty": "Nicio sesiune activă",
       "signOutOthers": "Deconectează peste tot în altă parte",
@@ -290,6 +290,8 @@
       "scopePcActions": "Acțiuni PC",
       "scopeScripts": "Scripturi HA",
       "scopeScriptsHint": "Numele scripturilor pe care ha_script le poate rula, separate prin virgulă. Gol = orice script.",
+      "entitiesPlaceholder": "light.moodlight, climate.bedroom_ac",
+      "scriptsPlaceholder": "movie_mode_on, copilot_done",
       "destructive": "distructiv",
       "readOnly": "doar citire",
       "unrestricted": "Fără restricții",
@@ -344,6 +346,7 @@
       "publicKeyPlaceholder": "ssh-ed25519 AAAA… tu@host",
       "privateKey": "Cheie privată PEM",
       "privateKeyHint": "Opțional, criptată la stocare.",
+      "privateKeyPlaceholder": "-----BEGIN OPENSSH PRIVATE KEY-----",
       "algorithm": "Algoritm",
       "algoEd25519": "ed25519 (recomandat)",
       "algoRsa": "RSA 4096",
@@ -369,7 +372,7 @@
       "delete": "Șterge cheia",
       "deleted": "Cheie ștearsă",
       "confirmDelete": "Ștergi cheia SSH „{name}”?",
-      "confirmDeleteHint": "VM-urile care o folosesc rămân accesibile — doar vmui o uită.",
+      "confirmDeleteHint": "VM-urile care o folosesc rămân accesibile — doar Vatra o uită.",
       "config": {
         "title": "Fragment ~/.ssh/config",
         "description": "Intrări gata făcute pentru fiecare VM Linux accesibil.",
@@ -379,7 +382,7 @@
         "copy": "Copiază",
         "copied": "Copiat",
         "download": "Descarcă",
-        "header": "Generat de vmui — pune în ~/.ssh/config sau include prin 'Include ~/.ssh/config.d/vmui'"
+        "header": "Generat de Vatra — pune în ~/.ssh/config sau include prin 'Include ~/.ssh/config.d/vmui'"
       }
     },
     "knownHosts": {
@@ -443,7 +446,7 @@
     },
     "bootScripts": {
       "title": "Scripturi de boot",
-      "description": "User-data transmis ca atare furnizorului la crearea instanței. Alege unul în formularul de creare; vmui nu le rulează niciodată local.",
+      "description": "User-data transmis ca atare furnizorului la crearea instanței. Alege unul în formularul de creare; Vatra nu le rulează niciodată local.",
       "add": "Script de boot nou",
       "empty": "Niciun script de boot încă",
       "emptyHint": "Adaugă cloud-init, bash sau PowerShell de rulat la primul boot.",
@@ -495,7 +498,7 @@
       "overwriteHint": "Altfel, rândurile cu același id sunt sărite.",
       "restore": "Restaurează din fișier",
       "restoreHint": "Alege un fișier vmui-backup-*.json.",
-      "notBackup": "Nu este un fișier de backup vmui",
+      "notBackup": "Nu este un fișier de backup Vatra",
       "restored": "Restaurate {accounts, plural, =1 {# cont} other {# conturi}}, {keys, plural, =1 {# cheie} other {# chei}}"
     }
   },

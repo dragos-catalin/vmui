@@ -1,7 +1,8 @@
 "use client";
 
 import { Alert, Button, Progress, Skeleton } from "@/components/ui";
-import { Pause, Play, RotateCcw } from "lucide-react";
+import { useInterval } from "@/hooks/use-poll";
+import { Download, Pause, Play, RotateCcw, WifiOff } from "lucide-react";
 import { useTranslations } from "next-intl";
 import * as React from "react";
 
@@ -23,18 +24,46 @@ interface AsciinemaModule {
 /** Loaded from the CDN at runtime; the module URL is hidden from the bundler on purpose. */
 const loadModule = (): Promise<AsciinemaModule> => new Function("u", "return import(u)")(`${CDN}/+esm`) as Promise<AsciinemaModule>;
 
+type Phase = "idle" | "loading" | "ready" | "error" | "offline";
+
+function useOnline(): boolean {
+  const [online, setOnline] = React.useState(true);
+  React.useEffect(() => {
+    const on = () => setOnline(navigator.onLine);
+    on();
+    window.addEventListener("online", on);
+    window.addEventListener("offline", on);
+    return () => {
+      window.removeEventListener("online", on);
+      window.removeEventListener("offline", on);
+    };
+  }, []);
+  return online;
+}
+
 export function CastPlayer({ src, durationMs }: { src: string; durationMs: number }) {
   const t = useTranslations("observe.recordings.player");
   const hostRef = React.useRef<HTMLDivElement | null>(null);
   const playerRef = React.useRef<AsciinemaPlayer | null>(null);
-  const [ready, setReady] = React.useState(false);
-  const [error, setError] = React.useState(false);
+  const online = useOnline();
+  // The CDN player is fetched only when the user asks for it (no third-party
+  // request on page load, and a clear state when offline).
+  const [requested, setRequested] = React.useState(false);
+  const [attempt, setAttempt] = React.useState(0);
+  const [phase, setPhase] = React.useState<Phase>("idle");
+  const ready = phase === "ready";
   const [playing, setPlaying] = React.useState(false);
   const [time, setTime] = React.useState(0);
   const duration = Math.max(1, durationMs / 1000);
 
   React.useEffect(() => {
+    if (!requested) return;
+    if (!online) {
+      setPhase("offline");
+      return;
+    }
     let cancelled = false;
+    setPhase("loading");
     if (!document.querySelector(`link[data-cast-css]`)) {
       const link = document.createElement("link");
       link.rel = "stylesheet";
@@ -50,25 +79,26 @@ export function CastPlayer({ src, durationMs }: { src: string; durationMs: numbe
         p.addEventListener("pause", () => setPlaying(false));
         p.addEventListener("ended", () => setPlaying(false));
         playerRef.current = p;
-        setReady(true);
+        setPhase("ready");
       })
-      .catch(() => setError(true));
+      .catch(() => {
+        if (!cancelled) setPhase(navigator.onLine ? "error" : "offline");
+      });
     return () => {
       cancelled = true;
       playerRef.current?.dispose();
       playerRef.current = null;
     };
-  }, [src]);
+  }, [src, requested, online, attempt]);
 
-  React.useEffect(() => {
-    if (!playing) return;
-    const id = setInterval(async () => {
+  useInterval(
+    () => {
       const p = playerRef.current;
       if (!p) return;
-      setTime(await p.getCurrentTime());
-    }, 250);
-    return () => clearInterval(id);
-  }, [playing]);
+      void Promise.resolve(p.getCurrentTime()).then(setTime);
+    },
+    playing ? 250 : null,
+  );
 
   const seekTo = (sec: number) => {
     setTime(sec);
@@ -81,21 +111,54 @@ export function CastPlayer({ src, durationMs }: { src: string; durationMs: numbe
     return `${m}:${String(r).padStart(2, "0")}`;
   };
 
-  if (error) {
-    return <Alert tone="warning" title={t("loadFailed")}>{t("loadFailedHint")}</Alert>;
+  const download = (
+    <Button asChild variant="secondary" size="sm">
+      <a href={src} download title={t("downloadCast")}>
+        <Download className="size-4" aria-hidden /> {t("downloadCast")}
+      </a>
+    </Button>
+  );
+
+  if (phase === "error" || phase === "offline") {
+    const offline = phase === "offline";
+    return (
+      <Alert tone="warning" icon={offline ? <WifiOff /> : undefined} title={offline ? t("offline") : t("loadFailed")}>
+        <p>{offline ? t("offlineHint") : t("loadFailedHint")}</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <Button size="sm" onClick={() => setAttempt((n) => n + 1)} disabled={offline && !online}>
+            <RotateCcw className="size-4" aria-hidden /> {t("retry")}
+          </Button>
+          {download}
+        </div>
+      </Alert>
+    );
+  }
+
+  if (!requested) {
+    return (
+      <div className="surface flex flex-col items-start gap-3 p-4 sm:flex-row sm:items-center">
+        <p className="min-w-0 flex-1 text-sm text-fg-muted">{t("loadHint")}</p>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" onClick={() => setRequested(true)}>
+            <Play className="size-4" aria-hidden /> {t("load")}
+          </Button>
+          {download}
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-3">
       <div className="relative overflow-hidden rounded-[var(--radius-lg)] border border-border bg-bg p-2">
-        {!ready && <Skeleton className="absolute inset-2 rounded-[var(--radius-md)]" />}
+        {!ready && <Skeleton className="absolute inset-2 rounded-[var(--radius-md)]" aria-busy="true" />}
         <div ref={hostRef} className={ready ? "" : "invisible min-h-64"} />
       </div>
       <div className="surface flex flex-wrap items-center gap-3 p-3">
-        <Button size="icon" variant="secondary" aria-label={playing ? t("pause") : t("play")} disabled={!ready} onClick={() => void (playing ? playerRef.current?.pause() : playerRef.current?.play())}>
+        <Button size="icon" variant="secondary" aria-label={playing ? t("pause") : t("play")} title={playing ? t("pause") : t("play")} disabled={!ready} onClick={() => void (playing ? playerRef.current?.pause() : playerRef.current?.play())}>
           {playing ? <Pause className="size-4" aria-hidden /> : <Play className="size-4" aria-hidden />}
         </Button>
-        <Button size="icon" variant="ghost" aria-label={t("restart")} disabled={!ready} onClick={() => seekTo(0)}>
+        <Button size="icon" variant="ghost" aria-label={t("restart")} title={t("restart")} disabled={!ready} onClick={() => seekTo(0)}>
           <RotateCcw className="size-4" aria-hidden />
         </Button>
         <span className="font-mono text-xs tabular-nums text-fg-muted">

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEventSource } from "@/hooks/use-poll";
 import type { HaState } from "@/lib/home/ha-client";
 import * as React from "react";
 
@@ -12,41 +13,47 @@ type Ctx = {
 
 const HomeStatesContext = React.createContext<Ctx | null>(null);
 
+/* Whether any room light is on, published by the provider so components that
+ * live outside /home (AmbientWarmth in the root layout) can follow it. */
+let anyLightOn = false;
+const lightListeners = new Set<() => void>();
+function publishLightsOn(v: boolean) {
+  if (v === anyLightOn) return;
+  anyLightOn = v;
+  for (const l of lightListeners) l();
+}
+export function useAnyLightOn(): boolean {
+  return React.useSyncExternalStore(
+    (cb) => {
+      lightListeners.add(cb);
+      return () => lightListeners.delete(cb);
+    },
+    () => anyLightOn,
+    () => false,
+  );
+}
+export function countLightsOn(states: Record<string, HaState>): number {
+  return Object.values(states).filter((s) => s.entity_id.startsWith("light.") && s.entity_id !== "light.hyperhdr" && isOn(s)).length;
+}
+
 export function HomeStatesProvider({ initial, children }: { initial: Record<string, HaState>; children: React.ReactNode }) {
   const [states, setStates] = React.useState(initial);
   const [live, setLive] = React.useState<Ctx["live"]>("connecting");
 
-  React.useEffect(() => {
-    let es: EventSource | null = null;
-    let retry = 1000;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    let stopped = false;
+  useEventSource<HaState | null>("/api/home/events", {
+    events: ["ready", "state"],
+    parse: (raw) => (raw ? (JSON.parse(raw) as HaState) : null),
+    onMessage: (data, event) => {
+      if (event === "ready") return setLive("live");
+      if (data?.entity_id) setStates((prev) => ({ ...prev, [data.entity_id]: data }));
+    },
+    onError: () => setLive("offline"),
+  });
 
-    const connect = () => {
-      es = new EventSource("/api/home/events");
-      es.addEventListener("ready", () => {
-        retry = 1000;
-        setLive("live");
-      });
-      es.addEventListener("state", (ev) => {
-        const s = JSON.parse((ev as MessageEvent).data) as HaState;
-        setStates((prev) => ({ ...prev, [s.entity_id]: s }));
-      });
-      es.onerror = () => {
-        es?.close();
-        setLive("offline");
-        if (stopped) return;
-        timer = setTimeout(connect, retry);
-        retry = Math.min(retry * 2, 15_000);
-      };
-    };
-    connect();
-    return () => {
-      stopped = true;
-      es?.close();
-      if (timer) clearTimeout(timer);
-    };
-  }, []);
+  React.useEffect(() => {
+    publishLightsOn(countLightsOn(states) > 0);
+  }, [states]);
+  React.useEffect(() => () => publishLightsOn(false), []);
 
   const patch = React.useCallback<Ctx["patch"]>((entityId, next) => {
     setStates((prev) => {

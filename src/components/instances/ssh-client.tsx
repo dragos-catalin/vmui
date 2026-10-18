@@ -1,8 +1,9 @@
 "use client";
 
-import { TerminalView } from "@/components/instances/terminal-view";
+import { TerminalView } from "@/components/instances/terminal-view-lazy";
 import { Alert, Button, Field, Input, PageSection, Textarea, ToggleGroup } from "@/components/ui";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useInterval } from "@/hooks/use-poll";
 import type { InstanceRow } from "@/lib/db/schema";
 import {
     openCustomSshAction,
@@ -263,10 +264,7 @@ function SessionExpiryBar({ expiresAt }: { expiresAt: number }) {
   const t = useTranslations("vm.ssh");
   const format = useFormatter();
   const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 30_000);
-    return () => clearInterval(id);
-  }, []);
+  useInterval(() => setNow(Date.now()), 30_000, { pauseHidden: false });
   const remainingMs = Math.max(0, expiresAt - now);
   if (remainingMs === 0) {
     return <Alert tone="danger" icon={<Clock />} className="text-xs">{t("expired")}</Alert>;

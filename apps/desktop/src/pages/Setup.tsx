@@ -33,7 +33,8 @@ export function Setup({ onDone, canCancel, onCancel }: { onDone: () => void; can
       toast("ok", t("setup.approved", { detail: h.detail }));
       onDone();
     } catch (e) {
-      toast("error", String(e));
+      const code = String(e).replace(/^Error:\s*/, "");
+      toast("error", code === "rejected" ? t("setup.rejected") : code === "expired" ? t("setup.timedOut") : code);
       setStep({ kind: "pick", found: [{ url, host: "", via: "manual" }] });
     } finally {
       setBusy(false);
@@ -44,7 +45,7 @@ export function Setup({ onDone, canCancel, onCancel }: { onDone: () => void; can
     <div className="bg-scene h-full grid place-items-center p-5" style={{ paddingTop: "max(env(safe-area-inset-top), 20px)" }}>
       <div className="glass w-full max-w-sm p-6 grid gap-5">
         <div className="flex items-center gap-3">
-          <Smartphone className="size-7 text-primary" />
+          <Smartphone className="size-7 shrink-0 text-primary-text" aria-hidden />
           <div>
             <h1 className="text-lg font-semibold">{t("setup.title")}</h1>
             <p className="text-xs text-muted">{t("setup.sub")}</p>
@@ -52,12 +53,12 @@ export function Setup({ onDone, canCancel, onCancel }: { onDone: () => void; can
         </div>
 
         {step.kind === "scan" && (
-          <div className="flex items-center gap-3 text-sm text-muted py-6 justify-center"><RadioTower className="size-5 animate-pulse text-primary" />{t("setup.scanning")}</div>
+          <div className="flex items-center gap-3 text-sm text-muted py-6 justify-center"><RadioTower className="size-5 motion-safe:animate-pulse text-primary-text" aria-hidden />{t("setup.scanning")}</div>
         )}
 
         {step.kind === "pick" && (
           <div className="grid gap-3">
-            {step.found.length === 0 && <p className="text-sm text-warn">{t("setup.notFound")}</p>}
+            {step.found.length === 0 && <p className="text-sm text-warning-text">{t("setup.notFound")}</p>}
             {step.found.map((f) => (
               <button key={f.url} type="button" className="tile on text-left" disabled={busy} onClick={() => void request(f.url)}>
                 <RadioTower className="size-5 text-ok" />
@@ -78,8 +79,8 @@ export function Setup({ onDone, canCancel, onCancel }: { onDone: () => void; can
         {step.kind === "wait" && (
           <div className="grid gap-4 text-center py-2">
             <p className="text-sm text-muted"><Trans i18nKey="setup.waitText" components={{ b: <b /> }} /></p>
-            <div className="font-mono text-5xl tabular-nums tracking-[0.35em] text-primary">{step.t.code}</div>
-            <p className="text-xs text-dim">{step.url} · {t("setup.expires")}</p>
+            <div className="font-mono text-5xl tabular-nums tracking-[0.35em] text-primary-text">{step.t.code}</div>
+            <p className="text-xs text-muted">{step.url} · {t("setup.expires")}</p>
             <button type="button" className="btn ghost sm justify-self-center" onClick={() => setStep({ kind: "login", url: step.url })}><KeyRound className="size-3.5" />{t("setup.orLogin")}</button>
           </div>
         )}

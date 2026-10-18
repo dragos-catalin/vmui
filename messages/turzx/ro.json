@@ -412,5 +412,15 @@
       "label": "Wikimedia Commons",
       "description": "Poza zilei de pe Commons."
     }
+  },
+  "accents": {
+    "ember": "Jar",
+    "indigo": "Indigo",
+    "mint": "Mentă",
+    "rose": "Roz",
+    "amber": "Chihlimbar",
+    "violet": "Violet",
+    "cyan": "Turcoaz",
+    "orange": "Portocaliu"
   }
 }

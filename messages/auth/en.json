@@ -1,7 +1,13 @@
 {
   "brand": {
-    "name": "vmui",
-    "tagline": "Local-first control plane"
+    "name": "Vatra",
+    "tagline": "home & machines"
+  },
+  "meta": {
+    "signIn": "Sign in",
+    "signUp": "Create account",
+    "invite": "Join the household",
+    "onboarding": "Getting started"
   },
   "or": "or",
   "theme": {
@@ -28,10 +34,10 @@
     "viewer": "Viewer"
   },
   "signIn": {
-    "title": "Sign in to vmui",
-    "description": "Your VMs, your machine. Nothing leaves this host.",
+    "title": "Sign in to Vatra",
+    "description": "Your home and your machines, on your own hardware. Nothing leaves this host.",
     "submit": "Sign in",
-    "noAccount": "Need an account? Ask a vmui admin to create one.",
+    "noAccount": "Need an account? Ask a Vatra admin to create one.",
     "twoFactorTitle": "Two-factor check",
     "twoFactorBody": "Enter the code for <b>{email}</b>.",
     "verify": "Verify"
@@ -41,7 +47,7 @@
     "signedIn": "Signed in"
   },
   "signUp": {
-    "firstTitle": "Create the first vmui admin",
+    "firstTitle": "Create the first Vatra admin",
     "firstDescription": "No users exist yet — this account becomes the local admin.",
     "addTitle": "Add a user",
     "addDescription": "The new user can sign in right away with the role you pick.",
@@ -100,8 +106,8 @@
     "generic": "That did not work: {message}"
   },
   "onboarding": {
-    "title": "Welcome to vmui",
-    "description": "Local-first multi-cloud control plane. Everything stays on this machine — no cloud accounts of vmui's own.",
+    "title": "Welcome to Vatra",
+    "description": "Local-first control for your home and your machines. Everything stays on this host — Vatra has no cloud accounts of its own.",
     "progress": "{done} of {total} steps done",
     "status": {
       "done": "done",
@@ -149,11 +155,11 @@
     },
     "providers": {
       "title": "Provider quick reference",
-      "aws": "<b>AWS:</b> IAM access key + secret. Recommend a dedicated user with EC2 + S3 + RDS + ELB + Route53 read/write.",
-      "azure": "<b>Azure:</b> Service principal — tenantId, clientId, clientSecret, subscriptionId. Contributor on the target subscription.",
-      "gcp": "<b>GCP:</b> Service-account JSON key. Compute, Storage, Cloud SQL, DNS roles. Pasted JSON is encrypted before disk.",
-      "scaleway": "<b>Scaleway:</b> API token + organization id.",
-      "kvm": "<b>local-kvm:</b> SSH host + key for the libvirt host. vmui talks directly to libvirt via the chosen URI."
+      "aws": "IAM access key + secret. Recommend a dedicated user with EC2 + S3 + RDS + ELB + Route53 read/write.",
+      "azure": "Service principal — tenantId, clientId, clientSecret, subscriptionId. Contributor on the target subscription.",
+      "gcp": "Service-account JSON key. Compute, Storage, Cloud SQL, DNS roles. Pasted JSON is encrypted before disk.",
+      "scaleway": "API token + organization id.",
+      "kvm": "SSH host + key for the libvirt host. Vatra talks directly to libvirt via the chosen URI."
     },
     "background": {
       "title": "What runs in the background",

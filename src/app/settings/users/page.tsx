@@ -6,12 +6,18 @@ import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { desc } from "drizzle-orm";
 import { House, Users as UsersIcon } from "lucide-react";
+import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import "server-only";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("settings.users");
+  return { title: t("title") };
+}
 
 export default async function UsersPage() {
   const t = await getTranslations("settings.users");

@@ -51,7 +51,8 @@
       "turzx_pause": "Pune pe pauză sau reia rotația Turzx.",
       "ambilight_movie": "Comută movie mode pe Ambilight.",
       "pc_wake": "Pornește PC-ul prin Wake-on-LAN."
-    }
+    },
+    "testSent": "Gest trimis"
   },
   "intercom": {
     "title": "Interfon",
@@ -152,6 +153,7 @@
         "label": "Build/test eșuat",
         "hint": "run-build.ps1 exit ≠ 0 — becuri: 2 flash-uri; bandă: 2 clipiri duble galbene"
       }
-    }
+    },
+    "phoneNotifyPlaceholder": "mobile_app_'<'telefonul_tău>"
   }
 }

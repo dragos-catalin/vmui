@@ -137,14 +137,23 @@ pub struct TaskState {
     pub running: bool,
 }
 
+/// One `schtasks /query` for every task (was one process per task, 6 per tick).
 pub fn task_states() -> Vec<TaskState> {
+    let text = cmd("schtasks").args(["/query", "/fo", "csv", "/nh"]).output().map(|o| String::from_utf8_lossy(&o.stdout).to_string()).unwrap_or_default();
+    let mut found: HashMap<String, String> = HashMap::new();
+    for line in text.lines() {
+        // "\vmui-turzx","N/A","Running" (root-folder tasks only: the name has a single leading backslash)
+        let cols: Vec<&str> = line.trim_end_matches('\r').split("\",\"").map(|s| s.trim_matches('"')).collect();
+        if let (Some(name), Some(status)) = (cols.first(), cols.get(2)) {
+            if let Some(n) = name.strip_prefix('\\').filter(|n| TASKS.contains(n)) {
+                found.entry(n.to_string()).or_insert_with(|| status.trim().to_string());
+            }
+        }
+    }
     TASKS
         .iter()
         .map(|t| {
-            let out = cmd("schtasks").args(["/query", "/tn", t, "/fo", "csv", "/nh"]).output();
-            let text = out.map(|o| String::from_utf8_lossy(&o.stdout).to_string()).unwrap_or_default();
-            // "\vmui-turzx","N/A","Running"
-            let status = text.split(',').nth(2).map(|s| s.trim().trim_matches('"').trim_matches('\r').trim_matches('\n').to_string()).unwrap_or_else(|| "missing".into());
+            let status = found.get(*t).cloned().unwrap_or_else(|| "missing".into());
             TaskState { name: t.to_string(), running: status == "Running", status }
         })
         .collect()

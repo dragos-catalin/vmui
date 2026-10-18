@@ -9,6 +9,7 @@
   "accent": {
     "label": "Accent",
     "custom": "Custom hue",
+    "ember": "Ember (Vatra)",
     "indigo": "Indigo",
     "violet": "Violet",
     "rose": "Rose",
@@ -30,8 +31,14 @@
     "compact": "Compact"
   },
   "motion": {
-    "label": "Reduce motion",
-    "hint": "No animations or transitions"
+    "label": "Motion",
+    "system": "System",
+    "reduce": "Reduced",
+    "full": "Full",
+    "hint_system": "Follows your device's reduce-motion setting.",
+    "hint_reduce": "No animations or transitions.",
+    "hint_full": "All animations, even if your device asks for less.",
+    "hint": "No animations or transitions."
   },
   "vibe": {
     "label": "Presets",
@@ -67,5 +74,9 @@
       "name": "Synthwave",
       "hint": "Chrome horizon grid"
     }
+  },
+  "ambient": {
+    "label": "Ambient warmth",
+    "hint": "Neutrals warm up when the house lights are on or after sunset."
   }
 }

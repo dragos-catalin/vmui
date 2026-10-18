@@ -19,10 +19,16 @@ export function Progress({
   size = "md",
   indeterminate = false,
   className,
+  "aria-label": ariaLabel,
+  valueText,
 }: {
   value?: number;
   max?: number;
+  /** Visible label. Give either this or `aria-label`: an unlabelled progressbar is announced as just a number. */
   label?: React.ReactNode;
+  "aria-label"?: string;
+  /** Spoken value (`aria-valuetext`); defaults to the rounded percentage. */
+  valueText?: string;
   tone?: ProgressTone;
   size?: "sm" | "md";
   indeterminate?: boolean;
@@ -31,20 +37,26 @@ export function Progress({
   const clamped = Math.min(max, Math.max(0, value ?? 0));
   const pct = max > 0 ? (clamped / max) * 100 : 0;
   const labelId = React.useId();
+  if (process.env.NODE_ENV !== "production" && !label && !ariaLabel) {
+    console.warn("[Progress] missing `label` or `aria-label`");
+  }
   return (
-    <div className={cn("space-y-1.5", className)}>
+    <div className={cn("min-w-0 space-y-1.5", className)}>
       {label && (
-        <div id={labelId} className="flex items-center justify-between gap-2 text-xs text-muted">
-          <span>{label}</span>
-          {!indeterminate && <span className="tabular-nums">{Math.round(pct)}%</span>}
+        <div className="flex items-center justify-between gap-2 text-xs text-fg-muted">
+          <span id={labelId} className="min-w-0">{label}</span>
+          {!indeterminate && <span className="shrink-0 tabular-nums" aria-hidden>{Math.round(pct)}%</span>}
         </div>
       )}
       <div
         role="progressbar"
         aria-labelledby={label ? labelId : undefined}
+        aria-label={label ? undefined : ariaLabel}
         aria-valuemin={0}
         aria-valuemax={max}
         aria-valuenow={indeterminate ? undefined : clamped}
+        aria-valuetext={indeterminate ? undefined : (valueText ?? `${Math.round(pct)}%`)}
+        aria-busy={indeterminate || undefined}
         className={cn("relative w-full overflow-hidden rounded-full bg-bg-muted", size === "sm" ? "h-1.5" : "h-2.5")}
       >
         {indeterminate ? (

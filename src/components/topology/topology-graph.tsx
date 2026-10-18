@@ -3,89 +3,25 @@
 import { Badge, Button, EmptyState, PageHeader, PageSection, PageShell, Skeleton, ToggleGroup } from "@/components/ui";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import type { TopologyData, TopologyEdge, TopologyNode, TopologyNodeKind } from "@/server/queries/topology";
-import { Html, OrbitControls } from "@react-three/drei";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import type { TopologyData, TopologyEdge, TopologyNode } from "@/server/queries/topology";
 import { Box, Maximize2, Network, RotateCcw, Save, Square } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
+import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { BufferAttribute, BufferGeometry, Color, DynamicDrawUsage, Vector3 } from "three";
-import { mixRgb, rgbToCss, useResolvedTokens, type Rgb } from "./theme-colors";
+import { useEffect, useMemo, useState } from "react";
+import { rgbToCss, useResolvedTokens } from "./theme-colors";
+import { buildPalette, EDGE_KINDS, initialLayout, KIND_SIZE, LAYOUT_STORAGE_KEY, NODE_KINDS, TOKENS, type Palette } from "./topology-shared";
 
-interface ControlsLike {
-  target: Vector3;
-  update: () => void;
-}
+const TopologyScene3D = dynamic(() => import("./topology-scene-3d"), {
+  ssr: false,
+  loading: () => <Skeleton className="h-full w-full rounded-none" />,
+});
 
 interface Props {
   data: TopologyData;
 }
 
-interface SimNode extends TopologyNode {
-  pos: Vector3;
-  vel: Vector3;
-  fixed: boolean;
-}
-
-const TOKENS = ["primary", "accent", "success", "warning", "danger", "info", "border", "fg", "fg-muted", "bg", "surface"] as const;
-type Tokens = Record<(typeof TOKENS)[number], Rgb>;
-
-interface Palette {
-  node: Record<TopologyNodeKind, Rgb>;
-  edge: Record<TopologyEdge["kind"], Rgb>;
-  background: Rgb;
-  label: Rgb;
-  fallback: Rgb;
-}
-
-function buildPalette(t: Tokens): Palette {
-  return {
-    node: {
-      account: t.primary,
-      instance: t.accent,
-      volume: t.success,
-      snapshot: mixRgb(t.success, t.fg, 0.35),
-      "security-group": t.warning,
-      vpc: t.info,
-      subnet: mixRgb(t.info, t.fg, 0.35),
-      bucket: mixRgb(t.primary, t.danger, 0.5),
-      "load-balancer": t.danger,
-      database: mixRgb(t.warning, t.danger, 0.5),
-      dns: mixRgb(t.success, t.accent, 0.5),
-    },
-    edge: {
-      "owned-by": t["fg-muted"],
-      attaches: t.success,
-      "in-group": t.warning,
-      "in-vpc": t.info,
-      "in-subnet": mixRgb(t.info, t.fg, 0.35),
-    },
-    background: t.bg,
-    label: t["fg-muted"],
-    fallback: t["fg-muted"],
-  };
-}
-
-const NODE_KINDS: TopologyNodeKind[] = ["account", "instance", "volume", "snapshot", "security-group", "vpc", "subnet", "bucket", "load-balancer", "database", "dns"];
-const EDGE_KINDS: TopologyEdge["kind"][] = ["owned-by", "attaches", "in-group", "in-vpc", "in-subnet"];
-
-const KIND_SIZE: Record<TopologyNodeKind, number> = {
-  account: 0.6,
-  instance: 0.4,
-  volume: 0.28,
-  snapshot: 0.22,
-  "security-group": 0.26,
-  vpc: 0.5,
-  subnet: 0.32,
-  bucket: 0.3,
-  "load-balancer": 0.34,
-  database: 0.34,
-  dns: 0.26,
-};
-
-const LAYOUT_STORAGE_KEY = "vmui:topology:layout";
 const SETTINGS_STORAGE_KEY = "vmui:topology:settings";
 
 interface SavedSettings {
@@ -99,260 +35,6 @@ const DEFAULT_SETTINGS: SavedSettings = {
   edgeKinds: ["owned-by", "attaches", "in-group", "in-vpc", "in-subnet"],
   providers: [],
 };
-
-function toColor(rgb: Rgb): Color {
-  return new Color().setRGB(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255);
-}
-
-function initialLayout(nodes: TopologyNode[]): Map<string, Vector3> {
-  const accounts = nodes.filter((n) => n.kind === "account");
-  const byAcc = new Map<string, TopologyNode[]>();
-  for (const n of nodes) {
-    if (n.kind === "account") continue;
-    const list = byAcc.get(n.accountId) ?? [];
-    list.push(n);
-    byAcc.set(n.accountId, list);
-  }
-  const positions = new Map<string, Vector3>();
-  const accRadius = Math.max(6, accounts.length * 1.6);
-  accounts.forEach((acc, i) => {
-    const theta = (i / Math.max(1, accounts.length)) * Math.PI * 2;
-    const center = new Vector3(Math.cos(theta) * accRadius, 0, Math.sin(theta) * accRadius);
-    positions.set(acc.id, center);
-    const children = byAcc.get(acc.accountId) ?? [];
-    children.forEach((c, j) => {
-      const r = 2 + Math.sqrt(j) * 0.6;
-      const phi = j * 2.4;
-      const yaw = (j % 7) * 0.4 - 1.2;
-      positions.set(c.id, new Vector3(center.x + Math.cos(phi) * r, yaw, center.z + Math.sin(phi) * r));
-    });
-  });
-  for (const n of nodes) {
-    if (!positions.has(n.id)) positions.set(n.id, new Vector3(Math.random() * 2 - 1, 0, Math.random() * 2 - 1));
-  }
-  return positions;
-}
-
-function loadSavedLayout(): Map<string, [number, number, number]> | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = window.localStorage.getItem(LAYOUT_STORAGE_KEY);
-    if (!raw) return null;
-    const obj = JSON.parse(raw) as Record<string, [number, number, number]>;
-    return new Map(Object.entries(obj));
-  } catch {
-    return null;
-  }
-}
-
-function FitCamera({ nodesRef, fitSignal }: { nodesRef: React.RefObject<SimNode[]>; fitSignal: number }) {
-  const camera = useThree((s) => s.camera);
-  const controls = useThree((s) => s.controls) as ControlsLike | null;
-  useEffect(() => {
-    const nodes = nodesRef.current;
-    if (!nodes || nodes.length === 0) return;
-    const center = new Vector3();
-    for (const n of nodes) center.add(n.pos);
-    center.divideScalar(nodes.length);
-    let radius = 1;
-    for (const n of nodes) radius = Math.max(radius, n.pos.distanceTo(center));
-    const fov = "fov" in camera && typeof camera.fov === "number" ? camera.fov : 55;
-    const distance = (radius * 1.25) / Math.sin((fov * Math.PI) / 360);
-    const dir = camera.position.clone().sub(controls?.target ?? new Vector3()).normalize();
-    if (dir.lengthSq() === 0) dir.set(0, 0.6, 1).normalize();
-    camera.position.copy(center.clone().add(dir.multiplyScalar(distance)));
-    camera.lookAt(center);
-    if (controls) {
-      controls.target.copy(center);
-      controls.update();
-    }
-  }, [fitSignal, camera, controls, nodesRef]);
-  return null;
-}
-
-function ForceScene({
-  data,
-  palette,
-  onHover,
-  onSelect,
-  saveSignal,
-  fitSignal,
-}: {
-  data: TopologyData;
-  palette: Palette;
-  onHover: (n: TopologyNode | null) => void;
-  onSelect: (n: TopologyNode) => void;
-  saveSignal: number;
-  fitSignal: number;
-}) {
-  const nodesRef = useRef<SimNode[]>([]);
-  const indexRef = useRef<Map<string, SimNode>>(new Map());
-
-  useMemo(() => {
-    const initial = initialLayout(data.nodes);
-    const saved = loadSavedLayout();
-    const sim: SimNode[] = data.nodes.map((n) => {
-      const fromSaved = saved?.get(n.id);
-      const pos = fromSaved ? new Vector3(fromSaved[0], fromSaved[1], fromSaved[2]) : initial.get(n.id)!.clone();
-      return { ...n, pos, vel: new Vector3(), fixed: n.kind === "account" };
-    });
-    nodesRef.current = sim;
-    const idx = new Map<string, SimNode>();
-    for (const s of sim) idx.set(s.id, s);
-    indexRef.current = idx;
-  }, [data]);
-
-  useEffect(() => {
-    if (saveSignal === 0) return;
-    if (typeof window === "undefined") return;
-    const out: Record<string, [number, number, number]> = {};
-    for (const n of nodesRef.current) out[n.id] = [n.pos.x, n.pos.y, n.pos.z];
-    window.localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(out));
-  }, [saveSignal]);
-
-  const sphereRefs = useRef<Map<string, { position: Vector3 }>>(new Map());
-  const linesArrayRef = useRef<Float32Array>(new Float32Array(data.edges.length * 6));
-  const lineGeomRef = useRef<BufferGeometry | null>(null);
-
-  useEffect(() => {
-    const geom = new BufferGeometry();
-    const attr = new BufferAttribute(linesArrayRef.current, 3);
-    attr.setUsage(DynamicDrawUsage);
-    geom.setAttribute("position", attr);
-    lineGeomRef.current = geom;
-    return () => {
-      geom.dispose();
-    };
-  }, [data]);
-
-  useFrame((_, dt) => {
-    const step = Math.min(dt, 0.033);
-    const nodes = nodesRef.current;
-    const idx = indexRef.current;
-    const n = nodes.length;
-    for (let i = 0; i < n; i++) {
-      const a = nodes[i]!;
-      for (let j = i + 1; j < n; j++) {
-        const b = nodes[j]!;
-        const dx = a.pos.x - b.pos.x;
-        const dy = a.pos.y - b.pos.y;
-        const dz = a.pos.z - b.pos.z;
-        const d2 = dx * dx + dy * dy + dz * dz + 0.01;
-        const k = 0.6 / d2;
-        a.vel.x += dx * k;
-        a.vel.y += dy * k;
-        a.vel.z += dz * k;
-        b.vel.x -= dx * k;
-        b.vel.y -= dy * k;
-        b.vel.z -= dz * k;
-      }
-    }
-    for (const e of data.edges) {
-      const a = idx.get(e.from);
-      const b = idx.get(e.to);
-      if (!a || !b) continue;
-      const dx = b.pos.x - a.pos.x;
-      const dy = b.pos.y - a.pos.y;
-      const dz = b.pos.z - a.pos.z;
-      const d = Math.sqrt(dx * dx + dy * dy + dz * dz) + 0.01;
-      const target = e.kind === "owned-by" ? 2.5 : 1.6;
-      const f = (d - target) * 0.25;
-      const ux = dx / d;
-      const uy = dy / d;
-      const uz = dz / d;
-      a.vel.x += ux * f;
-      a.vel.y += uy * f;
-      a.vel.z += uz * f;
-      b.vel.x -= ux * f;
-      b.vel.y -= uy * f;
-      b.vel.z -= uz * f;
-    }
-    for (const a of nodes) {
-      a.vel.x += -a.pos.x * 0.01;
-      a.vel.y += -a.pos.y * 0.04;
-      a.vel.z += -a.pos.z * 0.01;
-      if (a.fixed) {
-        a.vel.set(0, 0, 0);
-        continue;
-      }
-      a.vel.multiplyScalar(0.85);
-      a.pos.x += a.vel.x * step;
-      a.pos.y += a.vel.y * step;
-      a.pos.z += a.vel.z * step;
-      const s = sphereRefs.current.get(a.id);
-      if (s) s.position.copy(a.pos);
-    }
-    const arr = linesArrayRef.current;
-    let p = 0;
-    for (const e of data.edges) {
-      const a = idx.get(e.from);
-      const b = idx.get(e.to);
-      if (!a || !b) {
-        p += 6;
-        continue;
-      }
-      arr[p++] = a.pos.x;
-      arr[p++] = a.pos.y;
-      arr[p++] = a.pos.z;
-      arr[p++] = b.pos.x;
-      arr[p++] = b.pos.y;
-      arr[p++] = b.pos.z;
-    }
-    const geom = lineGeomRef.current;
-    if (geom) (geom.getAttribute("position") as BufferAttribute).needsUpdate = true;
-  });
-
-  const edgeColor = useMemo(() => toColor(palette.edge["owned-by"]), [palette]);
-  const nodeColors = useMemo(() => {
-    const m = new Map<TopologyNodeKind, Color>();
-    for (const k of NODE_KINDS) m.set(k, toColor(palette.node[k]));
-    return m;
-  }, [palette]);
-  const fallbackColor = useMemo(() => toColor(palette.fallback), [palette]);
-
-  return (
-    <>
-      <ambientLight intensity={0.55} />
-      <directionalLight position={[10, 14, 6]} intensity={0.8} />
-      <FitCamera nodesRef={nodesRef} fitSignal={fitSignal} />
-      {lineGeomRef.current && (
-        <lineSegments geometry={lineGeomRef.current}>
-          <lineBasicMaterial color={edgeColor} transparent opacity={0.45} />
-        </lineSegments>
-      )}
-      {nodesRef.current.map((n) => {
-        const color = nodeColors.get(n.kind) ?? fallbackColor;
-        return (
-          <mesh
-            key={n.id}
-            position={n.pos}
-            ref={(m) => {
-              if (m) sphereRefs.current.set(n.id, m);
-            }}
-            onPointerOver={(e) => {
-              e.stopPropagation();
-              onHover(n);
-            }}
-            onPointerOut={() => onHover(null)}
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelect(n);
-            }}
-          >
-            <sphereGeometry args={[KIND_SIZE[n.kind] ?? 0.3, 16, 16]} />
-            <meshStandardMaterial
-              color={color}
-              emissive={color}
-              emissiveIntensity={n.status === "running" || n.kind === "account" ? 0.45 : 0.1}
-              roughness={0.4}
-              metalness={0.15}
-            />
-          </mesh>
-        );
-      })}
-    </>
-  );
-}
 
 function Canvas2D({ data, palette, onSelect }: { data: TopologyData; palette: Palette; onSelect: (n: TopologyNode) => void }) {
   const positions = useMemo(() => initialLayout(data.nodes), [data]);
@@ -406,7 +88,7 @@ function NodeDetails({ node, palette, onClose }: { node: TopologyNode | null; pa
                 v == null || v === "" ? null : (
                   <div key={k} className="flex justify-between gap-3">
                     <dt className="text-muted">{k}</dt>
-                    <dd className="min-w-0 truncate font-mono">{String(v)}</dd>
+                    <dd className="min-w-0 truncate font-mono" title={String(v)}>{String(v)}</dd>
                   </div>
                 ),
               )}
@@ -592,32 +274,31 @@ export function TopologyGraph({ data }: Props) {
       </PageSection>
 
       <PageSection title={t("graph.title")} description={t("graph.hint")} className="hidden md:block">
-        <div className="relative aspect-[16/10] min-h-[420px] max-h-[72vh] w-full overflow-hidden rounded-[var(--radius-lg)] border border-border bg-bg">
+        <div
+          role="img"
+          aria-label={t("graph.aria", { nodes: filtered.nodes.length, edges: filtered.edges.length })}
+          className="relative aspect-[16/10] min-h-[420px] max-h-[72vh] w-full overflow-hidden rounded-[var(--radius-lg)] border border-border bg-bg"
+        >
           {!palette ? (
             <Skeleton className="h-full w-full rounded-none" />
           ) : settings.view === "3d" ? (
-            <Canvas camera={{ position: [0, 12, 18], fov: 55 }}>
-              <color attach="background" args={[rgbToCss(palette.background)]} />
-              <ForceScene data={filtered} palette={palette} onHover={setHover} onSelect={setSelected} saveSignal={saveSignal} fitSignal={fitSignal} />
-              <OrbitControls makeDefault enableDamping />
-              {hover && !selected && (
-                <Html position={[0, 0, 0]} center>
-                  <div className="pointer-events-none surface px-2 py-1 text-[11px] shadow-lg">
-                    <div className="font-semibold">{hover.label}</div>
-                    <div className="text-muted">
-                      {t(`kinds.${hover.kind}`)} · {hover.provider}
-                    </div>
-                  </div>
-                </Html>
-              )}
-            </Canvas>
+            <TopologyScene3D
+              data={filtered}
+              palette={palette}
+              hover={hover}
+              selected={selected}
+              onHover={setHover}
+              onSelect={setSelected}
+              saveSignal={saveSignal}
+              fitSignal={fitSignal}
+            />
           ) : (
             <Canvas2D key={fitSignal} data={filtered} palette={palette} onSelect={setSelected} />
           )}
         </div>
-        <div className="mt-3 flex flex-wrap gap-1.5" aria-label={t("legend.title")}>
+        <div role="list" className="mt-3 flex flex-wrap gap-1.5" aria-label={t("legend.title")}>
           {presentKinds.map((k) => (
-            <Badge key={k} variant="default">
+            <Badge key={k} variant="default" role="listitem">
               <span className="inline-block size-2 rounded-full" style={{ background: palette ? rgbToCss(palette.node[k]) : undefined }} aria-hidden />
               {t(`kinds.${k}`)}
             </Badge>
@@ -626,13 +307,16 @@ export function TopologyGraph({ data }: Props) {
       </PageSection>
 
       <PageSection title={t("list.title")} description={t("list.description")} className="md:hidden">
+        {filtered.nodes.length === 0 ? (
+          <EmptyState compact illustration="search" icon={<Network />} title={t("list.emptyTitle")} description={t("list.emptyDescription")} />
+        ) : (
         <ul className="divide-y divide-border">
           {filtered.nodes.slice(0, 200).map((n, i) => (
-            <motion.li
+            <m.li
               key={n.id}
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2, delay: Math.min(i, 12) * 0.03 }}
+              transition={{ duration: 0.2, delay: Math.min(i, 8) * 0.035 }}
             >
               <button
                 type="button"
@@ -641,16 +325,17 @@ export function TopologyGraph({ data }: Props) {
               >
                 <span className="inline-block size-2.5 shrink-0 rounded-full" style={{ background: palette ? rgbToCss(palette.node[n.kind]) : undefined }} aria-hidden />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium">{n.label}</span>
+                  <span className="block truncate text-sm font-medium" title={n.label}>{n.label}</span>
                   <span className="block truncate text-xs text-muted">
                     {n.provider} · {n.region || "—"}
                   </span>
                 </span>
                 <Badge variant="muted">{t(`kinds.${n.kind}`)}</Badge>
               </button>
-            </motion.li>
+            </m.li>
           ))}
         </ul>
+        )}
         {filtered.nodes.length > 200 && <p className="mt-2 text-xs text-muted">{t("list.truncated", { count: filtered.nodes.length - 200 })}</p>}
       </PageSection>
 

@@ -3,7 +3,7 @@
 import { Badge, DataTable, EmptyState, type ColumnDef } from "@/components/ui";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { History, Minus, Plus, RefreshCcw } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useFormatter, useTranslations } from "next-intl";
 import * as React from "react";
 
@@ -99,7 +99,7 @@ export function SyncHistoryTable({ rows }: { rows: SyncEvent[] }) {
 
   return (
     <>
-      <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+      <m.div initial={{ y: 6 }} animate={{ y: 0 }} transition={{ duration: 0.2 }}>
         <DataTable
           columns={columns}
           data={rows}
@@ -107,9 +107,9 @@ export function SyncHistoryTable({ rows }: { rows: SyncEvent[] }) {
           searchable
           getRowId={(r) => r.id}
           onRowClick={setDetail}
-          emptyState={<EmptyState compact icon={<History />} title={t("empty.title")} description={t("empty.description")} />}
+          emptyState={<EmptyState illustration="activity" compact icon={<History />} title={t("empty.title")} description={t("empty.description")} />}
         />
-      </motion.div>
+      </m.div>
 
       <Sheet open={detail !== null} onOpenChange={(open) => !open && setDetail(null)}>
         {detail && (

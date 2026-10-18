@@ -7,11 +7,17 @@ import { cloudAccounts, instances } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { cn } from "@/lib/utils";
 import { ArrowRight, Check, Cloud, KeyRound, RefreshCcw, Server, Sparkles } from "lucide-react";
+import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import "server-only";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("auth.meta");
+  return { title: t("onboarding") };
+}
 
 type StepStatus = "done" | "next" | "later";
 interface Step {
@@ -70,8 +76,8 @@ export default async function OnboardingPage() {
     { id: "schedule", title: t("steps.schedule.title"), detail: t("steps.schedule.detail"), cta: t("steps.schedule.cta"), href: "/schedules" },
   ];
 
-  const code = (chunks: React.ReactNode) => <code className="rounded-[var(--radius-sm)] bg-bg-muted px-1 py-0.5 font-mono text-[11px] text-fg">{chunks}</code>;
-  const b = (chunks: React.ReactNode) => <strong className="text-fg">{chunks}</strong>;
+  const code = (chunks: React.ReactNode) => <code className="rounded-[var(--radius-sm)] bg-bg-muted px-1 py-0.5 font-mono text-2xs text-fg">{chunks}</code>;
+  const providerNames = { aws: "AWS", azure: "Azure", gcp: "GCP", scaleway: "Scaleway", kvm: "local-kvm" } as const;
 
   return (
     <PageShell width="narrow">
@@ -86,20 +92,25 @@ export default async function OnboardingPage() {
               id={s.id}
               className={cn(s.status === "next" && "border-[color-mix(in_oklch,var(--color-primary)_45%,var(--color-border))]")}
               title={
-                <span className="flex flex-wrap items-center gap-2">
+                <span className="flex items-start gap-2">
+                  <span className="sr-only">{t("step", { n: i + 1 })}</span>
                   <span
                     className={cn(
-                      "grid size-6 shrink-0 place-items-center rounded-full text-[11px] font-semibold tabular-nums",
+                      "grid size-6 shrink-0 place-items-center rounded-full text-2xs font-semibold tabular-nums",
                       s.status === "done" ? "bg-success text-success-fg" : s.status === "next" ? "bg-primary text-primary-fg" : "bg-bg-muted text-fg-muted",
                     )}
-                    aria-label={t("step", { n: i + 1 })}
+                    aria-hidden
                   >
                     {s.status === "done" ? <Check className="size-3.5" aria-hidden /> : i + 1}
                   </span>
-                  <span>{s.title}</span>
-                  {s.status === "done" && <Badge variant="success">{t("status.done")}</Badge>}
-                  {s.status === "next" && <Badge variant="info">{t("status.next")}</Badge>}
-                  {s.status === "later" && <Badge variant="muted">{t("status.later")}</Badge>}
+                  <span className="min-w-0 pt-0.5 leading-snug">
+                    {s.title}{" "}
+                    <span className="ml-1 inline-flex align-middle">
+                      {s.status === "done" && <Badge variant="success">{t("status.done")}</Badge>}
+                      {s.status === "next" && <Badge variant="info">{t("status.next")}</Badge>}
+                      {s.status === "later" && <Badge variant="muted">{t("status.later")}</Badge>}
+                    </span>
+                  </span>
                 </span>
               }
               action={
@@ -131,7 +142,7 @@ export default async function OnboardingPage() {
               <div className="min-w-0">
                 <p className="text-sm font-medium">{o.title}</p>
                 <p className="mt-0.5 text-xs leading-snug text-fg-muted">{o.detail}</p>
-                </div>
+              </div>
               <Button asChild size="sm" variant="outline" className="mt-auto self-start">
                 <Link href={o.href}>
                   {o.cta}
@@ -148,13 +159,14 @@ export default async function OnboardingPage() {
       </PageSection>
 
       <PageSection title={<span className="flex items-center gap-2"><Cloud className="size-4 text-primary" aria-hidden />{t("providers.title")}</span>}>
-        <ul className="grid gap-2 text-xs leading-relaxed text-fg-muted sm:grid-cols-2">
+        <dl className="divide-y divide-border text-xs leading-relaxed">
           {(["aws", "azure", "gcp", "scaleway", "kvm"] as const).map((p) => (
-            <li key={p} className={cn("min-w-0", p === "kvm" && "sm:col-span-2")}>
-              {t.rich(`providers.${p}`, { b })}
-            </li>
+            <div key={p} className="grid min-w-0 gap-x-4 gap-y-0.5 py-2 first:pt-0 last:pb-0 sm:grid-cols-[7rem_1fr]">
+              <dt className="font-medium text-fg">{providerNames[p]}</dt>
+              <dd className="min-w-0 text-fg-muted">{t(`providers.${p}`)}</dd>
+            </div>
           ))}
-        </ul>
+        </dl>
       </PageSection>
 
       <PageSection title={<span className="flex items-center gap-2"><RefreshCcw className="size-4 text-primary" aria-hidden />{t("background.title")}</span>}>

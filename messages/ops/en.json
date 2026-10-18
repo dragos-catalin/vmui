@@ -174,7 +174,7 @@
   },
   "builds": {
     "title": "Builds & registries",
-    "description": "Configure container registries, then build and push images locally on the vmui host or remotely on any reachable VM.",
+    "description": "Configure container registries, then build and push images locally on the Vatra host or remotely on any reachable VM.",
     "viewContainers": "Containers",
     "finished": "finished",
     "timeline": "Build progress",
@@ -199,7 +199,7 @@
       "pushed": "Push"
     },
     "location": {
-      "local": "Local (vmui host)",
+      "local": "Local (Vatra host)",
       "remote": "Remote (VM)",
       "remoteOn": "Remote · {name}"
     },
@@ -292,7 +292,7 @@
     },
     "empty": {
       "title": "No Git sources yet",
-      "description": "Add a repository and vmui will poll it and apply compose changes to the target VM."
+      "description": "Add a repository and Vatra will poll it and apply compose changes to the target VM."
     },
     "confirmDelete": {
       "title": "Delete “{name}”?",
@@ -512,7 +512,8 @@
     },
     "graph": {
       "title": "Graph",
-      "hint": "Drag to rotate · scroll to zoom · click a node for details."
+      "hint": "Drag to rotate · scroll to zoom · click a node for details.",
+      "aria": "Topology graph with {nodes, plural, =1 {# node} other {# nodes}} and {edges, plural, =1 {# relationship} other {# relationships}}. The same nodes are listed below on small screens and in the details panel."
     },
     "legend": {
       "title": "Node kinds"
@@ -520,7 +521,9 @@
     "list": {
       "title": "Nodes",
       "description": "Tap a node for details.",
-      "truncated": "{count, plural, =1 {# more node hidden} other {# more nodes hidden}}"
+      "truncated": "{count, plural, =1 {# more node hidden} other {# more nodes hidden}}",
+      "emptyTitle": "No nodes match these filters",
+      "emptyDescription": "Turn a provider or account filter back on to see nodes."
     },
     "kinds": {
       "account": "Account",
@@ -572,7 +575,7 @@
     "toolCall": "Tool · {tool}",
     "toolLines": "{count, plural, =1 {# line} other {# lines}}",
     "thinking": "Thinking…",
-    "placeholder": "Ask vmui…",
+    "placeholder": "Ask Vatra…",
     "send": "Send",
     "hint": "Enter sends · Shift+Enter for a new line",
     "errorPrefix": "Error: {error}"
@@ -637,7 +640,7 @@
   },
   "restore": {
     "title": "Restore",
-    "description": "Launch a new VM from a successful backup. Cross-cloud: pick any account and region — vmui hands the snapshot to the provider and calls createInstance.",
+    "description": "Launch a new VM from a successful backup. Cross-cloud: pick any account and region — Vatra hands the snapshot to the provider and calls createInstance.",
     "jobsCount": "{count, plural, =1 {# backup} other {# backups}}",
     "openBackups": "Open backups",
     "progress": "Step {step} of {total}",

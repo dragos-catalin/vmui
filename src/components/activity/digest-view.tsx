@@ -1,9 +1,9 @@
 "use client";
 
-import { BarChartCard } from "@/components/charts";
+import { BarChartCard } from "@/components/monitoring/lazy-charts";
 import { EmptyState, PageSection, ToggleGroup, type ToggleOption } from "@/components/ui";
 import { AlertTriangle, Coffee } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useFormatter, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 
@@ -47,7 +47,7 @@ export function DigestView({ hours, top, errors }: { hours: number; top: { actio
         ) : (
           <ul className="divide-y divide-border">
             {errors.map((e, i) => (
-              <motion.li
+              <m.li
                 key={e.id}
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -63,7 +63,7 @@ export function DigestView({ hours, top, errors }: { hours: number; top: { actio
                   </time>
                 </div>
                 {e.message && <p className="mt-1 line-clamp-2 text-xs text-fg-muted">{e.message}</p>}
-              </motion.li>
+              </m.li>
             ))}
           </ul>
         )}

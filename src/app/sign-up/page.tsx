@@ -1,11 +1,17 @@
 import { AuthCard } from "@/components/auth/auth-card";
 import { SignUpForm } from "@/components/auth/sign-up-form";
 import { getCurrentUser, ROLE_RANK, userCount } from "@/lib/auth";
+import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("auth.meta");
+  return { title: t("signUp") };
+}
 
 export default async function SignUpPage() {
   const n = await userCount();

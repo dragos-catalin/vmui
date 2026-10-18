@@ -1,6 +1,6 @@
 {
   "title": "Settings",
-  "description": "Local environment, security, access and automation for this vmui host.",
+  "description": "Local environment, security, access and automation for this Vatra host.",
   "nav": {
     "label": "Settings sections",
     "general": {
@@ -20,8 +20,8 @@
   "integrations": {
     "codai": {
       "title": "codai",
-      "description": "Turn any VM vmui manages into a codai Environment (BYO). vmui stays local; codai only sees the daemon's outbound connection.",
-      "intro": "Create an API key in the codai console (<code>codai_…</code>). It is encrypted at rest with the vmui master key and never shown again — only its prefix and length.",
+      "description": "Turn any VM Vatra manages into a codai Environment (BYO). Vatra stays local; codai only sees the daemon's outbound connection.",
+      "intro": "Create an API key in the codai console (<code>codai_…</code>). It is encrypted at rest with the Vatra master key and never shown again — only its prefix and length.",
       "gatewayUrl": "Gateway URL",
       "gatewayUrlHint": "Environments API base. Leave the default unless you self-host codai.",
       "apiKey": "API key",
@@ -34,7 +34,7 @@
       "testOk": "Connected — {count, plural, =0 {no projects yet} one {# project} other {# projects}}",
       "clear": "Remove key",
       "clearConfirm": "Remove the codai API key?",
-      "clearHint": "Linked environments keep working; vmui just cannot provision or poll until a key is added again.",
+      "clearHint": "Linked environments keep working; Vatra just cannot provision or poll until a key is added again.",
       "saved": "codai settings saved",
       "cleared": "codai API key removed"
     }
@@ -42,7 +42,7 @@
   "general": {
     "environment": {
       "title": "Environment",
-      "description": "How this vmui instance is wired.",
+      "description": "How this Vatra instance is wired.",
       "masterKey": "Master encryption key",
       "masterKeyHint": "AES-256-GCM. Encrypts every cloud credential at rest. Lose it and every account must be re-added — generate a new one with <cmd>pnpm keygen</cmd>.",
       "set": "set",
@@ -60,7 +60,7 @@
     },
     "telemetry": {
       "title": "Inventory",
-      "description": "What vmui knows about your fleet.",
+      "description": "What Vatra knows about your fleet.",
       "accounts": "Accounts",
       "instances": "Instances",
       "auditEntries": "Audit entries"
@@ -83,7 +83,7 @@
     },
     "pwa": {
       "title": "App & notifications",
-      "description": "Install vmui to your home screen and get push notifications for VM, build and alert events.",
+      "description": "Install Vatra to your home screen and get push notifications for VM, build and alert events.",
       "install": "Install",
       "push": "Push notifications",
       "pushHint": "Requires <code>VAPID_PUBLIC_KEY</code>, <code>VAPID_PRIVATE_KEY</code> and optional <code>VAPID_SUBJECT</code> in .env. Generate with <code>pnpm dlx web-push generate-vapid-keys</code>.",
@@ -97,7 +97,7 @@
     },
     "shortcuts": {
       "title": "Keyboard shortcuts",
-      "description": "Navigate vmui without leaving the keyboard.",
+      "description": "Navigate Vatra without leaving the keyboard.",
       "palette": "Open command palette",
       "help": "Show keyboard shortcuts",
       "search": "Focus search on dashboard",
@@ -182,7 +182,7 @@
     },
     "sessions": {
       "title": "Active sessions",
-      "description": "Every browser signed in to this vmui. Revoke the ones you do not recognise.",
+      "description": "Every browser signed in to this Vatra. Revoke the ones you do not recognise.",
       "count": "{count, plural, =1 {# active session} other {# active sessions}}",
       "empty": "No active sessions",
       "signOutOthers": "Sign out everywhere else",
@@ -293,6 +293,8 @@
       "scopePcActions": "PC actions",
       "scopeScripts": "HA scripts",
       "scopeScriptsHint": "Script names ha_script may run, separated by commas. Empty = any script.",
+      "entitiesPlaceholder": "light.moodlight, climate.bedroom_ac",
+      "scriptsPlaceholder": "movie_mode_on, copilot_done",
       "destructive": "destructive",
       "readOnly": "read-only",
       "unrestricted": "Unrestricted",
@@ -347,6 +349,7 @@
       "publicKeyPlaceholder": "ssh-ed25519 AAAA… you@host",
       "privateKey": "Private key PEM",
       "privateKeyHint": "Optional, encrypted at rest.",
+      "privateKeyPlaceholder": "-----BEGIN OPENSSH PRIVATE KEY-----",
       "algorithm": "Algorithm",
       "algoEd25519": "ed25519 (recommended)",
       "algoRsa": "RSA 4096",
@@ -372,7 +375,7 @@
       "delete": "Delete key",
       "deleted": "Key deleted",
       "confirmDelete": "Delete SSH key “{name}”?",
-      "confirmDeleteHint": "Existing VMs using it remain accessible — only vmui forgets it.",
+      "confirmDeleteHint": "Existing VMs using it remain accessible — only Vatra forgets it.",
       "config": {
         "title": "~/.ssh/config snippet",
         "description": "Ready-made host entries for every reachable Linux VM.",
@@ -382,7 +385,7 @@
         "copy": "Copy",
         "copied": "Copied",
         "download": "Download",
-        "header": "Generated by vmui — drop in ~/.ssh/config or include via 'Include ~/.ssh/config.d/vmui'"
+        "header": "Generated by Vatra — drop in ~/.ssh/config or include via 'Include ~/.ssh/config.d/vmui'"
       }
     },
     "knownHosts": {
@@ -446,7 +449,7 @@
     },
     "bootScripts": {
       "title": "Boot scripts",
-      "description": "User-data passed verbatim to the provider at instance creation. Pick one in the create form; vmui never runs them locally.",
+      "description": "User-data passed verbatim to the provider at instance creation. Pick one in the create form; Vatra never runs them locally.",
       "add": "New boot script",
       "empty": "No boot scripts yet",
       "emptyHint": "Add cloud-init, bash or PowerShell to run on first boot.",
@@ -498,7 +501,7 @@
       "overwriteHint": "Otherwise rows with the same id are skipped.",
       "restore": "Restore from file",
       "restoreHint": "Pick a vmui-backup-*.json file.",
-      "notBackup": "Not a vmui backup file",
+      "notBackup": "Not a Vatra backup file",
       "restored": "Restored {accounts, plural, =1 {# account} other {# accounts}}, {keys, plural, =1 {# key} other {# keys}}"
     }
   },

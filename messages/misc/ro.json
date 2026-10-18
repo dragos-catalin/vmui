@@ -45,7 +45,7 @@
     "sendTest": "Trimite test"
   },
   "install": {
-    "title": "Instalează vmui",
+    "title": "Instalează Vatra",
     "description": "Adaugă pe ecranul principal pentru acces pe tot ecranul, cache offline și notificări push.",
     "install": "Instalează",
     "notNow": "Nu acum",

@@ -3,12 +3,13 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Panel } from "@/components/ui/settings-panel";
-import { useIntercomState, type IntercomState } from "@/hooks/use-poll";
+import { useInterval, useIntercomState, type IntercomState } from "@/hooks/use-poll";
 import { armIntercomAction, ignoreIntercomAction, openIntercomAction } from "@/server/actions/intercom";
 import { BellRing, DoorOpen, PackageCheck, ShieldOff } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import * as React from "react";
 import { toast } from "sonner";
+import { useHomeAction } from "./use-home-action";
 
 export type IntercomCardState = IntercomState;
 
@@ -21,10 +22,11 @@ const isLogEvent = (e: string): e is LogEvent => (LOG_EVENTS as readonly string[
  *  3 s while mounted so a ring shows up without a reload. */
 export function IntercomCard({ initial, token, canOpen = true }: { initial: IntercomCardState; token: string; canOpen?: boolean }) {
   const t = useTranslations("devices.intercom");
-  const locale = useLocale();
+  const fmt = useFormatter();
   const { data: s } = useIntercomState(initial, { url: token ? `/api/esp/intercom?k=${encodeURIComponent(token)}` : undefined });
   const [now, setNow] = React.useState(() => Date.now());
-  const [busy, setBusy] = React.useState(false);
+  const action = useHomeAction(async (fn: () => Promise<{ ok: boolean; error?: string }>) => fn(), { error: t("toast.failed") });
+  const busy = action.pending;
 
   const ago = (ms: number | null): string => {
     if (!ms) return t("ago.never");
@@ -32,22 +34,16 @@ export function IntercomCard({ initial, token, canOpen = true }: { initial: Inte
     if (sec < 60) return t("ago.seconds", { n: sec });
     if (sec < 3600) return t("ago.minutes", { n: Math.round(sec / 60) });
     if (sec < 86400) return t("ago.hours", { n: Math.round(sec / 3600) });
-    return new Date(ms).toLocaleDateString(locale);
+    return fmt.dateTime(new Date(ms), { dateStyle: "medium" });
   };
-  const clock = (ms: number) => new Date(ms).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
+  const clock = (ms: number) => fmt.dateTime(new Date(ms), { hour: "2-digit", minute: "2-digit" });
 
-  React.useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 3000);
-    return () => clearInterval(id);
-  }, []);
+  useInterval(() => setNow(Date.now()), 3000);
 
   const armed = (s.autoOpenUntil ?? 0) > now;
   const run = async (label: string, fn: () => Promise<{ ok: boolean; error?: string }>) => {
-    setBusy(true);
-    const r = await fn();
-    setBusy(false);
+    const r = await action.run(fn);
     if (r.ok) toast.success(label);
-    else toast.error(r.error ?? t("toast.failed"));
   };
 
   return (
@@ -56,7 +52,7 @@ export function IntercomCard({ initial, token, canOpen = true }: { initial: Inte
       className={s.ringing ? "ring-2 ring-[var(--color-warning)]" : undefined}
       title={
         <span className="flex items-center gap-2">
-          <BellRing className={s.ringing ? "size-4 animate-pulse text-[var(--color-warning)]" : "size-4 text-muted"} aria-hidden />
+          <BellRing className={s.ringing ? "size-4 text-warning-text motion-safe:animate-pulse" : "size-4 text-muted"} aria-hidden />
           {t("title")}
         </span>
       }
@@ -65,7 +61,7 @@ export function IntercomCard({ initial, token, canOpen = true }: { initial: Inte
     >
       <div className="space-y-4">
         {canOpen && <div className="flex flex-wrap gap-2">
-          <Button disabled={!s.ringing || busy} onClick={() => run(t("toast.opening"), openIntercomAction)}>
+          <Button variant={s.ringing ? "primary" : "secondary"} disabled={!s.ringing || busy} onClick={() => run(t("toast.opening"), openIntercomAction)}>
             <DoorOpen className="size-4" aria-hidden /> {t("actions.answerOpen")}
           </Button>
           <Button variant="secondary" disabled={!s.ringing || busy} onClick={() => run(t("toast.ignored"), ignoreIntercomAction)}>

@@ -8,14 +8,53 @@ import { Kbd } from "@/components/ui/kbd";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { syncAllAccounts } from "@/server/actions/instances";
 import { Moon, Plus, RefreshCw, Search, Sun } from "lucide-react";
+import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, useTransition, type ReactNode } from "react";
+import { useEffect, useState, useSyncExternalStore, useTransition, type ReactNode } from "react";
 import { toast } from "sonner";
 import { currentNavItem } from "./nav-model";
-import { openCommandPalette } from "./shell-events";
+import { getPaletteOpen, openCommandPalette, PALETTE_LAYOUT_ID, subscribePaletteOpen } from "./shell-events";
+
+const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+
+/** Search button that the command palette grows out of (shared Motion layoutId). */
+function PaletteTrigger() {
+  const t = useTranslations("shell");
+  const open = useSyncExternalStore(subscribePaletteOpen, getPaletteOpen, () => false);
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={openCommandPalette}
+          aria-label={t("topbar.search")}
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          aria-keyshortcuts="Control+K Meta+K"
+          className={`relative isolate inline-flex h-10 items-center gap-2 rounded-[var(--radius-md)] px-2 text-sm text-fg-muted transition-colors hover:text-fg sm:h-9 md:w-56 md:justify-start md:px-3 ${FOCUS}`}
+        >
+          {/* The morph layer: unmounted while the palette owns the layoutId, so Motion animates between them. */}
+          {!open && (
+            <m.span
+              layoutId={PALETTE_LAYOUT_ID}
+              transition={{ type: "spring", stiffness: 380, damping: 32 }}
+              style={{ borderRadius: 12 }}
+              className="absolute inset-0 -z-10 hidden border border-border bg-bg-muted md:block"
+              aria-hidden
+            />
+          )}
+          <Search className="size-4 shrink-0" aria-hidden />
+          <span className="hidden flex-1 truncate text-left md:inline">{t("topbar.searchHint")}</span>
+          <Kbd className="hidden md:inline-flex">⌘K</Kbd>
+        </button>
+      </TooltipTrigger>
+      <TooltipContent className="md:hidden">{t("brand.commandPalette")}</TooltipContent>
+    </Tooltip>
+  );
+}
 
 export function Topbar({ user, compact = false }: { user?: ReactNode; compact?: boolean }) {
   const t = useTranslations("nav");
@@ -40,86 +79,90 @@ export function Topbar({ user, compact = false }: { user?: ReactNode; compact?: 
     });
   }
 
+  const currentLabel = current ? tShell(`items.${current.id}` as Parameters<typeof tShell>[0]) : null;
+
   return (
-    <header data-vmui-topbar className="sticky top-0 z-[var(--z-topbar)] border-b border-border bg-[color-mix(in_oklch,var(--color-bg)_70%,transparent)] pt-[env(safe-area-inset-top)] backdrop-blur-md">
+    <header
+      data-vmui-topbar
+      className="sticky top-0 z-[var(--z-topbar)] border-b border-border bg-[color-mix(in_oklch,var(--color-bg)_70%,transparent)] pt-[env(safe-area-inset-top)] backdrop-blur-md"
+    >
       <div className="flex h-14 items-center justify-between gap-2 px-4 sm:px-6 lg:px-10">
-      <nav aria-label={t("controlPlane")} className="flex min-w-0 items-center gap-2 text-sm text-muted">
-        <span className="hidden truncate sm:inline">{t("controlPlane")}</span>
-        {current && (
-          <>
-            <span className="hidden opacity-40 sm:inline" aria-hidden>/</span>
-            <span className="flex min-w-0 items-center gap-1.5 font-medium text-fg">
-              <current.icon className="size-4 shrink-0 text-muted" aria-hidden />
-              <span className="truncate">{tShell(`items.${current.id}` as Parameters<typeof tShell>[0])}</span>
-            </span>
-          </>
-        )}
-      </nav>
+        <nav aria-label={t("controlPlane")} className="flex min-w-0 items-center gap-2 text-sm text-fg-muted">
+          <span className="hidden truncate sm:inline">{t("controlPlane")}</span>
+          {current && currentLabel && (
+            <>
+              <span className="hidden opacity-40 sm:inline" aria-hidden>
+                /
+              </span>
+              <span className="flex min-w-0 items-center gap-1.5 font-medium text-fg" aria-current="page">
+                <current.icon className="size-4 shrink-0 text-fg-muted" aria-hidden />
+                <span className="truncate" title={currentLabel}>
+                  {currentLabel}
+                </span>
+              </span>
+            </>
+          )}
+        </nav>
 
-      <div className="flex shrink-0 items-center gap-0.5 sm:gap-2">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              onClick={openCommandPalette}
-              aria-label={tShell("topbar.search")}
-              className="inline-flex h-10 items-center gap-2 rounded-[var(--radius-md)] px-2 text-sm text-muted transition-colors hover:bg-[color-mix(in_oklch,var(--color-fg)_8%,transparent)] hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_oklch,var(--color-primary)_55%,transparent)] sm:h-9 md:w-56 md:justify-start md:border md:border-border md:bg-bg-muted md:px-3"
-            >
-              <Search className="size-4 shrink-0" aria-hidden />
-              <span className="hidden flex-1 truncate text-left md:inline">{tShell("topbar.searchHint")}</span>
-              <Kbd className="hidden md:inline-flex">⌘K</Kbd>
-            </button>
-          </TooltipTrigger>
-          <TooltipContent className="md:hidden">{tShell("brand.commandPalette")}</TooltipContent>
-        </Tooltip>
+        <div className="flex shrink-0 items-center gap-0.5 sm:gap-2">
+          <PaletteTrigger />
 
-        <NotificationsBell />
+          <NotificationsBell />
 
-        <LocaleSwitcher />
+          {/* Below sm the locale + theme controls live in the user menu (SH-41). */}
+          <div className={user ? "hidden sm:contents" : "contents"}>
+            <LocaleSwitcher />
+          </div>
 
-        <AppearanceSwitcher />
+          <AppearanceSwitcher />
 
-        {!compact && <div className="hidden sm:block"><Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={syncNow}
-              disabled={pending}
-              aria-label={t("syncNow")}
-            >
-              <RefreshCw className={pending ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+          {!compact && (
+            <div className="hidden sm:block">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" onClick={syncNow} disabled={pending} aria-label={t("syncNow")}>
+                    <RefreshCw className={pending ? "size-4 motion-safe:animate-spin" : "size-4"} aria-hidden />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t("syncAll")}</TooltipContent>
+              </Tooltip>
+            </div>
+          )}
+
+          <div className={user ? "hidden sm:block" : undefined}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+                  aria-label={t("toggleTheme")}
+                  suppressHydrationWarning
+                >
+                  {mounted ? (
+                    resolvedTheme === "dark" ? (
+                      <Sun className="size-4" aria-hidden />
+                    ) : (
+                      <Moon className="size-4" aria-hidden />
+                    )
+                  ) : (
+                    <Sun className="size-4 opacity-0" aria-hidden />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t("toggleTheme")}</TooltipContent>
+            </Tooltip>
+          </div>
+
+          {!compact && (
+            <Button asChild size="sm" className="hidden sm:inline-flex">
+              <Link href="/instances/new" aria-label={t("newInstance")}>
+                <Plus className="size-4" aria-hidden /> <span className="hidden md:inline">{t("newInstance")}</span>
+              </Link>
             </Button>
-          </TooltipTrigger>
-          <TooltipContent>{t("syncAll")}</TooltipContent>
-        </Tooltip></div>}
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-              aria-label={t("toggleTheme")}
-              suppressHydrationWarning
-            >
-              {mounted ? (
-                resolvedTheme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />
-              ) : (
-                <Sun className="h-4 w-4 opacity-0" aria-hidden />
-              )}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{t("toggleTheme")}</TooltipContent>
-        </Tooltip>
-
-        {!compact && <Button asChild size="sm" className="hidden sm:inline-flex">
-          <Link href="/instances/new" aria-label={t("newInstance")}>
-            <Plus className="h-4 w-4" /> <span className="hidden md:inline">{t("newInstance")}</span>
-          </Link>
-        </Button>}
-        {user && <div className="ml-0.5 border-l border-border pl-1.5 sm:ml-1 sm:pl-3">{user}</div>}
-      </div>
+          )}
+          {user && <div className="ml-0.5 border-l border-border pl-1.5 sm:ml-1 sm:pl-3">{user}</div>}
+        </div>
       </div>
     </header>
   );

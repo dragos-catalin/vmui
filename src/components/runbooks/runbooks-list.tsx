@@ -9,7 +9,8 @@ import { useAction } from "@/hooks/use-action";
 import { ok, type ActionResult } from "@/lib/action-result";
 import { deleteRunbookAction } from "@/server/actions/automation";
 import { BookOpen, Eye, Trash2 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence } from "motion/react";
+import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -63,7 +64,7 @@ export function RunbooksList({ runbooks }: { runbooks: RunbookCard[] }) {
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 3xl:grid-cols-4">
         <AnimatePresence initial={false}>
           {runbooks.map((r, i) => (
-            <motion.article
+            <m.article
               key={r.id}
               layout
               initial={{ opacity: 0, y: 6 }}
@@ -95,7 +96,7 @@ export function RunbooksList({ runbooks }: { runbooks: RunbookCard[] }) {
                   </Button>
                 </div>
               </div>
-            </motion.article>
+            </m.article>
           ))}
         </AnimatePresence>
       </div>

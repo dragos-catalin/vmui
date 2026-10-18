@@ -16,15 +16,17 @@ import type { PricedRow } from "@/lib/pricing";
 import { formatUsdPerHour } from "@/lib/utils";
 import { bulkInstanceAction } from "@/server/actions/instances";
 import { Bookmark, BookmarkPlus, Camera, Download, Pin, Play, RotateCw, Search, Square, Trash2, X } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence } from "motion/react";
+import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition, ViewTransition } from "react";
 import { toast } from "sonner";
 import { CostPill } from "./cost-pill";
 import { InstanceActions } from "./instance-actions";
 import { InstanceCard } from "./instance-card";
+import { instanceMorphName } from "./instance-hero";
 import { instanceLabel } from "./instance-label";
 import { StatusBadge } from "./status-badge";
 import { useIsNarrow } from "./use-breakpoint";
@@ -293,14 +295,15 @@ export function InstancesExplorer({
           return (
             <div className="flex min-w-0 max-w-[16rem] items-center gap-1.5 sm:max-w-[22rem]">
               {i.pinned && <Pin className="size-3 shrink-0 text-primary" aria-label={t("pinned")} />}
-              <Link
-                href={`/instances/${encodeURIComponent(i.id)}`}
-                className="truncate font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                title={instanceLabel(i)}
-                style={{ viewTransitionName: `inst-${i.id.replace(/[^a-zA-Z0-9_-]/g, "-")}` }}
-              >
-                {instanceLabel(i)}
-              </Link>
+              <ViewTransition name={instanceMorphName(i.id)}>
+                <Link
+                  href={`/instances/${encodeURIComponent(i.id)}`}
+                  className="truncate font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  title={instanceLabel(i)}
+                >
+                  {instanceLabel(i)}
+                </Link>
+              </ViewTransition>
             </div>
           );
         },
@@ -315,7 +318,7 @@ export function InstancesExplorer({
         id: "region",
         accessorKey: "region",
         header: sortableHeader(t("columns.region")),
-        cell: ({ getValue }) => <span className="whitespace-nowrap text-muted">{getValue<string>()}</span>,
+        cell: ({ getValue }) => <span className="whitespace-nowrap text-muted" title={getValue<string>()}>{getValue<string>()}</span>,
       },
       {
         id: "state",
@@ -344,7 +347,12 @@ export function InstancesExplorer({
   );
 
   return (
-    <div className="space-y-4">
+    <m.div
+      className="min-w-0 space-y-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+    >
       <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
         <div className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden />
@@ -394,7 +402,7 @@ export function InstancesExplorer({
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" aria-label={t("savedSearches")}>
                 <Bookmark className="size-3.5" aria-hidden />
-                {savedSearches.length > 0 && <span className="text-[10px] text-muted">{savedSearches.length}</span>}
+                {savedSearches.length > 0 && <span className="text-2xs text-muted">{savedSearches.length}</span>}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-56">
@@ -440,14 +448,14 @@ export function InstancesExplorer({
 
       <AnimatePresence>
         {selectionActive && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.18 }}
             role="toolbar"
             aria-label={tb("selected", { count: selected.size })}
-            className="sticky top-2 z-30 flex flex-wrap items-center gap-2 rounded-[var(--radius-md)] border border-border bg-surface/90 p-2 shadow-lg backdrop-blur-md"
+            className="sticky top-2 z-[var(--z-sticky)] flex flex-wrap items-center gap-2 rounded-[var(--radius-md)] border border-border bg-surface/90 p-2 shadow-lg backdrop-blur-md"
           >
             <Badge variant="info">{tb("selected", { count: selected.size })}</Badge>
             <Button size="sm" variant="ghost" onClick={selectAll}>
@@ -473,12 +481,13 @@ export function InstancesExplorer({
                 <Trash2 className="size-3.5" aria-hidden /> {tb("terminate")}
               </Button>
             </div>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
 
       {filtered.length === 0 ? (
         <EmptyState
+          illustration="search"
           icon={<Search />}
           title={t("noMatchTitle")}
           description={t("noMatchDescription")}
@@ -504,7 +513,7 @@ export function InstancesExplorer({
                   <InstanceActions instance={row} />
                 </div>
               )}
-              emptyState={<EmptyState compact title={tc("noResults")} />}
+              emptyState={<EmptyState illustration="search" compact title={tc("noResults")} />}
             />
           )}
           {narrow === true && (
@@ -520,10 +529,10 @@ export function InstancesExplorer({
       )}
 
       {instances.some((i) => i.pinned) && (
-        <p className="flex items-center gap-1.5 text-[11px] text-muted">
+        <p className="flex items-center gap-1.5 text-2xs text-muted">
           <Pin className="size-3" aria-hidden /> {t("pinnedHint")}
         </p>
       )}
-    </div>
+    </m.div>
   );
 }

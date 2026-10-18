@@ -6,7 +6,8 @@
     "empty": "Nimic activ.",
     "close": "Închide",
     "actionDone": "Gata",
-    "actionFailed": "Nu a mers"
+    "actionFailed": "Nu a mers",
+    "closeAria": "Închide „{title}”"
   },
   "kinds": {
     "copilot": "Copilot",
@@ -128,7 +129,7 @@
   },
   "devices": {
     "title": "Dispozitive împerecheate",
-    "description": "Telefoane și PC-uri cu aplicația vmui. Fiecare are tokenul lui, revocabil aici.",
+    "description": "Telefoane și PC-uri cu aplicația Vatra. Fiecare are tokenul lui, revocabil aici.",
     "pendingBadge": "{count, plural, one {# în așteptare} other {# în așteptare}}",
     "pendingTitle": "Cereri de împerechere",
     "pendingHint": "Aprobă doar dacă dispozitivul afișează același cod.",

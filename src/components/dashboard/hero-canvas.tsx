@@ -1,8 +1,10 @@
 "use client";
 
 import { useAppearance } from "@/components/appearance/appearance-provider";
+import { useInView, usePageVisible } from "@/hooks/use-poll";
 import type { Vibe } from "@/lib/appearance/model";
 import { mixRgb, useResolvedTokens, type Rgb } from "@/lib/theme-colors";
+import { SCENE_VIBES } from "./hero-scene";
 import { Float, Line, Sparkles, Stars } from "@react-three/drei";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
@@ -236,10 +238,12 @@ function useReducedMotion(pref: boolean | null): boolean {
   return pref ?? system;
 }
 
-export function HeroCanvas() {
+export default function HeroCanvas() {
   const { appearance, ready } = useAppearance();
   const { vibe } = appearance;
   const reduced = useReducedMotion(appearance.reducedMotion);
+  const [viewRef, inView] = useInView<HTMLDivElement>("0px");
+  const visible = usePageVisible();
   const tokens = useResolvedTokens(TOKEN_NAMES);
   const palette = useMemo<Palette | null>(() => {
     if (!tokens) return null;
@@ -254,20 +258,21 @@ export function HeroCanvas() {
   }, [tokens]);
 
   if (!ready) return null;
-  if (vibe === "default" || vibe === "minimal" || vibe === "terminal") return null;
+  if (!SCENE_VIBES.has(vibe)) return null;
   if (!palette) return null;
+  const animate = !reduced && inView && visible;
 
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[var(--radius-xl)]">
+    <div ref={viewRef} className="pointer-events-none absolute inset-0 overflow-hidden rounded-[var(--radius-xl)]">
       <Canvas
         dpr={[1, 1.5]}
-        frameloop={reduced ? "demand" : "always"}
+        frameloop={animate ? "always" : "demand"}
         camera={{ position: [0, 0, 5], fov: 45 }}
         gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
         style={{ background: "transparent" }}
       >
         <Suspense fallback={null}>
-          <SceneFor vibe={vibe} c={palette} animate={!reduced} />
+          <SceneFor vibe={vibe} c={palette} animate={animate} />
         </Suspense>
       </Canvas>
     </div>

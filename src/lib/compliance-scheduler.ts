@@ -42,10 +42,13 @@ async function runScan(): Promise<void> {
     };
     const fp = fingerprint(counts);
     const total = findings.length;
+    // Stored strings are shown verbatim in both locales, so keep them language-neutral:
+    // "Σ 7 · C 0 · H 2 · M 3 · L 2" reads the same in RO and EN (the severity legend is on /compliance).
+    const summary = `Σ ${total} · C ${counts.critical} · H ${counts.high} · M ${counts.medium} · L ${counts.low}`;
     await db.insert(auditLog).values({
       action: "compliance.scan",
       status: "ok",
-      message: `${total} finding(s): ${fp}`,
+      message: summary,
     });
     // Only notify when the picture changed (avoids daily noise on a stable fleet).
     if (fp !== globalThis.__vmuiLastComplianceFingerprint__ && (counts.critical > 0 || counts.high > 0)) {
@@ -53,8 +56,8 @@ async function runScan(): Promise<void> {
       await notify({
         category: "compliance",
         severity: NOTIFY_SEV[worst],
-        title: `Compliance scan: ${counts.critical} critical, ${counts.high} high`,
-        body: `Total ${total} finding(s). Review at /compliance.`,
+        title: `Compliance · C ${counts.critical} · H ${counts.high}`,
+        body: summary,
         href: "/compliance",
       });
     }

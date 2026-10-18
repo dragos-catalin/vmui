@@ -1,0 +1,687 @@
+{
+  "$description": "Vatra semantic colour tokens. Themes remap only this layer.",
+  "color": {
+    "light": {
+      "bg": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.985,
+            0.006,
+            55
+          ],
+          "hex": "#fdf9f6"
+        }
+      },
+      "bg-muted": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.962,
+            0.009,
+            55
+          ],
+          "hex": "#f8f1ed"
+        }
+      },
+      "surface": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            1,
+            0,
+            0
+          ],
+          "hex": "#ffffff"
+        }
+      },
+      "surface-muted": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.975,
+            0.007,
+            55
+          ],
+          "hex": "#fbf6f2"
+        }
+      },
+      "surface-2": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.948,
+            0.011,
+            55
+          ],
+          "hex": "#f4ece7"
+        }
+      },
+      "border": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.9,
+            0.012,
+            55
+          ],
+          "hex": "#e5dcd7"
+        }
+      },
+      "border-strong": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.62,
+            0.02,
+            55
+          ],
+          "hex": "#90837b"
+        }
+      },
+      "fg": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.2,
+            0.025,
+            45
+          ],
+          "hex": "#20120c"
+        }
+      },
+      "fg-muted": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.45,
+            0.022,
+            50
+          ],
+          "hex": "#60524b"
+        }
+      },
+      "fg-soft": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.52,
+            0.02,
+            50
+          ],
+          "hex": "#73665f"
+        }
+      },
+      "primary": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.56,
+            0.16,
+            48
+          ],
+          "hex": "#bc4f00"
+        },
+        "$description": "accent-driven (default ember h48; follows --accent-h)"
+      },
+      "primary-fg": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.99,
+            0.006,
+            60
+          ],
+          "hex": "#fffbf8"
+        }
+      },
+      "primary-text": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.5,
+            0.15,
+            48
+          ],
+          "hex": "#a44000"
+        },
+        "$description": "accent-driven (default ember h48; follows --accent-h)"
+      },
+      "accent": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.5,
+            0.15,
+            262
+          ],
+          "hex": "#305eb7"
+        }
+      },
+      "accent-fg": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.99,
+            0.006,
+            262
+          ],
+          "hex": "#fafcff"
+        }
+      },
+      "lit": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.8,
+            0.14,
+            78
+          ],
+          "hex": "#efb146"
+        }
+      },
+      "lit-fg": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.22,
+            0.04,
+            78
+          ],
+          "hex": "#251803"
+        }
+      },
+      "lit-text": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.5,
+            0.11,
+            70
+          ],
+          "hex": "#8a5600"
+        }
+      },
+      "success": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.5,
+            0.13,
+            150
+          ],
+          "hex": "#137738"
+        }
+      },
+      "success-fg": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.99,
+            0.005,
+            150
+          ],
+          "hex": "#f9fdfa"
+        }
+      },
+      "warning": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.8,
+            0.15,
+            75
+          ],
+          "hex": "#f5ae39"
+        }
+      },
+      "warning-fg": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.22,
+            0.04,
+            75
+          ],
+          "hex": "#251804"
+        }
+      },
+      "warning-text": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.5,
+            0.11,
+            65
+          ],
+          "hex": "#8d5406"
+        }
+      },
+      "danger": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.52,
+            0.19,
+            25
+          ],
+          "hex": "#be222a"
+        }
+      },
+      "danger-fg": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.99,
+            0.005,
+            25
+          ],
+          "hex": "#fffafa"
+        }
+      },
+      "info": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.5,
+            0.13,
+            230
+          ],
+          "hex": "#006e9e"
+        }
+      },
+      "info-fg": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.99,
+            0.005,
+            230
+          ],
+          "hex": "#f9fcfe"
+        }
+      },
+      "ring": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.56,
+            0.16,
+            48
+          ],
+          "hex": "#bc4f00"
+        },
+        "$description": "accent-driven (default ember h48; follows --accent-h)"
+      }
+    },
+    "dark": {
+      "bg": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.155,
+            0.014,
+            55
+          ],
+          "hex": "#110b07"
+        }
+      },
+      "bg-muted": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.185,
+            0.016,
+            55
+          ],
+          "hex": "#18110c"
+        }
+      },
+      "surface": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.21,
+            0.018,
+            55
+          ],
+          "hex": "#1f1610"
+        }
+      },
+      "surface-muted": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.24,
+            0.018,
+            55
+          ],
+          "hex": "#261d17"
+        }
+      },
+      "surface-2": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.27,
+            0.02,
+            55
+          ],
+          "hex": "#2e241d"
+        }
+      },
+      "border": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.31,
+            0.018,
+            55
+          ],
+          "hex": "#382e28"
+        }
+      },
+      "border-strong": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.54,
+            0.02,
+            55
+          ],
+          "hex": "#786c64"
+        }
+      },
+      "fg": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.95,
+            0.014,
+            70
+          ],
+          "hex": "#f5ede5"
+        }
+      },
+      "fg-muted": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.76,
+            0.02,
+            65
+          ],
+          "hex": "#baafa4"
+        }
+      },
+      "fg-soft": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.68,
+            0.02,
+            65
+          ],
+          "hex": "#a1968c"
+        }
+      },
+      "primary": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.7,
+            0.16,
+            48
+          ],
+          "hex": "#ec7b38"
+        },
+        "$description": "accent-driven (default ember h48; follows --accent-h)"
+      },
+      "primary-fg": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.17,
+            0.03,
+            45
+          ],
+          "hex": "#1a0b05"
+        }
+      },
+      "primary-text": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.76,
+            0.14,
+            48
+          ],
+          "hex": "#f8935d"
+        },
+        "$description": "accent-driven (default ember h48; follows --accent-h)"
+      },
+      "accent": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.74,
+            0.13,
+            262
+          ],
+          "hex": "#7daafd"
+        }
+      },
+      "accent-fg": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.16,
+            0.03,
+            262
+          ],
+          "hex": "#060d1a"
+        }
+      },
+      "lit": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.84,
+            0.13,
+            78
+          ],
+          "hex": "#f9bf60"
+        }
+      },
+      "lit-fg": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.2,
+            0.04,
+            78
+          ],
+          "hex": "#201301"
+        }
+      },
+      "lit-text": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.86,
+            0.12,
+            78
+          ],
+          "hex": "#fcc771"
+        }
+      },
+      "success": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.8,
+            0.15,
+            150
+          ],
+          "hex": "#6ed889"
+        }
+      },
+      "success-fg": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.16,
+            0.03,
+            150
+          ],
+          "hex": "#041107"
+        }
+      },
+      "warning": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.82,
+            0.15,
+            75
+          ],
+          "hex": "#fcb442"
+        }
+      },
+      "warning-fg": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.2,
+            0.04,
+            75
+          ],
+          "hex": "#201301"
+        }
+      },
+      "warning-text": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.84,
+            0.14,
+            75
+          ],
+          "hex": "#ffbc56"
+        }
+      },
+      "danger": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.7,
+            0.18,
+            25
+          ],
+          "hex": "#fa6863"
+        }
+      },
+      "danger-fg": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.14,
+            0.03,
+            25
+          ],
+          "hex": "#140504"
+        }
+      },
+      "info": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.76,
+            0.12,
+            230
+          ],
+          "hex": "#51bfee"
+        }
+      },
+      "info-fg": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.14,
+            0.03,
+            230
+          ],
+          "hex": "#000b13"
+        }
+      },
+      "ring": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "oklch",
+          "components": [
+            0.72,
+            0.16,
+            48
+          ],
+          "hex": "#f3813f"
+        },
+        "$description": "accent-driven (default ember h48; follows --accent-h)"
+      }
+    }
+  }
+}

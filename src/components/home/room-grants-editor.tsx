@@ -21,13 +21,13 @@ export function RoomGrantsEditor({ value, onChange, disabled = false }: { value:
   };
 
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+    <div className="space-y-2">
       {ROOMS.map((room) => {
         const current: Level = value[room.id] ?? "none";
         return (
-          <div key={room.id} className="contents">
-            <span className="min-w-0 truncate text-sm">{rooms(room.id)}</span>
-            <div role="group" aria-label={rooms(room.id)} className="inline-flex shrink-0 overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)]">
+          <div key={room.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+            <span className="min-w-0 flex-1 basis-24 truncate text-sm" title={rooms(room.id)}>{rooms(room.id)}</span>
+            <div role="group" aria-label={rooms(room.id)} className="inline-flex max-w-full shrink-0 rounded-[var(--radius-md)] border border-border-strong">
               {LEVELS.map((level) => (
                 <button
                   key={level}
@@ -36,9 +36,9 @@ export function RoomGrantsEditor({ value, onChange, disabled = false }: { value:
                   disabled={disabled}
                   onClick={() => set(room.id, level)}
                   className={cn(
-                    "h-8 px-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color-mix(in_oklch,var(--color-primary)_55%,transparent)] disabled:cursor-not-allowed disabled:opacity-50",
-                    "border-l border-[var(--color-border)] first:border-l-0",
-                    current === level ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)]" : "bg-[var(--color-surface)] text-muted hover:text-[var(--color-fg)]",
+                    "min-h-8 min-w-0 px-2.5 py-1 text-xs font-medium transition-colors first:rounded-l-[calc(var(--radius-md)-1px)] last:rounded-r-[calc(var(--radius-md)-1px)] focus-visible:relative focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50",
+                    "border-l border-border first:border-l-0",
+                    current === level ? "bg-primary text-primary-fg" : "bg-surface text-muted hover:text-fg",
                   )}
                 >
                   {t(level)}

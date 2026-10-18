@@ -9,7 +9,7 @@ import { ok, type ActionResult } from "@/lib/action-result";
 import type { TeamWithMembers } from "@/lib/teams";
 import { createTeamAction, inviteToTeamAction, removeMemberAction, setMemberRoleAction } from "@/server/actions/teams";
 import { Check, Copy, Plus, UserPlus, Users, X } from "lucide-react";
-import { motion } from "motion/react";
+import * as Mo from "motion/react-m";
 import { useFormatter, useTranslations } from "next-intl";
 import * as React from "react";
 
@@ -77,9 +77,9 @@ export function TeamsWorkspace({ teams }: { teams: TeamWithMembers[] }) {
         <EmptyState icon={<Users />} title={t("empty.title")} description={t("empty.description")} />
       ) : (
         teams.map((team, i) => (
-          <motion.div key={team.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: Math.min(i, 12) * 0.03 }}>
+          <Mo.div key={team.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: Math.min(i, 12) * 0.03 }}>
             <TeamCard team={team} />
-          </motion.div>
+          </Mo.div>
         ))
       )}
     </div>

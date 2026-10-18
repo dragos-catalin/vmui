@@ -4,7 +4,7 @@ import { utilisationTone } from "@/components/cloud/tag-budgets-table";
 import { EmptyState, Progress } from "@/components/ui";
 import { Sparkline } from "@/components/ui/sparkline";
 import { LineChart } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import { useFormatter, useTranslations } from "next-intl";
 
 export interface AccountForecastItem {
@@ -20,7 +20,7 @@ export function AccountForecastCards({ forecasts }: { forecasts: AccountForecast
   const t = useTranslations("cloud.accountForecast");
   const format = useFormatter();
   if (forecasts.length === 0) {
-    return <EmptyState icon={<LineChart />} title={t("empty.title")} description={t("empty.description")} />;
+    return <EmptyState illustration="costs" icon={<LineChart />} title={t("empty.title")} description={t("empty.description")} />;
   }
   const usd = (n: number, digits = 0) => format.number(n, { style: "currency", currency: "USD", minimumFractionDigits: digits, maximumFractionDigits: digits });
 
@@ -29,7 +29,7 @@ export function AccountForecastCards({ forecasts }: { forecasts: AccountForecast
       {forecasts.map((f, i) => {
         const ratio = f.budget && f.budget > 0 ? f.projected30dUsd / f.budget : null;
         return (
-          <motion.li
+          <m.li
             key={f.accountId}
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
@@ -59,7 +59,7 @@ export function AccountForecastCards({ forecasts }: { forecasts: AccountForecast
                 label={t("ofBudget")}
               />
             )}
-          </motion.li>
+          </m.li>
         );
       })}
     </ul>

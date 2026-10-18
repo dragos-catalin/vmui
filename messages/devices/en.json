@@ -51,7 +51,8 @@
       "turzx_pause": "Pauses or resumes the Turzx rotation.",
       "ambilight_movie": "Toggles Ambilight movie mode.",
       "pc_wake": "Wakes the PC over Wake-on-LAN."
-    }
+    },
+    "testSent": "Gesture sent"
   },
   "intercom": {
     "title": "Intercom",
@@ -152,6 +153,7 @@
         "label": "Build/test failed",
         "hint": "run-build.ps1 exit ≠ 0 — bulbs: 2 flashes; strip: 2 yellow double blinks"
       }
-    }
+    },
+    "phoneNotifyPlaceholder": "mobile_app_'<'your_phone>"
   }
 }

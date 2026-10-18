@@ -1,7 +1,7 @@
 {
   "tray": {
-    "starting": "vmui — starting…",
-    "open": "Open vmui",
+    "starting": "Vatra — starting…",
+    "open": "Open Vatra",
     "movie": "Movie",
     "music": "Music",
     "off": "Lights off",
@@ -74,11 +74,16 @@
     "pages": "Pages",
     "minimize": "Minimise",
     "maximize": "Maximise",
-    "closeToTray": "Close to tray"
+    "closeToTray": "Close to tray",
+    "stateOk": "all good",
+    "stateWarn": "needs attention",
+    "stateDown": "down",
+    "serviceUp": "responding",
+    "serviceDown": "not responding"
   },
   "common": {
     "customColor": "Custom colour",
-    "vmuiDown": "vmui is not responding: {{error}}",
+    "vmuiDown": "Vatra is not responding: {{error}}",
     "loading": "loading…",
     "movie": "Movie",
     "music": "Music",
@@ -110,7 +115,12 @@
     "moveDown": "Move down",
     "ok": "OK",
     "back": "Back",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "retry": "Retry",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "stale": "stale data",
+    "vmuiDownTitle": "The house is not responding"
   },
   "time": {
     "now": "now",
@@ -214,7 +224,11 @@
     "stopped": "stopped",
     "effectOn": "Effect on {{name}}",
     "effectPick": "effect…",
-    "colorOn": "Colour on {{name}}"
+    "colorOn": "Colour on {{name}}",
+    "connecting": "connecting to HyperHDR…",
+    "restartHint": "HyperHDR · OpenRGB · bridges",
+    "settingsFailed": "Cannot read ambilight/settings.json — saving is off",
+    "gamma": "Gamma"
   },
   "devices": {
     "approved": "{{name}} approved",
@@ -224,12 +238,14 @@
     "approve": "Approve",
     "reject": "Reject",
     "paired": "Paired devices",
-    "pairedSub": "Phones and PCs running the vmui app. Each has its own token; revoke it here.",
+    "pairedSub": "Phones and PCs running the Vatra app. Each has its own token; revoke it here.",
     "none": "No devices.",
     "seen": "seen {{ago}}",
     "revoke": "Revoke {{name}}",
     "revokeConfirm": "Revoke access for {{name}}?",
-    "revoked": "{{name}} revoked"
+    "revoked": "{{name}} revoked",
+    "revokeShort": "Revoke",
+    "loadFailed": "Cannot read the devices"
   },
   "pc": {
     "subMobile": "Commands reach the PC through the Pi (MQTT) while it is on. Fixed verbs, nothing arbitrary.",
@@ -254,9 +270,9 @@
     "killRenderer": "Close the runaway renderer",
     "restartAmbilight": "Restart ambilight",
     "restartTurzx": "Restart Turzx",
-    "restartVmui": "Restart local vmui",
+    "restartVmui": "Restart local Vatra",
     "running": "Computers running",
-    "runningSub": "What the turzx agent (pc_metrics) reports through vmui on homepi.",
+    "runningSub": "What the turzx agent (pc_metrics) reports through Vatra on homepi.",
     "nothing": "nothing reported",
     "uptime": "up {{h}} h"
   },
@@ -272,7 +288,14 @@
     "autostartOff": "Autostart disabled",
     "repo": "Repo",
     "logs": "Service logs",
-    "version": "Version"
+    "version": "Version",
+    "theme": "Theme",
+    "themeHint": "System follows Windows",
+    "themeSystem": "System",
+    "themeDark": "Dark",
+    "themeLight": "Light",
+    "unavailable": "unavailable",
+    "ambilightFile": "Ambilight settings"
   },
   "pi": {
     "sub": "homepi · the house server",
@@ -295,7 +318,12 @@
       "homeassistant": "Home Assistant (host network, :80)",
       "esphome": "ESP32 firmware (:6052)",
       "mosquitto": "MQTT :1883 — HA ↔ HyperHDR ↔ PC agent"
-    }
+    },
+    "title": "Raspberry Pi",
+    "uptime": "Uptime",
+    "throttled": "throttled {{code}}",
+    "powerOk": "ok",
+    "downTitle": "The Pi is not responding"
   },
   "sistem": {
     "sub": "The Task Scheduler tasks that keep the stack alive, their logs, and the services on homepi.",
@@ -326,7 +354,7 @@
         "what": "dxlight + openrgb + BLE → HID/SDK; video_follow"
       },
       "vmui": {
-        "name": "vmui (local)",
+        "name": "Vatra (local)",
         "what": "Next.js on 127.0.0.1:3737 — only used by Hyper-V"
       },
       "turzx": {
@@ -337,7 +365,9 @@
         "name": "This app",
         "what": "tray + this window; starts at logon with --hidden"
       }
-    }
+    },
+    "logTitle": "Log · {{name}}",
+    "logPick": "Pick a log"
   },
   "ecrane": {
     "sub": "The bedroom Nest Hub and the Turzx desk screen. Saved changes reach the screen within seconds.",
@@ -375,7 +405,9 @@
     "top": "top",
     "center": "centre",
     "bottom": "bottom",
-    "duration": "Duration"
+    "duration": "Duration",
+    "accent": "Accent",
+    "skinFor": "Skin for {{name}}"
   },
   "notif": {
     "bellUnread_one": "Notifications, {{count}} unread",
@@ -423,33 +455,36 @@
       "battery": "Batteries",
       "contact": "Contact",
       "system": "System"
-    }
+    },
+    "loadFailed": "Cannot read the notifications"
   },
   "setup": {
     "title": "Connect to the house",
     "sub": "The phone finds the server by itself; approve it from the web, the PC or another phone.",
-    "scanning": "looking for vmui on the network…",
-    "notFound": "No vmui found. Are you on the home Wi-Fi or connected to Tailscale?",
+    "scanning": "looking for Vatra on the network…",
+    "notFound": "No Vatra found. Are you on the home Wi-Fi or connected to Tailscale?",
     "viaLan": "found on the LAN",
     "viaDns": "by name",
     "viaManual": "manual",
-    "manualLabel": "vmui server address",
+    "manualLabel": "Vatra server address",
     "manualPlaceholder": "or http://address:3737",
     "rescan": "search again",
-    "haveAccount": "I have a vmui account",
-    "waitText": "Approve this phone from <b>vmui web → Displays</b>, from the PC app or from another phone. The code must match:",
+    "haveAccount": "I have a Vatra account",
+    "waitText": "Approve this phone from <b>Vatra web → Displays</b>, from the PC app or from another phone. The code must match:",
     "expires": "expires in 10 minutes",
     "orLogin": "or sign in with your account",
     "approved": "Approved · {{detail}}",
     "connected": "Connected · {{detail}}",
-    "loginSub": "Your vmui account ({{url}}). The phone is approved immediately.",
+    "loginSub": "Your Vatra account ({{url}}). The phone is approved immediately.",
     "email": "Email",
     "password": "Password",
     "checking": "Checking…",
-    "connect": "Connect"
+    "connect": "Connect",
+    "rejected": "Request rejected",
+    "timedOut": "Nobody approved within 5 minutes. Try again."
   },
   "update": {
-    "available": "vmui {{version}} available",
+    "available": "Vatra {{version}} available",
     "youHave": "you have {{version}} · {{mb}} MB from the Pi",
     "install": "Install"
   },
@@ -505,7 +540,8 @@
       "tuya_lan": "Tuya LAN",
       "openrgb": "OpenRGB",
       "wled": "WLED"
-    }
+    },
+    "downTitle": "Cannot read the lights"
   },
   "dev": {
     "sub": "{{n}} in the registry, on homepi. Calibration, segments, BLE scan, export.",
@@ -606,5 +642,37 @@
     "known_few": "{{count}} devices already in the registry, hidden.",
     "known_other": "{{count}} devices already in the registry, hidden.",
     "again": "Scan again"
+  },
+  "error": {
+    "title": "Something went wrong on this page"
+  },
+  "swatch": {
+    "amber": "Amber",
+    "red": "Red",
+    "sky": "Sky blue",
+    "green": "Green",
+    "violet": "Violet",
+    "pink": "Pink",
+    "white": "White",
+    "off": "Off",
+    "deepRed": "Deep red",
+    "ember": "Ember",
+    "brown": "Brown",
+    "plum": "Plum",
+    "navy": "Navy",
+    "forest": "Forest green",
+    "teal": "Teal",
+    "sand": "Sand",
+    "cream": "Cream",
+    "grey": "Grey",
+    "wood": "Wood",
+    "slate": "Slate",
+    "periwinkle": "Periwinkle",
+    "gold": "Gold",
+    "mint": "Mint",
+    "rose": "Rose",
+    "lavender": "Lavender",
+    "cyan": "Cyan",
+    "orange": "Orange"
   }
 }

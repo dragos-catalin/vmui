@@ -1,4 +1,6 @@
-# vmui
+# Vatra (vmui)
+
+> Home & machines · casă și mașini — one calm place for the house and the machines. Repo, packages and identifiers keep the technical name `vmui`; the product shows **Vatra** (brand pack: [brand/BRAND.md](brand/BRAND.md)).
 
 > A beautiful, multi-cloud virtual machine control plane that runs entirely on your laptop.
 

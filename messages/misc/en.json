@@ -45,7 +45,7 @@
     "sendTest": "Send test"
   },
   "install": {
-    "title": "Install vmui",
+    "title": "Install Vatra",
     "description": "Add to the home screen for full-screen access, offline cache and push notifications.",
     "install": "Install",
     "notNow": "Not now",

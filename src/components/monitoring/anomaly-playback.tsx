@@ -1,8 +1,9 @@
 "use client";
 
-import { LineChartCard } from "@/components/charts";
+import { LineChartCard } from "./lazy-charts";
 import { Button, Progress, Stat, StatGrid, ToggleGroup, type ToggleOption } from "@/components/ui";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useInterval } from "@/hooks/use-poll";
 import { Cpu, MemoryStick, Pause, Play, RotateCcw } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
@@ -34,19 +35,13 @@ export function AnomalyPlayback({ samples, instances, selected, windowHours }: {
     setPlaying(false);
   }, [samples]);
 
-  React.useEffect(() => {
-    if (!playing || samples.length < 2) return;
-    const id = setInterval(() => {
-      setIdx((i) => {
-        if (i >= samples.length - 1) {
-          setPlaying(false);
-          return i;
-        }
-        return i + 1;
-      });
-    }, SPEED_MS[speed]);
-    return () => clearInterval(id);
-  }, [playing, speed, samples.length]);
+  useInterval(
+    () => {
+      if (idx >= samples.length - 1) setPlaying(false);
+      else setIdx(idx + 1);
+    },
+    playing && samples.length >= 2 ? SPEED_MS[speed] : null,
+  );
 
   const navigate = (patch: { instance?: string; window?: string }) => {
     const sp = new URLSearchParams({ instance: patch.instance ?? selected, window: patch.window ?? String(windowHours) });

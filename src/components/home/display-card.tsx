@@ -13,9 +13,10 @@ import { saveDisplaySettingsAction } from "@/server/actions/home";
 import { ArrowDown, ArrowUp, ExternalLink, Tablet } from "lucide-react";
 import { useTranslations } from "next-intl";
 import * as React from "react";
-import { toast } from "sonner";
+import { DEVICE_ACCENTS } from "./accent-swatches";
+import { useHomeAction } from "./use-home-action";
 
-const ACCENTS = ["#f2b85a", "#7c9cff", "#34d399", "#f472b6", "#a78bfa", "#22d3ee", "#fb923c"];
+const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
 /** Settings for the Nest Hub kiosk (/display). Saved to the same table as Turzx, row 4. */
 export function DisplayCard({ initial, espToken, defaultOpen = false }: { initial: DisplaySettings; espToken: string; defaultOpen?: boolean }) {
@@ -23,8 +24,9 @@ export function DisplayCard({ initial, espToken, defaultOpen = false }: { initia
   // photo sources are shared with the Turzx screen, so their text lives in that namespace
   const sources = useTranslations("turzx.sources");
   const [s, setS] = React.useState<DisplaySettings>(initial);
-  const [busy, setBusy] = React.useState(false);
   const dirty = JSON.stringify(s) !== JSON.stringify(initial);
+  const saveAction = useHomeAction(saveDisplaySettingsAction, { success: t("saved"), error: t("saveFailed"), refresh: true });
+  const busy = saveAction.pending;
 
   const setView = (id: string, patch: Partial<DisplayView>) => setS((p) => ({ ...p, views: p.views.map((v) => (v.id === id ? { ...v, ...patch } : v)) }));
   const move = (id: string, dir: -1 | 1) =>
@@ -39,13 +41,7 @@ export function DisplayCard({ initial, espToken, defaultOpen = false }: { initia
   const toggleSource = (src: TurzxBgSource) =>
     setS((p) => ({ ...p, photoSources: p.photoSources.includes(src) ? p.photoSources.filter((x) => x !== src) : [...p.photoSources, src] }));
 
-  const save = async () => {
-    setBusy(true);
-    const r = await saveDisplaySettingsAction(s);
-    setBusy(false);
-    if (!r.ok) toast.error(r.error ?? t("saveFailed"));
-    else toast.success(t("saved"));
-  };
+  const save = () => void saveAction.run(s);
 
   const on = s.views.filter((v) => v.enabled);
   const cycle = on.reduce((a, v) => a + v.dwellSec, 0);
@@ -66,7 +62,7 @@ export function DisplayCard({ initial, espToken, defaultOpen = false }: { initia
               <a href={url} target="_blank" rel="noreferrer" aria-label={t("openAria")}><ExternalLink className="size-4" aria-hidden /> <span className="hidden sm:inline">{t("open")}</span></a>
             </Button>
           ) : null}
-          <Button size="sm" onClick={save} disabled={!dirty || busy}>{busy ? t("saving") : t("save")}</Button>
+          <Button size="sm" onClick={save} disabled={!dirty || busy} loading={busy}>{busy ? t("saving") : t("save")}</Button>
         </div>
       }
     >
@@ -75,26 +71,27 @@ export function DisplayCard({ initial, espToken, defaultOpen = false }: { initia
           <ul className="space-y-2">
             {s.views.map((v, i) => {
               const name = t(`views.${v.id}.label`);
+              const description = t(`views.${v.id}.description`);
               return (
                 <li key={v.id} className={cn("grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 rounded-xl border px-3 py-2.5 transition", v.enabled ? "border-primary/40 bg-primary/5" : "border-border opacity-70")}>
                   <Switch checked={v.enabled} onCheckedChange={(en) => setView(v.id, { enabled: en })} aria-label={t("views.enabledAria", { name })} />
                   <div className="min-w-0">
                     <div className="flex min-w-0 items-center gap-2">
-                      <span className="min-w-0 truncate text-sm font-medium leading-tight">{name}</span>
+                      <span className="min-w-0 truncate text-sm font-medium leading-tight" title={name}>{name}</span>
                       <Badge variant="muted" className="shrink-0">{t("views.seconds", { n: v.dwellSec })}</Badge>
                     </div>
-                    <p className="truncate text-xs leading-snug text-muted">{t(`views.${v.id}.description`)}</p>
+                    <p className="line-clamp-2 text-xs leading-snug text-muted" title={description}>{description}</p>
                   </div>
                   <div className="flex shrink-0 gap-0.5">
-                    <Button size="icon" variant="ghost" aria-label={t("views.moveUp")} onClick={() => move(v.id, -1)} disabled={i === 0}><ArrowUp className="size-4" /></Button>
-                    <Button size="icon" variant="ghost" aria-label={t("views.moveDown")} onClick={() => move(v.id, 1)} disabled={i === s.views.length - 1}><ArrowDown className="size-4" /></Button>
+                    <Button size="icon" variant="ghost" aria-label={t("views.moveUp")} onClick={() => move(v.id, -1)} disabled={i === 0}><ArrowUp className="size-4" aria-hidden /></Button>
+                    <Button size="icon" variant="ghost" aria-label={t("views.moveDown")} onClick={() => move(v.id, 1)} disabled={i === s.views.length - 1}><ArrowDown className="size-4" aria-hidden /></Button>
                   </div>
-                  <div className="col-span-2 col-start-2 flex min-w-0 items-center gap-3">
+                  <div className="col-span-2 col-start-2 flex min-w-0 flex-wrap items-center gap-3">
                     <label className="flex shrink-0 items-center gap-2 text-xs text-muted">
                       <Switch checked={v.photo} onCheckedChange={(ph) => setView(v.id, { photo: ph })} aria-label={t("views.photoAria", { name })} />
                       {t("views.withPhoto")}
                     </label>
-                    <label className="flex min-w-0 flex-1 items-center gap-2 text-xs text-muted">
+                    <label className="flex min-w-[10rem] flex-1 items-center gap-2 text-xs text-muted">
                       <span className="shrink-0">{t("views.dwell")}</span>
                       <Slider value={v.dwellSec} min={5} max={180} step={5} onChange={(n) => setView(v.id, { dwellSec: n })} aria-label={t("views.dwellAria", { name })} className="min-w-0 flex-1" />
                     </label>
@@ -107,7 +104,7 @@ export function DisplayCard({ initial, espToken, defaultOpen = false }: { initia
                       value={v.dwellSec}
                       onChange={(e) => setView(v.id, { dwellSec: Math.min(180, Math.max(5, Number(e.target.value) || 5)) })}
                       aria-label={t("views.dwellAria", { name })}
-                      className="w-20 shrink-0 tabular-nums"
+                      className="w-24 shrink-0 tabular-nums"
                     />
                   </div>
                 </li>
@@ -124,7 +121,7 @@ export function DisplayCard({ initial, espToken, defaultOpen = false }: { initia
                 const active = s.photoSources.includes(src);
                 return (
                   <button key={src} type="button" onClick={() => toggleSource(src)} aria-pressed={active} title={sources(`${src}.description`)}
-                    className={cn("rounded-full border px-3 py-1 text-xs transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary", active ? "border-primary bg-primary/15 text-fg" : "border-border text-muted")}>
+                    className={cn("min-h-6 rounded-full border px-3 py-1 text-xs transition", FOCUS, active ? "border-primary bg-primary/15 text-fg" : "border-border text-muted")}>
                     {sources(`${src}.label`)}
                   </button>
                 );
@@ -141,10 +138,23 @@ export function DisplayCard({ initial, espToken, defaultOpen = false }: { initia
           </div>
           <Field label={t("photos.accent")}>
             <div className="flex flex-wrap items-center gap-2">
-              {ACCENTS.map((c) => (
-                <button key={c} type="button" aria-label={t("photos.accentSwatch", { color: c })} aria-pressed={s.accent === c} onClick={() => setS((p) => ({ ...p, accent: c }))}
-                  className={cn("size-7 shrink-0 rounded-full border-2 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary", s.accent === c ? "scale-110 border-fg" : "border-transparent")} style={{ background: c }} />
-              ))}
+              {DEVICE_ACCENTS.map((c) => {
+                const on = s.accent.toLowerCase() === c.hex;
+                const label = t(`photos.accents.${c.id}`);
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    aria-label={t("photos.accentSwatch", { color: label })}
+                    title={label}
+                    aria-pressed={on}
+                    onClick={() => setS((p) => ({ ...p, accent: c.hex }))}
+                    // selected = border + scale; keyboard focus = separate outline
+                    className={cn("size-7 shrink-0 rounded-full border-2 transition", FOCUS, on ? "scale-110 border-fg" : "border-transparent")}
+                    style={{ background: c.css }}
+                  />
+                );
+              })}
               <Input type="color" value={s.accent} onChange={(e) => setS((p) => ({ ...p, accent: e.target.value }))} className="h-8 w-12 shrink-0 p-1" aria-label={t("photos.accentCustom")} />
             </div>
           </Field>
@@ -173,6 +183,13 @@ export function DisplayCard({ initial, espToken, defaultOpen = false }: { initia
           </Field>
           <Field inline label={t("behavior.respectPlayback")}>
             <Switch checked={s.cast.respectPlayback} onCheckedChange={(on) => setS((p) => ({ ...p, cast: { ...p.cast, respectPlayback: on } }))} />
+          </Field>
+          <Field inline label={t("behavior.tapFeedback")} hint={t("behavior.tapFeedbackHint")}>
+            <Switch
+              checked={(s as DisplaySettings & { tapFeedback?: boolean }).tapFeedback === true}
+              onCheckedChange={(on) => setS((p) => ({ ...p, tapFeedback: on }))}
+              aria-label={t("behavior.tapFeedback")}
+            />
           </Field>
         </Subsection>
       </div>

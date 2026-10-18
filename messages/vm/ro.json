@@ -66,7 +66,7 @@
       "terraform": "Terraform",
       "copy": "copiază",
       "copied": "copiat",
-      "disclaimer": "Aceste fragmente sunt doar puncte de plecare — vmui nu le sincronizează înapoi. Verifică-le mereu înainte de a le aplica."
+      "disclaimer": "Aceste fragmente sunt doar puncte de plecare — Vatra nu le sincronizează înapoi. Verifică-le mereu înainte de a le aplica."
     }
   },
   "menu": {
@@ -354,7 +354,7 @@
     "title": "Mediu codai",
     "description": "Transformă acest VM într-un mediu codai: instalează daemonul codaid prin SSH și îl înrolează (BYO, gratuit).",
     "hint": "Nimic legat încă. Provizionarea instalează codaid, care deschide doar un WebSocket de ieșire către relay.codai.ro — fără porturi de intrare.",
-    "notConfigured": "Adaugă mai întâi o cheie API codai ca vmui să poată crea mediul pentru tine.",
+    "notConfigured": "Adaugă mai întâi o cheie API codai ca Vatra să poată crea mediul pentru tine.",
     "configure": "Configurează codai",
     "unsupported": "Instalatorul codaid rulează doar pe Linux și macOS.",
     "provision": "Provizionează mediu codai",
@@ -366,7 +366,7 @@
     "refreshed": "Starea codai a fost actualizată",
     "unlink": "Dezleagă",
     "unlinkConfirm": "Dezlegi acest VM de mediul său codai?",
-    "unlinkHint": "Doar vmui uită legătura. Mediul și daemonul din VM rămân neatinse; le gestionezi din codai.",
+    "unlinkHint": "Doar Vatra uită legătura. Mediul și daemonul din VM rămân neatinse; le gestionezi din codai.",
     "unlinked": "Dezlegat de codai",
     "slug": "Slug",
     "environmentId": "Mediu",
@@ -377,7 +377,7 @@
     "newProject": "Creează proiect nou…",
     "projectName": "Numele proiectului nou",
     "environmentName": "Numele mediului",
-    "whatHappens": "vmui va crea mediul în codai, va genera un token unic, va rula instalatorul codaid în VM prin SSH (necesită sudo pentru /usr/local/bin și systemd) și va aștepta până la 5 minute ca daemonul să se înroleze.",
+    "whatHappens": "Vatra va crea mediul în codai, va genera un token unic, va rula instalatorul codaid în VM prin SSH (necesită sudo pentru /usr/local/bin și systemd) și va aștepta până la 5 minute ca daemonul să se înroleze.",
     "state": {
       "notLinked": "Nelegat",
       "pending": "În așteptare",
@@ -515,7 +515,7 @@
     "bootScriptOption": "{name} ({kind})",
     "bootScriptHint": "AWS folosește <code>UserData</code>, Azure folosește <code>userData</code>, GCP folosește metadata <code>startup-script</code>.",
     "whatNextTitle": "Ce urmează",
-    "whatNextBody": "vmui apelează <code>RunInstances</code> pe AWS, etichetează resursa <code>vmui:managed=true</code> și începe interogarea stării. Pentru macOS, se alocă întâi un Dedicated Host dacă nu există unul disponibil (facturare minimă 24 de ore).",
+    "whatNextBody": "Vatra apelează <code>RunInstances</code> pe AWS, etichetează resursa <code>vmui:managed=true</code> și începe interogarea stării. Pentru macOS, se alocă întâi un Dedicated Host dacă nu există unul disponibil (facturare minimă 24 de ore).",
     "launch": "Lansează instanța",
     "launched": "Instanță lansată",
     "estimated": "Cost estimat",
@@ -648,7 +648,7 @@
   "new": {
     "back": "Panou",
     "title": "Lansează o instanță nouă",
-    "description": "Alege un cont, un șablon și o dimensiune. vmui se ocupă de detaliile specifice fiecărui cloud.",
+    "description": "Alege un cont, un șablon și o dimensiune. Vatra se ocupă de detaliile specifice fiecărui cloud.",
     "noAccountsTitle": "Conectează întâi un cont cloud",
     "noAccountsDescription": "Instanțele se lansează într-unul dintre conturile conectate.",
     "connectAccount": "Conectează un cont"
