@@ -12,10 +12,12 @@ Environment=NODE_OPTIONS=--max-old-space-size=1024
 Environment=VMUI_HOST=0.0.0.0
 # local-kvm provider: Hyper-V / WSL live on the PC; every host command is an ssh hop
 Environment=VMUI_HOST_SSH=vladu@192.168.100.61
-Environment=VMUI_HOST_REPO=E:\gh\vmui
+Environment="VMUI_HOST_REPO=E:\\gh\\vmui"
 ExecStart=/usr/bin/node node_modules/next/dist/bin/next start -H 0.0.0.0 -p 3737
 Restart=always
 RestartSec=3
+# next start waits for open SSE streams on SIGTERM; without this every deploy stalls 90 s
+TimeoutStopSec=10
 # audit_log + hydration write constantly; keep the journal short
 StandardOutput=append:/srv/homepi/logs/vmui.log
 StandardError=append:/srv/homepi/logs/vmui.log
