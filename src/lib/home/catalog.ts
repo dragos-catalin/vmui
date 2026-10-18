@@ -150,7 +150,7 @@ export const HYPERHDR_INSTANCES = [
   { id: 1, name: "PC glow (OpenRGB)", target: "Case strips · GPU · board", fps: 20 },
   { id: 2, name: "Room lights (HA)", target: "HA bulbs moodlight + ambience", fps: 3 },
   { id: 3, name: "Desk bar (Tuya)", target: "Desk light bar (white only)", fps: 3 },
-  { id: 4, name: "MELK strip (BLE)", target: "MELK-OA10 strip via the PC BLE bridge", fps: 10 },
+  { id: 4, name: "MELK strip (BLE)", target: "MELK-OA10 strip via ble_lights.py (PC Bluetooth)", fps: 10 },
 ] as const;
 
 export const NOTIFY_PALETTE: Array<{ app: string; label: string; color: [number, number, number] }> = [

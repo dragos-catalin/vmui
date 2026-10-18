@@ -103,6 +103,10 @@ pnpm exec tauri build                # ~2–4 min; exe + NSIS under src-tauri/ta
 
 The running instance locks the exe: `Stop-Process -Name vmui-desktop` first,
 then `schtasks /run /tn vmui-tray` to start the new build hidden.
+The `vmui-tray` task also fires every 5 min as a watchdog and will relaunch the
+old exe mid-build (`Access is denied (os error 5)`): rename
+`target\release\vmui-desktop.exe` to `.old` before `tauri build` (a running exe
+can be renamed, not overwritten).
 
 ## Test without taking the screen
 

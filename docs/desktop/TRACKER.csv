@@ -20,7 +20,7 @@ D-018,tray,ambilight on/off + brightness,missing,,new
 D-019,tray,open page X,missing,,new
 D-020,tray,offline devices,missing,,new
 D-021,tray,i18n RO+EN,missing,"labels hardcoded RO in desktop.rs/devices.rs",
-D-030,runtime,tray process alive at logon,broken,"vmui-tray task Ready, last run 17.10 01:33, no vmui-desktop.exe until manual schtasks /run 04:03",task has no restart-on-failure / repeat; add watchdog repetition
+D-030,runtime,tray process alive at logon,works,"2026-10-18: vmui-tray TimeTrigger Repetition PT5M + MultipleInstances IgnoreNew + RestartCount 999/PT1M (Get-ScheduledTask)",watchdog re-launches within 5 min; single-instance plugin keeps one copy
 D-031,runtime,HyperHDR health,broken,"WS :8090 connect timeout, 1.8 GB WS; tray health down",fixed by restart 04:32; HyperHDR then came up with VIDEOGRABBER (TikSee cam) visible until ambilight.ps1 -Configure
 D-032,runtime,PC agent MQTT heartbeat,works,"sensor.vmui_pc_agent online 04:04; Pi /api/desktop/pc online:true seenAgo 15",
 D-033,runtime,Windows toasts from notify stream,works,"desktop.log notify stream reconnects; Notificări page lists 5 cards",
@@ -64,12 +64,12 @@ D-081,command,app_info,works,version row,
 D-090,web-gap,STREAM_SCENES (7) not in desktop,missing,"HA script.stream_scene_* exist",tray + Lights scenes
 D-091,web-gap,MCP lights_set/lights_all/scene_set/flash_color not mirrored,missing,,Lights page
 D-092,web-gap,light.main_light not in catalog,missing,"HA has light.main_light (off)",registry seeds from HA
-D-093,web-gap,HYPERHDR_INSTANCES catalog lists 3 of 5,broken,"catalog.ts L148 vs serverinfo 5 instances",
+D-093,web-gap,HYPERHDR_INSTANCES catalog lists 3 of 5,works,"catalog.ts lists ids 0-4 = serverinfo 5 instances; desktop stack.rs HYPER_INSTANCES [0..4]",instance 4 target now names ble_lights.py
 D-100,device,MELK-OC21 strip under monitors (BE:16:2F:00:05:29),missing,"BLE scan 04:20 RSSI -58; GATT fff0/fff3/fff4 read 2026-10-18",new
 D-101,device,MELK-OA10 via HA elkbledom + melk_bridge,works,light.led_argb on 3000K,move to ble_lights.py
-D-102,device,Desk Light Bar via Tuya Cloud (bridge),broken,"bridges.log 'Err 913 IoT Core service subscription has expired'",use local key
+D-102,device,Desk Light Bar via Tuya Cloud (bridge),works,"bridges.log 07:44:37 'Desk Light Bar: LAN 192.168.100.48 v3.3 work_mode=white' + '[deskbar] up on udp/19448'",LAN local key; Tuya Cloud no longer needed
 D-103,device,presence sensor (WENZI-II),broken,"binary_sensor.human_presence_sensor_occupancy unavailable since 06.10 08:25",blocks Turzx notifications (presenceOnly)
-D-104,device,phone last_notification sensor,broken,"sensor.dragos_s_s25_ultra_last_notification unknown since 06.10 08:24",Companion listener
+D-104,device,phone last_notification sensor,works,"HA state updated 2026-10-18T05:19:23Z (org.telegram.messenger)",root cause: Companion allow list empty; user-side setting on the S25
 D-110,homepi,Turzx notifications,broken,"no notification since 06.10; overlay gates silent",D-103 + D-104 + no drop log
 D-111,homepi,hub-cast recasts over Bluetooth Audio,broken,"hub-cast.log: repeated 'hub state=idle app='Bluetooth Audio'; casting'",
 D-112,local,vmui-service on PC,broken,"ChunkLoadError messages_turzx_en (stale .next after a build in the shared clone)",
