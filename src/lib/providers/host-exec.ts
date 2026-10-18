@@ -2,6 +2,7 @@ import "server-only";
 
 import { execFile, spawn, type ChildProcess } from "node:child_process";
 import { promisify } from "node:util";
+import { IS_WINDOWS } from "@/lib/runtime-os";
 
 const execFileP = promisify(execFile);
 
@@ -15,7 +16,7 @@ const execFileP = promisify(execFile);
  *   through unchanged because ssh hands it to the remote shell as-is.
  */
 export const HOST_SSH = process.env.VMUI_HOST_SSH ?? "";
-export const HOST_IS_LOCAL = process.platform === "win32" && !HOST_SSH;
+export const HOST_IS_LOCAL = IS_WINDOWS && !HOST_SSH;
 export const HOST_AVAILABLE = HOST_IS_LOCAL || HOST_SSH.length > 0;
 
 const SSH_OPTS = ["-o", "BatchMode=yes", "-o", "ConnectTimeout=8", "-o", "StrictHostKeyChecking=accept-new"];

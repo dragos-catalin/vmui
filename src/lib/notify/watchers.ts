@@ -3,8 +3,8 @@ import { haConfig } from "@/lib/home/credentials";
 import { ha } from "@/lib/home/ha-client";
 import { nutritionSummary } from "@/lib/nutrition/summary";
 import { execFile } from "node:child_process";
-import { platform } from "node:os";
 import "server-only";
+import { IS_LINUX } from "@/lib/runtime-os";
 import { msg } from "./i18n";
 import { dismissByTag, notify } from "./index";
 import { loadNotifySettings } from "./settings";
@@ -36,7 +36,7 @@ export function ensureNotifyWatchers(): void {
   };
   every(5 * 60_000, water);
   every(60_000, pcAgent);
-  if (platform() === "linux") every(120_000, pi);
+  if (IS_LINUX) every(120_000, pi);
   every(10 * 60_000, batteries);
   haEvents();
 }

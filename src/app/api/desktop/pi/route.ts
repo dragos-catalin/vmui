@@ -1,9 +1,9 @@
 import { db } from "@/lib/db";
 import { auditLog } from "@/lib/db/schema";
 import { espAuthorized } from "@/lib/esp/auth";
+import { IS_LINUX } from "@/lib/runtime-os";
 import { NextResponse, type NextRequest } from "next/server";
 import { execFile } from "node:child_process";
-import { platform } from "node:os";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -22,8 +22,7 @@ function run(cmd: string, args: string[], timeoutMs = 8000): Promise<string> {
 
 export async function GET(req: NextRequest) {
   if (!espAuthorized(req)) return new NextResponse("forbidden", { status: 403 });
-  // os.platform() at runtime; `process.platform` is constant-folded by Turbopack at build time (built on Windows → always "not on the Pi")
-  if (platform() !== "linux") return NextResponse.json({ units: [], containers: [], note: "not on the Pi" });
+  if (!IS_LINUX) return NextResponse.json({ units: [], containers: [], note: "not on the Pi" });
   const log = new URL(req.url).searchParams.get("log");
   if (log) {
     if (!(UNITS as readonly string[]).includes(log) && !(CONTAINERS as readonly string[]).includes(log)) return NextResponse.json({ error: "unknown log" }, { status: 400 });
