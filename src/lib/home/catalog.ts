@@ -73,7 +73,6 @@ export const DEVICES: CatalogDevice[] = [
   { id: "temp", name: "Temperature & humidity", kind: "sensor", room: "bedroom", x: 40, y: 88, via: "Tuya",
     entity: "sensor.temperature_and_humidity_sensor_temperature",
     entities: ["sensor.temperature_and_humidity_sensor_humidity", "sensor.temperature_and_humidity_sensor_battery"] },
-  { id: "presence", name: "Presence (WENZI-II)", kind: "presence", entity: "binary_sensor.human_presence_sensor_occupancy", room: "bedroom", x: 8, y: 50, via: "Tuya mmWave" },
 
   // --- Living room ---
   { id: "ac_living", name: "AC Mami", kind: "ac", entity: "climate.living_room_ac_mami", room: "living_room", x: 80, y: 15, via: "ConnectLife (Hisense)",

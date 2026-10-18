@@ -133,16 +133,14 @@ function viewHome(fb: Framebuffer, ctx: ViewContext): void {
   const lightsOn = [...ctx.states.values()].filter((s) => s.entity_id.startsWith("light.") && s.state === "on").length;
   band(fb, "Acasa", `${lightsOn} lumini`);
   const door = st(ctx, "binary_sensor.main_door_door");
-  const pres = st(ctx, "binary_sensor.human_presence_sensor_occupancy");
   const ac = st(ctx, "climate.bedroom_ac");
   const ac2 = st(ctx, "climate.living_room_ac_mami");
   const person = st(ctx, "person.dragos");
   const acText = (c: HaState | undefined) => (c ? (c.state === "off" ? "oprit" : `${c.state} ${fmtC(celsius(c.attributes.temperature, c.attributes.temperature_unit))} (acum ${fmtC(celsius(c.attributes.current_temperature, c.attributes.temperature_unit))})`) : "--");
   line(fb, 18, "usa:", door ? (door.state === "on" ? "DESCHISA" : "inchisa") : "--", ctx);
-  line(fb, 27, "dormitor:", pres ? (pres.state === "on" ? "cineva" : "gol") : "--", ctx);
-  line(fb, 36, "AC dorm:", acText(ac), ctx);
-  line(fb, 45, "AC living:", acText(ac2), ctx);
-  line(fb, 54, "Dragos:", person ? (person.state === "home" ? "acasa" : person.state === "not_home" ? "plecat" : person.state) : "--", ctx);
+  line(fb, 27, "AC dorm:", acText(ac), ctx);
+  line(fb, 36, "AC living:", acText(ac2), ctx);
+  line(fb, 45, "Dragos:", person ? (person.state === "home" ? "acasa" : person.state === "not_home" ? "plecat" : person.state) : "--", ctx);
 }
 
 function viewAmbilight(fb: Framebuffer, ctx: ViewContext): void {

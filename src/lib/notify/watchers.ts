@@ -21,7 +21,6 @@ const w: W = ((globalThis as { __vmuiNotifyWatch__?: W }).__vmuiNotifyWatch__ ??
 const SENSOR: Record<string, "mainDoor" | "window" | "presence"> = {
   "binary_sensor.main_door_door": "mainDoor",
   "binary_sensor.window_sensor_door": "window",
-  "binary_sensor.human_presence_sensor_occupancy": "presence",
 };
 
 const liters = (ml: number, digits: number) => (ml / 1000).toFixed(digits).replace(/\.?0+$/, "");

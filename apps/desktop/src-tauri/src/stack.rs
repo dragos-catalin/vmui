@@ -326,7 +326,7 @@ pub fn hyper_instances() -> Result<Vec<HyperInstance>> {
                 let i = r.remove(0)["info"].take();
                 h.grabber = i["components"].as_array().and_then(|c| c.iter().find(|x| x["name"] == "SYSTEMGRABBER")).and_then(|x| x["enabled"].as_bool());
                 h.source = i["priorities"].as_array().and_then(|p| p.iter().find(|x| x["visible"] == json!(true))).and_then(|x| x["componentId"].as_str()).unwrap_or("idle").to_lowercase();
-                h.brightness = i["adjustment"].as_array().and_then(|a| a.first()).and_then(|a| a["brightness"].as_i64());
+                h.brightness = i["adjustment"].as_array().and_then(|a| a.first()).and_then(|a| a["scaleOutput"].as_f64()).map(|s| (s * 100.0).round() as i64);
             }
         }
         out.push(h);

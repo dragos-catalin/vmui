@@ -37,7 +37,7 @@ export type TurzxViewConfig = z.infer<typeof turzxViewConfigSchema>;
  *  Companion app's "Last notification" sensor. */
 export const turzxNotifySchema = z.object({
   enabled: z.boolean().default(true),
-  /** Only pop while `binary_sensor.human_presence_sensor_occupancy` is on. */
+  /** Only pop while `home.presence` (a desk presence sensor) is not "off"; no sensor wired = always present. */
   presenceOnly: z.boolean().default(true),
   durationSec: z.number().min(2).max(30).default(6),
   /** Show message body; off = app + sender only. */

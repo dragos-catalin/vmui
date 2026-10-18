@@ -678,13 +678,17 @@ free sources (NASA APOD, Met CC0, Art Institute, Commons POTD;
 `anim.Marquee` — clipped to their slot and scrolled when they do not fit.
 
 **Phone notifications** (`turzx/overlay.py`, settings → _Notificări de pe
-telefon_): while `binary_sensor.human_presence_sensor_occupancy` is on, a
-new entry on `sensor.dragos_s_s25_ultra_last_notification` (Companion app
+telefon_): a new entry on `sensor.dragos_s_s25_ultra_last_notification` (Companion app
 "Last notification", allow list = messaging apps) pops a card over the
 current view: sender avatar with the app badge, sender, up to 7 wrapped
 lines then a slow vertical scroll, faded backdrop, slide in/out from the
 nearest edge; position top/centre/bottom, duration, "show text" and the
 package list are configurable. Rotation pauses while a card is up.
+"Only when I'm at the desk" reads `home.presence` in `/api/turzx/state`; the
+WENZI-II mmWave sensor died (2026-10) and was removed, so until a new one is
+wired there the gate is open (no sensor = present). Every card logs
+`notify show|drop <reason> pkg=…` to `/srv/homepi/logs/turzx.log`; the most
+common drop is `not-allowed-app` (package not in the Turzx list).
 `python turzx\turzx.py --demo-notify` pops a fake WhatsApp card after 5 s.
 The Companion app was installed and granted notification access over adb
 (`cmd notification allow_listener …NotificationSensorManager`, then

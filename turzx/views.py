@@ -497,10 +497,9 @@ class HomeView(View):
         self.lights.set(h.get("lightsOn") or 0); self.lights.step(dt)
         self.total = max(1, h.get("lightsTotal") or 1)
         def s(x): return (x or {}).get("state")
-        door = s(h.get("door")); pres = s(h.get("presence")); person = s(h.get("person"))
+        door = s(h.get("door")); person = s(h.get("person"))
         self.rows = [
             ("Ușa", "DESCHISĂ" if door == "on" else "închisă" if door == "off" else "—", "bad" if door == "on" else "ok", since(h.get("door"))),
-            ("Dormitor", "cineva" if pres == "on" else "gol" if pres == "off" else "—", "accent" if pres == "on" else "muted", since(h.get("presence"))),
             ("Dragoș", "acasă" if person == "home" else "plecat" if person == "not_home" else (person or "—"), "ok" if person == "home" else "muted", since(h.get("person"))),
         ]
         self.ac = []

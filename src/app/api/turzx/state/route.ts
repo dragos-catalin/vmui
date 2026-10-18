@@ -162,7 +162,6 @@ export async function GET(req: NextRequest) {
       inside: { temp: pick(states, "sensor.temperature_and_humidity_sensor_temperature"), hum: pick(states, "sensor.temperature_and_humidity_sensor_humidity") },
       home: {
         door: pick(states, "binary_sensor.main_door_door"),
-        presence: pick(states, "binary_sensor.human_presence_sensor_occupancy"),
         acBedroom: pick(states, "climate.bedroom_ac"),
         acLiving: pick(states, "climate.living_room_ac_mami"),
         person: pick(states, "person.dragos"),

@@ -16,7 +16,7 @@ import { setAmbilightModeAction } from "@/server/actions/home";
 import { armIntercomAction } from "@/server/actions/intercom";
 import { addWaterAction } from "@/server/actions/nutrition";
 import type { PlacedDevice, WallSetting } from "@/server/queries/home";
-import { BellRing, Bot, Clapperboard, DoorOpen, Droplets, Eye, GlassWater, Lamp, Lightbulb, MonitorSmartphone, MousePointerClick, Music2, Radar, Tablet, Thermometer, Users } from "lucide-react";
+import { BellRing, Bot, Clapperboard, DoorOpen, Droplets, Eye, GlassWater, Lamp, Lightbulb, MonitorSmartphone, MousePointerClick, Music2, Tablet, Thermometer, Users } from "lucide-react";
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { parseAsStringLiteral, useQueryStates } from "nuqs";
@@ -271,7 +271,6 @@ function Vitals() {
   const t = useTranslations("home.vitals");
   const temp = useEntity("sensor.temperature_and_humidity_sensor_temperature");
   const hum = useEntity("sensor.temperature_and_humidity_sensor_humidity");
-  const presence = useEntity("binary_sensor.human_presence_sensor_occupancy");
   const door = useEntity("binary_sensor.main_door_door");
   const { states } = useHomeStates();
   const lightsOn = Object.values(states).filter((s) => s.entity_id.startsWith("light.") && s.entity_id !== "light.hyperhdr" && isOn(s)).length;
@@ -279,7 +278,6 @@ function Vitals() {
   const items = [
     { icon: Thermometer, label: t("bedroom"), value: temp ? `${Number(temp.state).toFixed(1)}°` : "—" },
     { icon: Droplets, label: t("humidity"), value: hum ? `${Math.round(Number(hum.state))}%` : "—" },
-    { icon: Radar, label: t("presence"), value: presence ? (presence.state === "on" ? t("here") : t("away")) : "—", warn: presence?.state === "on" },
     { icon: DoorOpen, label: t("mainDoor"), value: door ? (door.state === "on" ? t("open") : t("closed")) : "—", warn: door?.state === "on" },
     { icon: Lightbulb, label: t("lightsOn"), value: String(lightsOn) },
   ];

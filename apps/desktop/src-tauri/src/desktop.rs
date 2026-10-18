@@ -552,7 +552,8 @@ fn on_menu(app: &AppHandle, id: &str) {
         }
         b if b.starts_with("amb:bri:") => {
             let pct: u32 = b[8..].parse().unwrap_or(100).min(100);
-            let errs = stack::hyper_all(&[json!({"command":"adjustment","adjustment":{"brightness":pct}})], &stack::HYPER_INSTANCES);
+            // HyperHDR's adjustment schema has no `brightness` (validation error); the master level is scaleOutput 0..1
+            let errs = stack::hyper_all(&[json!({"command":"adjustment","adjustment":{"scaleOutput": f64::from(pct) / 100.0}})], &stack::HYPER_INSTANCES);
             if !errs.is_empty() {
                 toast_err(app, "brightness", errs.join("; "));
             }
