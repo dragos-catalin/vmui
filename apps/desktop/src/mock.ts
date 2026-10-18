@@ -9,6 +9,17 @@ const tasks = ["vmui-ambilight-hyperhdr", "vmui-ambilight-openrgb", "vmui-ambili
 const VMUI = "/vmui";
 const K = new URLSearchParams(location.search).get("k") ?? "";
 const calls: Array<{ cmd: string; args: unknown }> = [];
+let lang = new URLSearchParams(location.search).get("lang") === "en" ? "en" : "ro";
+const caps = { onoff: true, brightness: true, rgb: true, kelvin: null, effects: ["Breath", "Rainbow"], addressable: false, segments: true, ledCountConfig: true, whiteOnly: false };
+const lights = {
+  devices: [
+    { id: "melk_oa10", name: "Bandă pat", room: "bedroom", transport: "ble", address: "BE:69:83:00:C4:0B", protocol: "melk", capabilities: caps, calibration: {}, ledCount: 60, enabled: true, health: "ok", lastSeenAt: Date.now(), lastLatencyMs: 40, lastError: null, state: { on: true, rgb: [255, 120, 40], brightnessPct: 70 },
+      segments: [{ id: "melk_oa10-s0", deviceId: "melk_oa10", ord: 0, name: "Pat", ledStart: 0, ledCount: 36, reverse: false, calibration: {} }, { id: "melk_oa10-s1", deviceId: "melk_oa10", ord: 1, name: "Birou", ledStart: 36, ledCount: 24, reverse: false, calibration: {} }] },
+    { id: "desk_bar", name: "Bară birou", room: "bedroom", transport: "ha", address: "light.desk_light_bar", protocol: null, capabilities: { ...caps, rgb: false, whiteOnly: true, kelvin: [2700, 6500], effects: [], segments: false, ledCountConfig: false }, calibration: {}, ledCount: 1, segments: [], enabled: true, health: "degraded", lastSeenAt: null, lastLatencyMs: 900, lastError: null, state: { on: false } },
+  ],
+  groups: [], scenes: [{ id: "s1", name: "Seară" }], profiles: [{ id: "day", name: "Zi", calibration: {}, active: true }, { id: "night", name: "Noapte", calibration: { briCap: 0.4 }, active: false }],
+  rooms: [{ id: "bedroom", name: "Dormitor" }], pcOnline: true, haOnline: true, discovered: [],
+};
 (window as unknown as { __calls: unknown }).__calls = calls;
 
 const handlers: Record<string, Handler> = {
@@ -28,6 +39,13 @@ const handlers: Record<string, Handler> = {
   vmui_get: async ({ path }) => { const p = String(path); const r = await fetch(`${VMUI}${p}${p.includes("?") ? "&" : "?"}k=${K}`); if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); },
   vmui_send: async ({ method, path, body }) => { const p = String(path); const r = await fetch(`${VMUI}${p}${p.includes("?") ? "&" : "?"}k=${K}`, { method: String(method), headers: { "content-type": "application/json" }, body: JSON.stringify(body) }); if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json().catch(() => ({ ok: true })); },
   app_info: () => ({ root: "E:\\gh\\vmui", vmui: VMUI, haUrl: "", displayUrl: `${VMUI}/display?k=${K}`, version: "mock" }),
+  lang_get: () => lang,
+  lang_set: ({ lang: l }) => { lang = l === "en" ? "en" : "ro"; },
+  lights_get: () => lights,
+  lights_op: ({ body }) => { calls.push({ cmd: "lights_op:body", args: body }); return { ok: true }; },
+  ble_scan: () => [{ mac: "BE:16:2F:00:05:29", name: "MELK-OC21", rssi: -58, protocol: "melk" }],
+  ble_status: () => [{ mac: "BE:69:83:00:C4:0B", connected: true, latencyMs: 42, lastError: null }],
+  pi_status: async ({ log }) => handlers.vmui_get!({ path: `/api/desktop/pi${log ? `?log=${String(log)}` : ""}` }),
   "plugin:event|listen": () => 0,
   "plugin:event|unlisten": () => undefined,
   "plugin:autostart|is_enabled": () => false,

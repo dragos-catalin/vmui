@@ -1,0 +1,32 @@
+{
+  "all": "All lights",
+  "rooms": {
+    "bedroom": "Bedroom",
+    "living_room": "Living room",
+    "kitchen": "Kitchen",
+    "office": "Office"
+  },
+  "profiles": {
+    "day": "Day",
+    "night": "Night"
+  },
+  "segments": {
+    "whole": "Strip"
+  },
+  "errors": {
+    "invalid": "Invalid request",
+    "unknownTarget": "Unknown light target {target}",
+    "noDevices": "No enabled light matches {target}",
+    "deviceNotFound": "Light {id} not found",
+    "segmentNotFound": "Segment {id} not found",
+    "groupNotFound": "Group {id} not found",
+    "sceneNotFound": "Scene {id} not found",
+    "profileNotFound": "Profile {id} not found",
+    "pcOffline": "The PC agent is offline and this light has no Home Assistant fallback",
+    "notBle": "This operation needs a Bluetooth light driven by the PC",
+    "unsupportedTransport": "Transport {transport} cannot be driven yet; give the light a Home Assistant alias",
+    "nothingToUndo": "Nothing to undo",
+    "haOffline": "Home Assistant is unreachable",
+    "lastSegment": "A light needs at least one segment"
+  }
+}

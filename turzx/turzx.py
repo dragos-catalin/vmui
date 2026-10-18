@@ -709,7 +709,8 @@ class Renderer:
             else:
                 frame = transition(old, frame, p, kind)
         # phone notifications ride on top of everything
-        present = ((data.get("home") or {}).get("presence") or {}).get("state") == "on"
+        # only an explicit "off" means nobody is here; unavailable/unknown sensor = assume present
+        present = ((data.get("home") or {}).get("presence") or {}).get("state") != "off"
         self.overlay.offer(data.get("notification"), present)
         self.overlay.offer_copilot(data.get("copilot"))
         # meal-saved card: same path as copilot (not gated by presence/allow-list)

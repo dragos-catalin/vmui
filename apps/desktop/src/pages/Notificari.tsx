@@ -2,6 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { AppWindow, BatteryWarning, Bell, BellOff, BellRing, Bot, Check, Cpu, DoorOpen, GlassWater, Info, Mail, Monitor, Radar, Settings2, Smartphone, Trash2, X } from "lucide-react";
 import * as React from "react";
+import { useTranslation } from "react-i18next";
+import i18n, { currentLocale, tx } from "../i18n";
 import { api, cn, toast, useEvent } from "../lib";
 import { usePlatform } from "../platform";
 import { Card, Row, Seg, Switch } from "../ui";
@@ -21,6 +23,8 @@ type Settings = {
   batteryBelow: number;
 };
 type Meta = Record<string, { label: string; color: string; icon: string }>;
+const FALLBACK = "var(--color-muted)";
+const tint = (c: string, pct = 13) => `color-mix(in oklch, ${c} ${pct}%, transparent)`;
 
 const ICON: Record<string, React.ComponentType<{ className?: string }>> = {
   copilot: Bot, agents: Bot, intercom: BellRing, pairing: Smartphone, water: GlassWater, pc: Monitor, pi: Cpu, door: DoorOpen, window: AppWindow, presence: Radar, battery: BatteryWarning, contact: Mail, system: Info,
@@ -62,15 +66,17 @@ export function useNotifications() {
 }
 
 export function NotifBell({ onClick, count }: { onClick: () => void; count: number }) {
+  const { t } = useTranslation();
   return (
-    <button type="button" className="btn ghost sm relative" onClick={onClick} aria-label={`Notificări${count ? `, ${count} necitite` : ""}`}>
+    <button type="button" className="btn ghost sm relative" onClick={onClick} aria-label={count ? t("notif.bellUnread", { count }) : t("nav.notificari")}>
       <Bell className="size-4" />
-      {count > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 rounded-full bg-warn text-[10px] font-bold text-black grid place-items-center px-1">{count > 9 ? "9+" : count}</span>}
+      {count > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 rounded-full bg-warn text-[10px] font-bold text-bg grid place-items-center px-1">{count > 9 ? "9+" : count}</span>}
     </button>
   );
 }
 
 export function Notificari({ focusId }: { focusId?: string | null }) {
+  const { t } = useTranslation();
   const { cards, reload, api: n } = useNotifications();
   const [tab, setTab] = React.useState<"open" | "history" | "settings">("open");
   const [history, setHistory] = React.useState<NotifyCard[]>([]);
@@ -94,22 +100,22 @@ export function Notificari({ focusId }: { focusId?: string | null }) {
   return (
     <div className="grid gap-4">
       <div className="flex items-center gap-2 flex-wrap">
-        <h1 className="text-xl font-semibold tracking-tight mr-auto">Notificări</h1>
-        <Seg value={tab} onChange={setTab} options={[{ id: "open", label: cards.length ? `Active · ${cards.length}` : "Active" }, { id: "history", label: "Istoric" }, { id: "settings", label: "", icon: <Settings2 className="size-4" /> }]} />
+        <h1 className="text-xl font-semibold tracking-tight mr-auto">{t("nav.notificari")}</h1>
+        <Seg value={tab} onChange={setTab} options={[{ id: "open", label: cards.length ? `${t("notif.active")} · ${cards.length}` : t("notif.active") }, { id: "history", label: t("notif.history") }, { id: "settings", label: t("notif.settings"), icon: <Settings2 className="size-4" /> }]} />
       </div>
       {tab === "open" && (
         <>
           {kinds.length > 1 && (
             <div className="flex gap-1.5 flex-wrap">
-              <Chip on={filter === "all"} onClick={() => setFilter("all")}>Toate</Chip>
-              {kinds.map((k) => <Chip key={k} on={filter === k} onClick={() => setFilter(k)}>{LABEL[k] ?? k}</Chip>)}
-              {cards.some((c) => !c.sticky) && <button type="button" className="btn ghost sm ml-auto" onClick={() => n.op({ op: "dismissAll" }).then(reload)}><Trash2 className="size-3.5" />Curăță</button>}
+              <Chip on={filter === "all"} onClick={() => setFilter("all")}>{t("notif.all")}</Chip>
+              {kinds.map((k) => <Chip key={k} on={filter === k} onClick={() => setFilter(k)}>{kindLabel(k)}</Chip>)}
+              {cards.some((c) => !c.sticky) && <button type="button" className="btn ghost sm ml-auto" onClick={() => n.op({ op: "dismissAll" }).then(reload)}><Trash2 className="size-3.5" />{t("notif.clear")}</button>}
             </div>
           )}
           {shown.length === 0 ? (
             <div className="glass grid place-items-center gap-2 py-14 text-muted">
               <BellOff className="size-8 opacity-50" />
-              <div className="text-sm">Nimic nou. Totul e liniștit acasă.</div>
+              <div className="text-sm">{t("notif.empty")}</div>
             </div>
           ) : (
             <div className="grid gap-2.5">{shown.map((c) => <NotifCardView key={c.id} card={c} focus={c.id === focusId} onAct={(a) => act(n, c, a, reload)} onDismiss={() => n.op({ op: "dismiss", id: c.id }).then(reload)} />)}</div>
@@ -118,13 +124,13 @@ export function Notificari({ focusId }: { focusId?: string | null }) {
       )}
       {tab === "history" && (
         <div className="grid gap-1.5">
-          {history.length === 0 && <div className="text-sm text-muted py-8 text-center">Istoric gol.</div>}
+          {history.length === 0 && <div className="text-sm text-muted py-8 text-center">{t("notif.historyEmpty")}</div>}
           {history.map((c) => (
             <div key={c.id} className="glass flex items-center gap-3 px-3 py-2 opacity-80">
               <KindDot kind={c.kind} color={c.color} />
               <div className="min-w-0 flex-1">
                 <div className="text-sm truncate">{c.title}</div>
-                <div className="text-[11px] text-dim truncate">{fmtWhen(c.createdAt)} · {c.actedWith ? `${c.actedWith} · ${c.actedBy ?? ""}` : c.fallbackAt ? "prin HA Companion" : c.deliveredTo ? `livrat pe ${c.deliveredTo}` : "expirat"}</div>
+                <div className="text-[11px] text-dim truncate">{fmtWhen(c.createdAt)} · {c.actedWith ? `${c.actedWith} · ${c.actedBy ?? ""}` : c.fallbackAt ? t("notif.viaHa") : c.deliveredTo ? t("notif.deliveredTo", { to: c.deliveredTo }) : t("notif.expired")}</div>
               </div>
             </div>
           ))}
@@ -135,17 +141,17 @@ export function Notificari({ focusId }: { focusId?: string | null }) {
   );
 }
 
-const LABEL: Record<string, string> = { copilot: "Copilot", agents: "Agenți", intercom: "Interfon", pairing: "Dispozitive", water: "Apă", pc: "PC", pi: "Pi", door: "Ușă", window: "Geam", presence: "Prezență", battery: "Baterii", contact: "Contact", system: "Sistem" };
+const kindLabel = (k: string) => tx(`notif.kind.${k}`, k);
 
 async function act(n: ReturnType<typeof useNotifyApi>, c: NotifyCard, a: NotifyAction, reload: () => void) {
   if (a.url) {
     void n.op({ op: "read", ids: [c.id] });
-    try { await openUrl(a.url); } catch (e) { toast("error", `nu pot deschide ${a.url}: ${String(e)}`); }
+    try { await openUrl(a.url); } catch (e) { toast("error", i18n.t("notif.cantOpen", { url: a.url, error: String(e) })); }
     return;
   }
   try {
     const r = await n.act(c.id, a.id);
-    if (r.ok) toast("ok", r.message ?? "gata"); else toast("error", r.error ?? "nu a mers");
+    if (r.ok) toast("ok", r.message ?? i18n.t("common.done")); else toast("error", r.error ?? i18n.t("common.failed"));
   } catch (e) {
     toast("error", String(e));
   }
@@ -153,30 +159,32 @@ async function act(n: ReturnType<typeof useNotifyApi>, c: NotifyCard, a: NotifyA
 }
 
 function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
-  return <button type="button" className={cn("btn ghost sm rounded-full", on && "on")} onClick={onClick}>{children}</button>;
+  return <button type="button" aria-pressed={on} className={cn("btn ghost sm rounded-full", on && "on")} onClick={onClick}>{children}</button>;
 }
 
 function KindDot({ kind, color }: { kind: string; color: string | null }) {
   const I = ICON[kind] ?? Info;
+  const c = color ?? FALLBACK;
   return (
-    <span className="size-9 shrink-0 rounded-full grid place-items-center" style={{ background: `${color ?? "#94a3b8"}22`, color: color ?? "#94a3b8" }}>
+    <span className="size-9 shrink-0 rounded-full grid place-items-center" style={{ background: tint(c), color: c }}>
       <I className="size-4.5" />
     </span>
   );
 }
 
 export function NotifCardView({ card: c, focus, onAct, onDismiss, compact }: { card: NotifyCard; focus?: boolean; onAct: (a: NotifyAction) => void; onDismiss: () => void; compact?: boolean }) {
-  const color = c.color ?? "#94a3b8";
+  const { t } = useTranslation();
+  const color = c.color ?? FALLBACK;
   return (
     <article
       id={`n-${c.id}`}
-      className={cn("glass relative overflow-hidden transition-shadow", focus && "ring-2 ring-white/40", c.priority === "urgent" && "border-down/60", !c.readAt && "border-l-2")}
-      style={{ borderLeftColor: !c.readAt ? color : undefined, boxShadow: c.priority === "urgent" ? `0 0 0 1px ${color}66, 0 12px 40px -18px ${color}` : undefined }}
+      className={cn("glass relative overflow-hidden transition-shadow", focus && "ring-2 ring-fg/40", c.priority === "urgent" && "border-down/60", !c.readAt && "border-l-2")}
+      style={{ borderLeftColor: !c.readAt ? color : undefined, boxShadow: c.priority === "urgent" ? `0 0 0 1px ${tint(color, 40)}, 0 12px 40px -18px ${color}` : undefined }}
     >
       {c.image && !compact && (
         <div className="relative h-36 -mb-6">
           <img src={c.image} alt="" className="absolute inset-0 size-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/30 to-[var(--bg-1,#0b0f1a)]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-bg/30 to-bg" />
         </div>
       )}
       <div className="relative flex gap-3 px-3.5 py-3">
@@ -189,20 +197,20 @@ export function NotifCardView({ card: c, focus, onAct, onDismiss, compact }: { c
           {c.subtitle && <div className="text-xs mt-0.5" style={{ color }}>{c.subtitle}</div>}
           {c.body && <p className="text-sm text-muted mt-1 whitespace-pre-line leading-snug line-clamp-4">{c.body}</p>}
           {c.progress != null && (
-            <div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden" role="progressbar" aria-valuenow={c.progress} aria-valuemin={0} aria-valuemax={100}>
+            <div className="mt-2 h-1.5 rounded-full bg-fg/10 overflow-hidden" role="progressbar" aria-valuenow={c.progress} aria-valuemin={0} aria-valuemax={100}>
               <div className="h-full rounded-full transition-[width] duration-700" style={{ width: `${c.progress}%`, background: color }} />
             </div>
           )}
           {(c.actions.length > 0 || !c.sticky) && (
             <div className="mt-2.5 flex gap-1.5 flex-wrap">
               {c.actions.map((a) => (
-                <button key={a.id} type="button" className={cn("btn sm", a.style === "primary" && "primary", a.style === "danger" && "danger", a.style === "ghost" && "ghost")} style={a.style === "primary" ? { background: color, borderColor: color, color: "#0b0f1a" } : undefined} onClick={() => onAct(a)}>
+                <button key={a.id} type="button" className={cn("btn sm", a.style === "primary" && "primary", a.style === "danger" && "danger", a.style === "ghost" && "ghost")} style={a.style === "primary" ? { background: color, borderColor: color, color: "var(--color-bg)" } : undefined} onClick={() => onAct(a)}>
                   {a.id === "approve" && <Check className="size-3.5" />}
                   {a.id === "reject" && <X className="size-3.5" />}
                   {a.label}
                 </button>
               ))}
-              {!c.sticky && <button type="button" className="btn ghost sm ml-auto" onClick={onDismiss} aria-label="Închide"><X className="size-3.5" /></button>}
+              {!c.sticky && <button type="button" className="btn ghost sm ml-auto" onClick={onDismiss} aria-label={t("common.close")}><X className="size-3.5" /></button>}
             </div>
           )}
         </div>
@@ -214,13 +222,14 @@ export function NotifCardView({ card: c, focus, onAct, onDismiss, compact }: { c
 function fmtWhen(iso: string) {
   const d = new Date(iso);
   const diff = (Date.now() - d.getTime()) / 1000;
-  if (diff < 60) return "acum";
-  if (diff < 3600) return `${Math.floor(diff / 60)} min`;
-  if (diff < 86400 && d.getDate() === new Date().getDate()) return d.toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit" });
-  return d.toLocaleDateString("ro-RO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  if (diff < 60) return i18n.t("time.now");
+  if (diff < 3600) return i18n.t("time.min", { n: Math.floor(diff / 60) });
+  if (diff < 86400 && d.getDate() === new Date().getDate()) return d.toLocaleTimeString(currentLocale(), { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleDateString(currentLocale(), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
 function NotifSettings() {
+  const { t } = useTranslation();
   const n = useNotifyApi();
   const [s, setS] = React.useState<Settings | null>(null);
   const [meta, setMeta] = React.useState<Meta>({});
@@ -229,40 +238,42 @@ function NotifSettings() {
   React.useEffect(() => {
     n.settings().then((r) => { setS(r.settings); if (r.meta) setMeta(r.meta); if (typeof r.fcm === "boolean") setFcm(r.fcm); }).catch((e) => toast("error", String(e)));
   }, [n]);
-  if (!s) return <div className="text-sm text-muted">se încarcă…</div>;
+  if (!s) return <div className="text-sm text-muted">{t("common.loading")}</div>;
   const patch = (f: (x: Settings) => Settings) => { setS((x) => (x ? f(x) : x)); setDirty(true); };
-  const save = () => n.settings(s).then(() => { toast("ok", "salvat"); setDirty(false); }).catch((e) => toast("error", String(e)));
+  const save = () => n.settings(s).then(() => { toast("ok", t("common.saved")); setDirty(false); }).catch((e) => toast("error", String(e)));
   return (
     <div className="grid gap-4">
-      <Card title="Ore de liniște" sub="Cardurile discrete așteaptă; interfonul și ușa trec oricum (bifă „și noaptea”).">
-        <Row label="Activ"><Switch checked={s.quiet.enabled} onChange={(v) => patch((x) => ({ ...x, quiet: { ...x.quiet, enabled: v } }))} /></Row>
-        <Row label="De la"><input className="field w-28" type="time" value={s.quiet.from} onChange={(e) => patch((x) => ({ ...x, quiet: { ...x.quiet, from: e.target.value } }))} /></Row>
-        <Row label="Până la"><input className="field w-28" type="time" value={s.quiet.to} onChange={(e) => patch((x) => ({ ...x, quiet: { ...x.quiet, to: e.target.value } }))} /></Row>
+      <Card title={t("notif.quiet")} sub={t("notif.quietSub")}>
+        <Row label={t("notif.quietOn")}><Switch checked={s.quiet.enabled} onChange={(v) => patch((x) => ({ ...x, quiet: { ...x.quiet, enabled: v } }))} label={t("notif.quiet")} /></Row>
+        <Row label={t("notif.from")}><input className="input w-28" type="time" aria-label={t("notif.from")} value={s.quiet.from} onChange={(e) => patch((x) => ({ ...x, quiet: { ...x.quiet, from: e.target.value } }))} /></Row>
+        <Row label={t("notif.to")}><input className="input w-28" type="time" aria-label={t("notif.to")} value={s.quiet.to} onChange={(e) => patch((x) => ({ ...x, quiet: { ...x.quiet, to: e.target.value } }))} /></Row>
       </Card>
-      <Card title="Tipuri" sub="Ce ajunge pe telefon și pe PC.">
+      <Card title={t("notif.kinds")} sub={t("notif.kindsSub")}>
         <div className="grid gap-1">
           {Object.entries(s.kinds).map(([k, v]) => {
             const I = ICON[k] ?? Info;
+            const c = v.color ?? meta[k]?.color ?? FALLBACK;
+            const label = meta[k]?.label ?? kindLabel(k);
             return (
               <div key={k} className="flex items-center gap-3 py-1.5">
-                <span className="size-8 rounded-full grid place-items-center" style={{ background: `${v.color ?? meta[k]?.color ?? "#94a3b8"}22`, color: v.color ?? meta[k]?.color ?? "#94a3b8" }}><I className="size-4" /></span>
-                <div className="flex-1 text-sm">{meta[k]?.label ?? LABEL[k] ?? k}</div>
-                <label className="flex items-center gap-1.5 text-[11px] text-dim"><input type="checkbox" checked={v.breakQuiet} onChange={(e) => patch((x) => ({ ...x, kinds: { ...x.kinds, [k]: { ...v, breakQuiet: e.target.checked } } }))} />și noaptea</label>
-                <Switch checked={v.enabled} onChange={(on) => patch((x) => ({ ...x, kinds: { ...x.kinds, [k]: { ...v, enabled: on } } }))} />
+                <span className="size-8 rounded-full grid place-items-center" style={{ background: tint(c), color: c }}><I className="size-4" /></span>
+                <div className="flex-1 text-sm">{label}</div>
+                <label className="flex items-center gap-1.5 text-[11px] text-dim"><input type="checkbox" checked={v.breakQuiet} onChange={(e) => patch((x) => ({ ...x, kinds: { ...x.kinds, [k]: { ...v, breakQuiet: e.target.checked } } }))} />{t("notif.atNight")}</label>
+                <Switch checked={v.enabled} label={label} onChange={(on) => patch((x) => ({ ...x, kinds: { ...x.kinds, [k]: { ...v, enabled: on } } }))} />
               </div>
             );
           })}
         </div>
       </Card>
-      <Card title="Livrare">
-        <Row label="Trezire prin FCM" hint={fcm === false ? "cheia de serviciu lipsește pe Pi (.private/fcm-service-account.json)" : "telefonul primește cardul și când aplicația e închisă"}><Switch checked={s.fcm.enabled} onChange={(v) => patch((x) => ({ ...x, fcm: { enabled: v } }))} /></Row>
-        <Row label="Rezervă HA Companion" hint="dacă niciun dispozitiv nu confirmă în 20 s, trimite prin aplicația Home Assistant"><Switch checked={s.haFallback} onChange={(v) => patch((x) => ({ ...x, haFallback: v }))} /></Row>
-        <Row label="Apă: sub ritm cu" hint="0 = fără"><input className="field w-24" type="number" min={0} max={1000} step={50} value={s.waterNudgeMl} onChange={(e) => patch((x) => ({ ...x, waterNudgeMl: Number(e.target.value) }))} /> <span className="text-xs text-muted">ml</span></Row>
-        <Row label="Baterie sub"><input className="field w-20" type="number" min={5} max={50} value={s.batteryBelow} onChange={(e) => patch((x) => ({ ...x, batteryBelow: Number(e.target.value) }))} /> <span className="text-xs text-muted">%</span></Row>
+      <Card title={t("notif.delivery")}>
+        <Row label={t("notif.fcm")} hint={fcm === false ? t("notif.fcmMissing") : t("notif.fcmHint")}><Switch checked={s.fcm.enabled} onChange={(v) => patch((x) => ({ ...x, fcm: { enabled: v } }))} label={t("notif.fcm")} /></Row>
+        <Row label={t("notif.haFallback")} hint={t("notif.haFallbackHint")}><Switch checked={s.haFallback} onChange={(v) => patch((x) => ({ ...x, haFallback: v }))} label={t("notif.haFallback")} /></Row>
+        <Row label={t("notif.water")} hint={t("notif.waterHint")}><input className="input w-24" type="number" aria-label={t("notif.water")} min={0} max={1000} step={50} value={s.waterNudgeMl} onChange={(e) => patch((x) => ({ ...x, waterNudgeMl: Number(e.target.value) }))} /> <span className="text-xs text-muted">ml</span></Row>
+        <Row label={t("notif.battery")}><input className="input w-20" type="number" aria-label={t("notif.battery")} min={5} max={50} value={s.batteryBelow} onChange={(e) => patch((x) => ({ ...x, batteryBelow: Number(e.target.value) }))} /> <span className="text-xs text-muted">%</span></Row>
       </Card>
       {dirty && (
         <div className="sticky bottom-2 flex justify-end">
-          <button type="button" className="btn primary" onClick={save}>Salvează</button>
+          <button type="button" className="btn primary" onClick={save}>{t("common.save")}</button>
         </div>
       )}
     </div>

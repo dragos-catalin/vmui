@@ -89,26 +89,43 @@ class NotificationOverlay:
         self.packages = set(cfg.get("packages") or [])
 
     def offer(self, n: dict | None, present: bool) -> None:
-        """Called every poll with the latest notification (or None)."""
+        """Called every poll with the latest notification (or None).
+
+        `present` is False only when the presence sensor positively says nobody is
+        at the desk; an unavailable sensor must not swallow every notification
+        (2026-10: sensor dead for 12 days, Turzx showed nothing). Every drop is
+        logged once with its reason so the next "no notifications" is one grep.
+        """
+        if not self.primed:
+            # whatever is already on the phone when we start is old news; prime on the
+            # first poll even when it carries nothing, so the first real one is shown
+            self.primed = True
+            if n and n.get("id"):
+                self.seen.add(n["id"])
+            return
         if not n or not n.get("id"):
             return
         nid = n["id"]
-        if not self.primed:
-            # whatever is already on the phone when we start is old news
-            self.seen.add(nid)
-            self.primed = True
-            return
         if nid in self.seen:
             return
         self.seen.add(nid)
         if len(self.seen) > 500:
             self.seen = set(list(self.seen)[-200:])
-        if not getattr(self, "enabled", True) or n.get("ongoing") or n.get("group"):
+        reason = None
+        if not getattr(self, "enabled", True):
+            reason = "disabled"
+        elif n.get("ongoing"):
+            reason = "ongoing"
+        elif n.get("group"):
+            reason = "group-summary"
+        elif self.packages and n.get("pkg") not in self.packages:
+            reason = "not-allowed-app"
+        elif getattr(self, "presence_only", True) and not present:
+            reason = "nobody-at-desk"
+        if reason:
+            print(f"notify drop {reason} pkg={n.get('pkg')}", flush=True)
             return
-        if self.packages and n.get("pkg") not in self.packages:
-            return
-        if getattr(self, "presence_only", True) and not present:
-            return
+        print(f"notify show pkg={n.get('pkg')}", flush=True)
         self.queue.append(n)
         self.queue = self.queue[-5:]
 

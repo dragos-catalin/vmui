@@ -307,6 +307,12 @@ pub fn hyper_info() -> Result<Value> {
     Ok(hyper(&[json!({"command":"serverinfo"})], 0)?.remove(0)["info"].take())
 }
 
+/// SYSTEMGRABBER state of one instance (one login + serverinfo).
+pub fn hyper_grabber(instance: u32) -> Result<Option<bool>> {
+    let i = hyper(&[json!({"command":"serverinfo"})], instance)?.remove(0)["info"].take();
+    Ok(i["components"].as_array().and_then(|c| c.iter().find(|x| x["name"] == "SYSTEMGRABBER")).and_then(|x| x["enabled"].as_bool()))
+}
+
 pub fn hyper_instances() -> Result<Vec<HyperInstance>> {
     let info = hyper_info()?;
     let effects: Vec<String> = info["effects"].as_array().map(|a| a.iter().filter_map(|e| e["name"].as_str().map(str::to_string)).collect()).unwrap_or_default();
@@ -357,26 +363,36 @@ pub fn vmui_token() -> String {
     cred("ESP_DISPLAY_TOKEN")
 }
 
+/// Start an HA script without waiting for it: `script.turn_on` returns at once,
+/// whereas `script/<name>` blocks for the script's whole run (movie_mode_off
+/// has a 7 s delay, longer than the 6 s agent timeout).
+pub fn ha_script(name: &str, variables: Value) -> Result<()> {
+    let mut body = json!({"entity_id": format!("script.{name}")});
+    if variables.as_object().is_some_and(|o| !o.is_empty()) {
+        body["variables"] = variables;
+    }
+    ha_post("services/script/turn_on", body).map(|_| ())
+}
+
+/// The window's generic HTTP bridge targets the house vmui (homepi); the
+/// local vmui only serves the Hyper-V provider.
 pub fn vmui_get(path: &str) -> Result<Value> {
-    let sep = if path.contains('?') { '&' } else { '?' };
-    Ok(agent().get(&format!("{VMUI}{path}{sep}k={}", vmui_token())).call()?.into_body().read_json()?)
+    pi_get(path, 8)
 }
 
 pub fn vmui_send(method: &str, path: &str, body: Value) -> Result<Value> {
-    let sep = if path.contains('?') { '&' } else { '?' };
-    let url = format!("{VMUI}{path}{sep}k={}", vmui_token());
-    let r = match method {
-        "PUT" => agent().put(&url).send_json(body)?,
-        _ => agent().post(&url).send_json(body)?,
-    };
-    Ok(r.into_body().read_json::<Value>().unwrap_or(json!({"ok":true})))
+    pi_send(method, path, body)
 }
 
-/// Same as vmui_get but against the Pi and with a long timeout (long-poll endpoints).
+/// GET against the Pi with an explicit timeout (long-poll endpoints use 40 s).
 pub fn pi_get(path: &str, timeout_secs: u64) -> Result<Value> {
     let sep = if path.contains('?') { '&' } else { '?' };
     let a: ureq::Agent = ureq::Agent::config_builder().timeout_global(Some(Duration::from_secs(timeout_secs))).build().into();
-    Ok(a.get(&format!("{VMUI_PI}{path}{sep}k={}", vmui_token())).call()?.into_body().read_json()?)
+    match a.get(&format!("{VMUI_PI}{path}{sep}k={}", vmui_token())).call() {
+        Ok(r) => Ok(r.into_body().read_json()?),
+        Err(ureq::Error::StatusCode(c)) => Err(anyhow!("HTTP {c}")),
+        Err(e) => Err(e.into()),
+    }
 }
 
 pub fn pi_post(path: &str, body: Value) -> Result<Value> {
@@ -429,7 +445,7 @@ pub fn health() -> Health {
     match hyper_info() {
         Err(_) => {
             h.state = "down".into();
-            h.detail = "HyperHDR nu răspunde".into();
+            h.detail = crate::i18n::t("hyperDown");
         }
         Ok(info) => {
             h.hyper = true;
@@ -440,18 +456,18 @@ pub fn health() -> Health {
                 h.state = "warn".into();
                 let mut parts = Vec::new();
                 if !vm {
-                    parts.push("vmui oprit".to_string());
+                    parts.push(crate::i18n::tf("stopped", &[("name", "vmui")]));
                 }
                 if !ha {
-                    parts.push("HA indisponibil".to_string());
+                    parts.push(crate::i18n::t("haDown"));
                 }
                 if !missing.is_empty() {
-                    parts.push(format!("{} oprit", missing.join(", ")));
+                    parts.push(crate::i18n::tf("stopped", &[("name", &missing.join(", "))]));
                 }
                 h.detail = parts.join(" · ");
             } else {
                 h.state = "ok".into();
-                h.detail = format!("{} · captură {}", h.source, if h.grabber == Some(true) { "pornită" } else { "oprită" });
+                h.detail = format!("{} · {}", h.source, crate::i18n::t(if h.grabber == Some(true) { "captureOn" } else { "captureOff" }));
             }
         }
     }

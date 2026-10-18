@@ -114,7 +114,10 @@ $Tasks = @(
     @{ Name = 'vmui-ambilight-bridges';  Exe = $Python;     Args = "`"$Amb\bridges.py`""; Delay = 20 },
     # Tauri app (apps/desktop): tray icon + native control window. Replaced
     # ambilight/tray.py (pystray), which is kept only as a fallback.
-    @{ Name = 'vmui-tray';               Exe = "$Root\apps\desktop\src-tauri\target\release\vmui-desktop.exe"; Args = '--hidden'; Delay = 30 },
+    # Watchdog: the tray exited cleanly (result 0) on 2026-10-17 and nothing restarted
+    # it (RestartCount only covers failures). Re-fire every 5 min; single-instance +
+    # IgnoreNew make that a no-op while it runs.
+    @{ Name = 'vmui-tray';               Exe = "$Root\apps\desktop\src-tauri\target\release\vmui-desktop.exe"; Args = '--hidden'; Delay = 30; Watchdog = 5 },
     # The panel itself is driven from homepi (pi/turzx.service). This PC only
     # publishes its CPU/GPU/focus metrics to vmui there for the "pc" view.
     @{ Name = 'vmui-turzx';              Exe = $Python;     Args = "`"$Root\turzx\turzx.py`" --publish --vmui http://192.168.100.232:3737"; Delay = 35 }
@@ -284,7 +287,7 @@ function Configure-HyperHdr {
     }
     Enable-Grabber $bar
 
-    Write-Step 'instance 4: MELK BLE strip behind the viewer via ambilight/melk_bridge.py'
+    Write-Step 'instance 4: MELK BLE strip behind the viewer via ambilight/ble_lights.py'
     # Runs from the floor corner behind the desk up and along the ceiling
     # edge: a whole-room wash, so it echoes the picture's centre average.
     # Single-colour strip; the bridge owns the BLE link while frames stream
@@ -326,12 +329,16 @@ function Install-Tasks {
         $action = New-ScheduledTaskAction -Execute $t.Exe -Argument $t.Args -WorkingDirectory $Amb
         $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
         $trigger.Delay = "PT$($t.Delay)S"
+        $triggers = @($trigger)
+        if ($t.Watchdog) {
+            $triggers += New-ScheduledTaskTrigger -Once -At (Get-Date).Date -RepetitionInterval (New-TimeSpan -Minutes $t.Watchdog)
+        }
         $settings = New-ScheduledTaskSettingsSet -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) `
             -ExecutionTimeLimit ([TimeSpan]::Zero) -StartWhenAvailable -MultipleInstances IgnoreNew -Hidden
         # -Force overwrites in place. Unregister+Register fails on a task that
         # was registered from an elevated shell (Unregister: Access denied,
         # then Register: file already exists) and left the loop half done.
-        $reg = @{ TaskName = $t.Name; Action = $action; Trigger = $trigger; Settings = $settings; Description = 'vmui ambilight stack (scripts/ambilight.ps1)'; Force = $true }
+        $reg = @{ TaskName = $t.Name; Action = $action; Trigger = $triggers; Settings = $settings; Description = 'vmui ambilight stack (scripts/ambilight.ps1)'; Force = $true }
         if ($t.Elevated) { $reg.Principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Highest }
         try {
             Register-ScheduledTask @reg -ErrorAction Stop | Out-Null

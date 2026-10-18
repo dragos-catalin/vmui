@@ -90,7 +90,15 @@
     },
     "2": {
       "name": "Lumini cameră (HA)",
-      "target": "Bandă MELK (tot ecranul)"
+      "target": "Becurile HA moodlight + ambience"
+    },
+    "3": {
+      "name": "Bara de birou (Tuya)",
+      "target": "Bara de lumină de pe birou (doar alb)"
+    },
+    "4": {
+      "name": "Bandă MELK (BLE)",
+      "target": "Banda MELK-OA10 prin bridge-ul BLE de pe PC"
     }
   }
 }

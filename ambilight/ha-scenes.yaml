@@ -80,7 +80,7 @@ script:
       - action: light.turn_off
         target: { entity_id: light.star_projector }
       # MELK strip (light.led_argb): NOT touched here. HyperHDR instance 4 ->
-      # ambilight/melk_bridge.py drives it over the PC's own Bluetooth while
+      # ambilight/ble_lights.py drives it over the PC's own Bluetooth while
       # frames stream; only one BLE client can hold it, so an HA call now
       # would steal the link. The bridge releases it ~5 s after the last
       # frame, and movie_mode_off puts it back to warm white.

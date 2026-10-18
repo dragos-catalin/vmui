@@ -227,7 +227,7 @@ token (`/srv/homepi/publish/brivio-acme.token`, root 600; source
 2026-10-06). Create/revoke: brivio.ro > DNS > dragoscatalin.ro > Token-uri API
 (one per device: "lego homepi", "lego vmui PC"). Caddy has a systemd drop-in
 (`pi/caddy-wait-network.conf`): without it Caddy started before DHCP at boot,
-died with `bind: cannot assign requested address` and home.* was down
+died with `bind: cannot assign requested address` and home.\* was down
 2026-09-18 → 2026-10-06. HA got
 `http: trusted_proxies` and `external_url`/`internal_url` via the websocket
 `config/core/update` (`pi/ha-set-urls.cjs`). The Pi advertises
@@ -1044,6 +1044,51 @@ curl.exe -s -X POST http://192.168.100.232:3737/api/hooks/contact -H 'content-ty
 - Firebase: enabling `firebasecloudmessaging.googleapis.com` fails (not a
   service); `fcm.googleapis.com` + role `roles/firebasecloudmessaging.admin`
   on the sender SA is all that is needed.
+
+## Light registry, BLE hub and the desktop Lights/Devices pages (2026-10-18)
+
+One registry of every light, owned by vmui on homepi (SQLite tables
+`light_devices`, `light_segments`, `light_groups`, `light_scenes`,
+`light_state_log`, `light_profiles`). API: `GET/POST /api/lights` (shared
+token or `vmd_` device token); MCP tools `light_devices`, `light_set`,
+`light_undo`, `light_identify`, `light_scene_apply`, `segment_add`. The
+desktop app (`apps/desktop`) renders it on **Lumini** (every light, rooms,
+scenes, undo, day/night profile) and **Dispozitive** (detail, calibration,
+segments, BLE scan + add, import/export). Audit tracker:
+`docs/desktop/TRACKER.csv`.
+
+- Model: device → ordered segments (`ledCount`, `reverse`, per-segment
+  calibration) → LEDs; `ledStart` is derived, so a segment can be appended to
+  a chained strip at any time. Calibration composes device × segment × active
+  profile (gamma/colour order: segment wins; gains multiply; brightness cap =
+  min, floor = max) and is applied before the transport encodes.
+- Transports: `ha` (light.turn_on), `ble` (MQTT `vmui/pc/cmd` action `light`
+  → tray agent → `ambilight/ble_lights.py` on TCP 127.0.0.1:19460),
+  `hyperhdr` (priority 40 colour on the instance). A BLE device with an HA
+  alias (`melk_oa10` → `light.led_argb`) falls back to HA when the PC agent is
+  offline.
+- `ambilight/ble_lights.py` replaced `melk_bridge.py` inside `bridges.py`: ONE
+  process owns every BLE GATT connection (one central per strip), keeps the
+  HyperHDR instance-4 UDP path for the OA10 and releases idle links so HA's
+  elkbledom can reconnect. CLI: `python ambilight/ble_lights.py --scan 8 |
+--status | --set MAC r g b | --off MAC`.
+- **MELK-OC21** (`BE:16:2F:00:05:29`, strip under the monitors, 2 cut sections
+  13 + 14 LEDs, right → left): same fff0/fff3/fff4 GATT as the OA10. Its
+  firmware is whole-strip colour only and **ignores the LED-count command**
+  `7E 07 21 lo hi 00 FF 00 EF` (measured: count 10 + effect 37 "White Tail"
+  still ran the whole strip), so segments are logical until the controller is
+  replaced by ESP32-C3 + WLED. The USB plug is power-only (no PnP arrival when
+  plugged into the PC, 2026-10-18). Effect ids: gist `MELK-OA21-Groups.json`
+  (199 7-colour gradual, 37 white tail, 89 red running).
+- Desk bar: the Tuya Cloud IoT subscription expired (`Err 913`); the bridge now
+  stays on the LAN key (`TUYA_DESKBAR_LOCAL_KEY`) with reconnect + backoff and
+  disables the cloud after the first 913.
+- Turzx phone notifications need the Companion **Last notification** sensor's
+  allow list (empty = nothing is sent, the 2026-10 outage) and log every drop
+  as `notify drop <reason> pkg=…` in turzx.log; an unavailable presence sensor
+  no longer counts as "nobody at the desk".
+- hub-cast no longer recasts `/display` over **Bluetooth Audio** or paused
+  media, and recasts over the Hub's Google Photos fallback frame.
 
 ## Backups
 

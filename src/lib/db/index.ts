@@ -1070,6 +1070,69 @@ sqlite.exec(`CREATE TABLE IF NOT EXISTS codai_environments (
   created_at INTEGER NOT NULL DEFAULT (unixepoch())
 )`);
 
+// Light registry (lib/lights). Timestamps are epoch ms.
+sqlite.exec(`CREATE TABLE IF NOT EXISTS light_devices (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  room TEXT NOT NULL DEFAULT 'bedroom',
+  transport TEXT NOT NULL,
+  address TEXT NOT NULL,
+  protocol TEXT,
+  ha_entity TEXT,
+  capabilities TEXT NOT NULL,
+  calibration TEXT NOT NULL DEFAULT '{}',
+  led_count INTEGER NOT NULL DEFAULT 1,
+  fingerprint TEXT UNIQUE,
+  discovered_via TEXT,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  health TEXT NOT NULL DEFAULT 'unknown',
+  last_seen_at INTEGER,
+  last_latency_ms INTEGER,
+  last_error TEXT,
+  created_at INTEGER NOT NULL
+)`);
+sqlite.exec(`CREATE TABLE IF NOT EXISTS light_segments (
+  id TEXT PRIMARY KEY,
+  device_id TEXT NOT NULL REFERENCES light_devices(id) ON DELETE CASCADE,
+  ord INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  led_count INTEGER NOT NULL,
+  reverse INTEGER NOT NULL DEFAULT 0,
+  calibration TEXT NOT NULL DEFAULT '{}',
+  CONSTRAINT light_segments_device_ord UNIQUE (device_id, ord)
+)`);
+sqlite.exec(`CREATE TABLE IF NOT EXISTS light_groups (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  kind TEXT NOT NULL DEFAULT 'custom'
+)`);
+sqlite.exec(`CREATE TABLE IF NOT EXISTS light_group_members (
+  group_id TEXT NOT NULL,
+  target TEXT NOT NULL,
+  PRIMARY KEY (group_id, target)
+)`);
+sqlite.exec(`CREATE TABLE IF NOT EXISTS light_scenes (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  entries TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+)`);
+sqlite.exec(`CREATE TABLE IF NOT EXISTS light_state_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts INTEGER NOT NULL,
+  target TEXT NOT NULL,
+  before TEXT,
+  after TEXT NOT NULL,
+  actor TEXT NOT NULL
+)`);
+sqlite.exec(`CREATE INDEX IF NOT EXISTS idx_light_state_log_target ON light_state_log(target, id DESC)`);
+sqlite.exec(`CREATE TABLE IF NOT EXISTS light_profiles (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  calibration TEXT NOT NULL,
+  active INTEGER NOT NULL DEFAULT 0
+)`);
+
 export const db = drizzle(sqlite, { schema });
 export { sqlite as rawSqlite, schema };
 

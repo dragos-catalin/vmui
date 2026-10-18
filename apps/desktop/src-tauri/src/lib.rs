@@ -8,6 +8,10 @@ mod agent;
 mod desktop;
 #[cfg(desktop)]
 mod devices;
+#[cfg(desktop)]
+mod i18n;
+#[cfg(desktop)]
+mod lights;
 #[cfg(mobile)]
 mod mobile;
 #[cfg(desktop)]

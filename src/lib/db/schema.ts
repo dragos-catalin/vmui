@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { integer, primaryKey, real, sqliteTable, text, unique } from "drizzle-orm/sqlite-core";
 
 export const cloudAccounts = sqliteTable("cloud_accounts", {
   id: text("id").primaryKey(),
@@ -1411,4 +1411,89 @@ export const codaiEnvironments = sqliteTable("codai_environments", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 export type CodaiEnvironmentRow = typeof codaiEnvironments.$inferSelect;
+
+/**
+ * Light registry (lib/lights): every light the desktop, web, MCP and the PC BLE
+ * bridge can drive. JSON columns hold the model types from lib/lights/model.ts.
+ * Timestamps are epoch milliseconds (plain integers).
+ */
+export const lightDevices = sqliteTable("light_devices", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  room: text("room").notNull().default("bedroom"),
+  transport: text("transport", { enum: ["ha", "ble", "hyperhdr", "tuya_lan", "openrgb", "wled"] }).notNull(),
+  /** ha: entity_id; ble: MAC; hyperhdr: instance number; wled: host */
+  address: text("address").notNull(),
+  protocol: text("protocol"),
+  /** HA alias for a non-HA transport, the fallback when the PC agent is offline. */
+  haEntity: text("ha_entity"),
+  capabilities: text("capabilities").notNull(),
+  calibration: text("calibration").notNull().default("{}"),
+  ledCount: integer("led_count").notNull().default(1),
+  fingerprint: text("fingerprint").unique(),
+  discoveredVia: text("discovered_via"),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+  health: text("health").notNull().default("unknown"),
+  lastSeenAt: integer("last_seen_at"),
+  lastLatencyMs: integer("last_latency_ms"),
+  lastError: text("last_error"),
+  createdAt: integer("created_at").notNull(),
+});
+export type LightDeviceRow = typeof lightDevices.$inferSelect;
+
+export const lightSegments = sqliteTable(
+  "light_segments",
+  {
+    id: text("id").primaryKey(),
+    deviceId: text("device_id").notNull().references(() => lightDevices.id, { onDelete: "cascade" }),
+    ord: integer("ord").notNull(),
+    name: text("name").notNull(),
+    ledCount: integer("led_count").notNull(),
+    reverse: integer("reverse", { mode: "boolean" }).notNull().default(false),
+    calibration: text("calibration").notNull().default("{}"),
+  },
+  (t) => [unique("light_segments_device_ord").on(t.deviceId, t.ord)],
+);
+export type LightSegmentRow = typeof lightSegments.$inferSelect;
+
+export const lightGroups = sqliteTable("light_groups", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  kind: text("kind").notNull().default("custom"),
+});
+
+/** target = "dev:<id>" | "seg:<id>" */
+export const lightGroupMembers = sqliteTable(
+  "light_group_members",
+  {
+    groupId: text("group_id").notNull(),
+    target: text("target").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.groupId, t.target] })],
+);
+
+/** entries = JSON [{ target, state }] */
+export const lightScenes = sqliteTable("light_scenes", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  entries: text("entries").notNull(),
+  createdAt: integer("created_at").notNull(),
+});
+
+export const lightStateLog = sqliteTable("light_state_log", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  ts: integer("ts").notNull(),
+  target: text("target").notNull(),
+  before: text("before"),
+  after: text("after").notNull(),
+  actor: text("actor").notNull(),
+});
+
+/** 'day' / 'night' seeded; the active one multiplies on top of device + segment calibration. */
+export const lightProfiles = sqliteTable("light_profiles", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  calibration: text("calibration").notNull(),
+  active: integer("active", { mode: "boolean" }).notNull().default(false),
+});
 

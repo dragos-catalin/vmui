@@ -48,10 +48,10 @@ if sys.stdout is None:  # pythonw: no console, keep the prints somewhere readabl
     sys.stdout = sys.stderr = _Stamped(open(os.path.join(_log, "bridges.log"), "a", buffering=1, encoding="utf-8"))
 
 import a51_lux  # noqa: E402
+import ble_lights  # noqa: E402
 import deskbar_bridge  # noqa: E402
 import dxlight_bridge  # noqa: E402
 import halamps_bridge  # noqa: E402
-import melk_bridge  # noqa: E402
 import openrgb_bridge  # noqa: E402
 import video_follow  # noqa: E402
 
@@ -61,7 +61,9 @@ BRIDGES = (
     ("pcglow", 19447, openrgb_bridge.PcGlow, openrgb_bridge.run_listen),
     ("deskbar", 19448, deskbar_bridge.DeskBar, deskbar_bridge.run_listen),
     ("halamps", 19449, halamps_bridge.HaLamps, halamps_bridge.run_listen),
-    ("melk", 19450, melk_bridge.MelkStrip, melk_bridge.run_listen),
+    # Every BLE light (MELK OA10 + OC21, ...): HyperHDR inst 4 on udp/19450 +
+    # JSON control on tcp/19460. Single owner of the GATT connections.
+    ("ble", 19450, ble_lights.BleHub, ble_lights.run_listen),
     ("a51lux", 0, a51_lux.A51Lux, a51_lux.run_listen),  # no UDP; polls adb -> HA sensor.a51_light
     ("videofollow", 0, video_follow.VideoFollow, video_follow.run_listen),  # no UDP; window -> HyperHDR crop + movie mode
 )

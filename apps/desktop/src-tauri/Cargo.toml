@@ -34,6 +34,7 @@ tauri-plugin-window-state = "2.4"
 tungstenite = "0.30"
 rumqttc = { version = "0.25", default-features = false } # plain TCP MQTT only; default use-rustls pulled vulnerable rustls-webpki 0.102 (GHSA-82j2-j2ch-gfr8)
 tauri-plugin-notification = "2.4"
+tauri-plugin-global-shortcut = "~2.3" # 2.4 requires tauri 2.12; npm @tauri-apps/api + cli are on 2.11
 
 [target."cfg(windows)".dependencies]
 tauri-winrt-notification = "0.8"

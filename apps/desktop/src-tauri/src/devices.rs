@@ -3,6 +3,7 @@
 //! 4821"), and the window gets a `devices` event for its banner. Approving
 //! from here goes straight back to the Pi with the shared token.
 
+use crate::i18n::{t, tf};
 use crate::stack;
 use serde_json::{json, Value};
 use std::collections::HashSet;
@@ -12,9 +13,24 @@ use tauri::menu::{MenuItem, Submenu};
 use tauri::{AppHandle, Emitter, Manager, Wry};
 use tauri_plugin_notification::NotificationExt;
 
+/// The submenu is recreated when the tray menu is rebuilt (language change);
+/// the last pending list is kept so the new one is filled immediately.
+#[derive(Default)]
 pub struct DevicesMenu {
-    pub sub: Submenu<Wry>,
-    pub items: Mutex<Vec<MenuItem<Wry>>>,
+    sub: Mutex<Option<Submenu<Wry>>>,
+    items: Mutex<Vec<MenuItem<Wry>>>,
+    pending: Mutex<Vec<Value>>,
+}
+
+pub fn attach(app: &AppHandle, sub: Submenu<Wry>) {
+    if app.try_state::<DevicesMenu>().is_none() {
+        app.manage(DevicesMenu::default());
+    }
+    let m = app.state::<DevicesMenu>();
+    *m.sub.lock().unwrap() = Some(sub);
+    m.items.lock().unwrap().clear();
+    let pending = m.pending.lock().unwrap().clone();
+    rebuild_menu(app, &pending);
 }
 
 pub fn approve(id: &str, code: &str) -> anyhow::Result<()> {
@@ -28,13 +44,18 @@ pub fn reject(id: &str) -> anyhow::Result<()> {
 
 fn rebuild_menu(app: &AppHandle, pending: &[Value]) {
     let Some(m) = app.try_state::<DevicesMenu>() else { return };
-    let mut items = m.items.lock().unwrap();
-    for it in items.drain(..) {
-        let _ = m.sub.remove(&it);
+    *m.pending.lock().unwrap() = pending.to_vec();
+    // submenu calls block on the main thread, which may be rebuilding the
+    // tray (and calling attach) right now: take what we need, drop the locks
+    let Some(sub) = m.sub.lock().unwrap().clone() else { return };
+    let old: Vec<MenuItem<Wry>> = m.items.lock().unwrap().drain(..).collect();
+    for it in old {
+        let _ = sub.remove(&it);
     }
+    let mut items = Vec::new();
     if pending.is_empty() {
-        if let Ok(it) = MenuItem::with_id(app, "devices:none", "Nicio cerere", false, None::<&str>) {
-            let _ = m.sub.append(&it);
+        if let Ok(it) = MenuItem::with_id(app, "devices:none", t("noRequests"), false, None::<&str>) {
+            let _ = sub.append(&it);
             items.push(it);
         }
     }
@@ -42,15 +63,16 @@ fn rebuild_menu(app: &AppHandle, pending: &[Value]) {
         let id = p["id"].as_str().unwrap_or("");
         let code = p["code"].as_str().unwrap_or("");
         let name = p["name"].as_str().unwrap_or("?");
-        if let Ok(it) = MenuItem::with_id(app, format!("approve:{id}:{code}"), format!("Aprobă {name} · {code}"), true, None::<&str>) {
-            let _ = m.sub.append(&it);
+        if let Ok(it) = MenuItem::with_id(app, format!("approve:{id}:{code}"), tf("approve", &[("name", name), ("code", code)]), true, None::<&str>) {
+            let _ = sub.append(&it);
             items.push(it);
         }
-        if let Ok(it) = MenuItem::with_id(app, format!("reject:{id}"), format!("   respinge {name}"), true, None::<&str>) {
-            let _ = m.sub.append(&it);
+        if let Ok(it) = MenuItem::with_id(app, format!("reject:{id}"), format!("   {}", tf("reject", &[("name", name)])), true, None::<&str>) {
+            let _ = sub.append(&it);
             items.push(it);
         }
     }
+    *m.items.lock().unwrap() = items;
 }
 
 pub fn run(app: AppHandle) {
@@ -67,11 +89,11 @@ pub fn run(app: AppHandle) {
                     if announced.insert(id.clone()) {
                         let name = p["name"].as_str().unwrap_or("?");
                         let code = p["code"].as_str().unwrap_or("");
-                        match app.notification().builder().title(format!("vmui: {name} cere acces")).body(format!("Cod {code} — aprobă din tray sau din fereastră")).show() {
+                        match app.notification().builder().title(tf("accessRequestTitle", &[("name", name)])).body(tf("accessRequestBody", &[("code", code)])).show() {
                             Ok(()) => stack::log(&format!("devices: toast for {name} ({code})")),
                             Err(e) => stack::log(&format!("devices: toast failed: {e}")),
                         }
-                        let _ = app.emit("toast", json!({"kind":"info","text":format!("{name} cere acces · cod {code}")}));
+                        let _ = app.emit("toast", json!({"kind":"info","text":format!("{} · {code}", tf("accessRequestTitle", &[("name", name)]))}));
                     }
                 }
                 announced.retain(|id| pending.iter().any(|p| p["id"].as_str() == Some(id)));
@@ -89,7 +111,7 @@ pub fn handle_menu(app: &AppHandle, id: &str) -> bool {
         let mut it = rest.splitn(2, ':');
         let (dev, code) = (it.next().unwrap_or(""), it.next().unwrap_or(""));
         let r = approve(dev, code);
-        let _ = app.emit("toast", json!({"kind": if r.is_ok() {"ok"} else {"error"}, "text": match &r { Ok(_) => "Dispozitiv aprobat".to_string(), Err(e) => e.to_string() }}));
+        let _ = app.emit("toast", json!({"kind": if r.is_ok() {"ok"} else {"error"}, "text": match &r { Ok(_) => t("approved"), Err(e) => e.to_string() }}));
         return true;
     }
     if let Some(dev) = id.strip_prefix("reject:") {

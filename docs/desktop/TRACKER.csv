@@ -1,0 +1,75 @@
+id,area,item,status,evidence,notes
+D-001,tray,status line (disabled item) shows health detail,works,"menu screenshot 2026-10-18 04:35: 'vmui · systemgrabber · captură pornită'",
+D-002,tray,tooltip,broken,"UIA name 'vmui — pornire… vmui — effect · captură pornită' (initial tooltip text never replaced on Windows)",fix: set tooltip once after first refresh; i18n
+D-003,tray,Deschide vmui (Ctrl+Shift+V),works,"04:41 click -> window vmui-desktop.exe focused (list_windows)",Ctrl+Shift+V is only a label: no global shortcut registered
+D-004,tray,Mod film,works,"04:35:51 script.movie_mode_on last_triggered; moodlight off 04:35:50; pc agent mode=movie",
+D-005,tray,Mod muzică,works,"04:36:57 script.music_mode; HyperHDR inst 0-4 visible EFFECT@40 'Music: stereo for LED strip'",
+D-006,tray,Lumini stinse,broken,"04:37:24 script.movie_mode_off ran (inst1-4 grabber off) but desktop.log '04:37:30 mode off: timeout: global' -> toast error + mode not stored; desk bar/led_argb not set to 3000K",HA call blocks 7 s (script delay) > ureq 6 s timeout; fix: call scripts with script.turn_on (non-blocking)
+D-007,tray,Captură ecran (toggle),broken,"04:38 click: inst 1-3 grabber stayed False (hyper.py); toggle reads instance 0 state (always on) and sends !cur",fix: read state of inst 1-3; include inst 4
+D-008,tray,Șterge efectele,works,"04:38 EFFECT@40 gone from inst 0 after click (t-clear.log)",
+D-009,tray,Scene > Ambilight peste tot,works,"04:40:19 script.ambilight_all last_triggered",script needs data.commands; called with {} = no-op on HyperHDR
+D-010,tray,Scene > Trezește PC-ul,works,"script.pc_wake exists (last 09-17); WoL not exercised while PC is on",not live-tested: would only re-send WoL to an awake PC
+D-011,tray,Scene > Flash de test,broken,"04:39:36 script.notify_flash triggered but no priority-10 colour on any instance (hyper.py right after)",called with {} -> script has no colour/duration; fix: pass color + duration
+D-012,tray,PC > Blochează / Stinge monitoarele / Sleep,works,"submenu renders (screenshot 04:40); same path verified with volume: Pi /api/desktop/pc -> MQTT -> 'agent: volume -> ok volume' 04:41:06",lock/sleep not triggered by owner decision
+D-013,tray,Dispozitive noi (pairing approve/reject),works,"submenu shows 'Nicio cerere'; /api/devices long-poll 200 (probe 04:20)",no pending request to approve live
+D-014,tray,Repornește stack-ul ambilight,works,"04:32 restart (same task_restart path) -> hyperhdr pid 101200 listening :8090",HyperHDR was wedged (WS connect timeout) before
+D-015,tray,Ieșire,works,"not clicked (would kill the tray under test); app.exit(0) path",
+D-016,tray,icon state ok/warn/down,works,"icon changed to ok after HyperHDR restart (tooltip systemgrabber)",
+D-017,tray,lights per room / groups,missing,,new: Lumini submenu
+D-018,tray,ambilight on/off + brightness,missing,,new
+D-019,tray,open page X,missing,,new
+D-020,tray,offline devices,missing,,new
+D-021,tray,i18n RO+EN,missing,"labels hardcoded RO in desktop.rs/devices.rs",
+D-030,runtime,tray process alive at logon,broken,"vmui-tray task Ready, last run 17.10 01:33, no vmui-desktop.exe until manual schtasks /run 04:03",task has no restart-on-failure / repeat; add watchdog repetition
+D-031,runtime,HyperHDR health,broken,"WS :8090 connect timeout, 1.8 GB WS; tray health down",fixed by restart 04:32; HyperHDR then came up with VIDEOGRABBER (TikSee cam) visible until ambilight.ps1 -Configure
+D-032,runtime,PC agent MQTT heartbeat,works,"sensor.vmui_pc_agent online 04:04; Pi /api/desktop/pc online:true seenAgo 15",
+D-033,runtime,Windows toasts from notify stream,works,"desktop.log notify stream reconnects; Notificări page lists 5 cards",
+D-040,page,Casă: room tiles + state,works,"screenshot 04:42: 3/7 lumini, tiles per room",reads LOCAL vmui; must read homepi
+D-041,page,Casă: light sheet (brightness/colour/kelvin),works,"code path /api/display/control light; desk bar whiteOnly hides colour",verified again after move to homepi
+D-042,page,Casă: AC/media sheet,works,"code path climate/media",
+D-043,page,Casă: scenes + water,works,"buttons call /api/display/control ambilight|script|water",
+D-044,page,Ambilight: mode seg,works,"same set_mode as tray (film/muzică verified)",Stins inherits D-006
+D-045,page,Ambilight: capture tile,works,"sends componentstate to 1-3 with !health.grabber",same inversion bug as D-007
+D-046,page,Ambilight: instances list + per-instance effect/colour,works,"UIA: 5 instances listed with effect combobox + colour (04:43)",
+D-047,page,Ambilight: quick effects + solid colour,works,"hyperSend effect priority 40 (same as music path)",
+D-048,page,Ambilight: idle / wall / motion settings + save&apply,works,"settings_set + ambilight.ps1 -Configure ran OK 04:33 (configure.log)",page shows 'Modificări nesalvate' on open (DEF vs file key order)
+D-049,page,Ecrane (Nest Hub + Turzx settings),broken,"UIA 04:43 'vmui nu răspunde: http status: 500' (local /api/desktop/settings ChunkLoadError)",must target homepi where the settings live
+D-050,page,PC: verbs + volume + maintenance,works,"volume verified end-to-end 04:41",
+D-051,page,PC: Calculatoare pornite,broken,"'nimic raportat' while turzx --publish runs; reads LOCAL /api/display/state pcs",homepi has pcs
+D-052,page,PC: paired devices + revoke,works,"lists Galaxy S25 Ultra + SM-A515F",moves to Setări
+D-053,page,PC: autostart + paths + version,works,"Row renders; isEnabled() from plugin",moves to Setări
+D-054,page,Servicii: tasks + start/stop/restart + logs,works,"UIA 04:42: 6 tasks, 5/6 running, log tail turzx",vmui-service shown 'oprit' while :3737 listens (pid 35144 from task-less launcher)
+D-055,page,Pi (mobile) / homepi services,broken,"Pi /api/desktop/pi -> 500 'No response is returned from route handler' (homepi vmui.log)",homepi runs 0.3.0 build 2026-10-16; source returns on every branch -> redeploy; desktop has no Pi page at all
+D-056,page,Notificări,works,"UIA 04:44: Active 5, filters, actions",
+D-057,page,Setup (mobile pairing),works,"mobile only; not in desktop scope",
+D-058,page,Update banner (mobile APK),works,"mobile only",
+D-059,page,Devices (paired phones banner),works,"PendingBanner + DevicesCard",
+D-060,page,Lights (all lights in the house),missing,,new
+D-061,page,Devices registry (detail/calibration/segments/scan),missing,,new
+D-062,page,Setări,missing,,new (language/autostart/phones/paths)
+D-063,page,Sistem (Servicii + homepi),missing,,merge Servicii + Pi
+D-064,ui,i18n RO+EN for all pages,missing,"every page hardcodes RO",i18next
+D-070,command,health,works,used by tray loop,
+D-071,command,tasks / task_action,works,Servicii page,
+D-072,command,tail_log / open_path,works,Servicii page,
+D-073,command,settings_get / settings_set / ambilight_configure,works,configure.log,
+D-074,command,hyper_instances / hyper_send,works,Ambilight page instances,
+D-075,command,ambilight_mode,broken,see D-006,
+D-076,command,pc_action,works,D-050,
+D-077,command,ha_call,stub,"registered but no page calls it",keep for Lights fallback
+D-078,command,vmui_get / vmui_send,broken,"target LOCAL vmui (127.0.0.1:3737) -> 500 on settings",switch to homepi
+D-079,command,devices_list / devices_op,works,Pi /api/devices 200,
+D-080,command,notify_list / notify_act / notify_op / notify_settings,works,Notificări page,
+D-081,command,app_info,works,version row,
+D-090,web-gap,STREAM_SCENES (7) not in desktop,missing,"HA script.stream_scene_* exist",tray + Lights scenes
+D-091,web-gap,MCP lights_set/lights_all/scene_set/flash_color not mirrored,missing,,Lights page
+D-092,web-gap,light.main_light not in catalog,missing,"HA has light.main_light (off)",registry seeds from HA
+D-093,web-gap,HYPERHDR_INSTANCES catalog lists 3 of 5,broken,"catalog.ts L148 vs serverinfo 5 instances",
+D-100,device,MELK-OC21 strip under monitors (BE:16:2F:00:05:29),missing,"BLE scan 04:20 RSSI -58; GATT fff0/fff3/fff4 read 2026-10-18",new
+D-101,device,MELK-OA10 via HA elkbledom + melk_bridge,works,light.led_argb on 3000K,move to ble_lights.py
+D-102,device,Desk Light Bar via Tuya Cloud (bridge),broken,"bridges.log 'Err 913 IoT Core service subscription has expired'",use local key
+D-103,device,presence sensor (WENZI-II),broken,"binary_sensor.human_presence_sensor_occupancy unavailable since 06.10 08:25",blocks Turzx notifications (presenceOnly)
+D-104,device,phone last_notification sensor,broken,"sensor.dragos_s_s25_ultra_last_notification unknown since 06.10 08:24",Companion listener
+D-110,homepi,Turzx notifications,broken,"no notification since 06.10; overlay gates silent",D-103 + D-104 + no drop log
+D-111,homepi,hub-cast recasts over Bluetooth Audio,broken,"hub-cast.log: repeated 'hub state=idle app='Bluetooth Audio'; casting'",
+D-112,local,vmui-service on PC,broken,"ChunkLoadError messages_turzx_en (stale .next after a build in the shared clone)",

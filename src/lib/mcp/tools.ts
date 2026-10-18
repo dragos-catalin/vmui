@@ -11,6 +11,10 @@ import { ha } from "@/lib/home/ha-client";
 import { armAutoOpen, ignoreCall, intercomState, openDoor } from "@/lib/home/intercom";
 import { FLASH_COLORS, flashColorSchema, resolveFlashColor, resolveScene, sceneScopeId, sceneSetSchema } from "@/lib/home/stream";
 import { pcIsUp, pcTarget, wakePc } from "@/lib/home/wol";
+import { applyScene, identify as lightIdentify, knownState, pcStatus, setLight, undo as lightUndo } from "@/lib/lights/control";
+import { errorText, localizeName } from "@/lib/lights/i18n";
+import * as lightRegistry from "@/lib/lights/registry";
+import { lightStateSchema, targetSchema } from "@/lib/lights/schema";
 import type { EffectKind } from "@/lib/mcp/effect-limiter";
 import { executeInstanceAction, syncAccountInstances } from "@/server/actions/instances";
 import { eq } from "drizzle-orm";
@@ -83,6 +87,39 @@ async function run(action: string, target: string, message: string, by: string, 
     return { ok: false, error };
   }
 }
+
+/** Registry errors are coded (LightError); render them in English for the model. */
+const lightRun = (action: string, target: string, message: string, by: string, fn: () => Promise<unknown>) =>
+  run(action, target, message, by, () =>
+    fn().then(
+      (r) => {
+        const res = r as { ok?: boolean; applied?: Array<{ deviceId: string; error?: string }> };
+        if (res?.ok === false) {
+          const failed = (res.applied ?? []).filter((a) => a.error).map((a) => `${a.deviceId}: ${a.error}`);
+          throw new Error(`Some lights failed (${failed.join("; ")}); applied: ${JSON.stringify(res.applied ?? [])}`);
+        }
+        return r;
+      },
+      (e: unknown) => {
+        throw new Error(errorText(e, "en"));
+      },
+    ),
+  );
+
+/**
+ * Scope key for a light-registry target. A device maps to the HA entity it drives
+ * (own entity or alias) so `entities` scopes written for lights_set keep working;
+ * a device without one uses `dev:<id>`; rooms/groups/all use the raw target string.
+ */
+const lightTargetKey = (target: unknown): ScopeKey | undefined => {
+  if (typeof target !== "string") return undefined;
+  if (target.startsWith("dev:")) {
+    const dev = lightRegistry.get(target.slice(4));
+    const entity = dev ? (dev.transport === "ha" ? dev.address : dev.haEntity) : null;
+    return { kind: "entity", id: entity ?? target };
+  }
+  return { kind: "entity", id: target };
+};
 
 export const PC_ACTIONS = [
   "lock", "sleep", "display_off", "volume", "mute", "unmute",
@@ -483,6 +520,76 @@ export const TOOLS: McpTool[] = [
         return { ok: true, linked: true, environmentId: link.environmentId, projectId: link.projectId, slug: link.slug, state: link.lastStatus, cached: true, warning: e instanceof Error ? e.message : String(e) };
       }
     },
+  },
+  {
+    name: "light_devices",
+    description:
+      "List every light in the light registry (bulbs, desk bar, BLE strips, ambilight instances) with id, room, transport, capabilities (rgb / kelvin range / effects / whiteOnly), segments, health and current state, plus groups, scenes and whether the PC agent is online. Call this before light_set to pick a target: 'dev:<id>', 'seg:<segmentId>', 'group:<id>', 'room:<room>' or 'all'.",
+    schema: z.object({}),
+    readOnly: true,
+    run: async () => {
+      const states = await ha.states().catch(() => null);
+      const pc = await pcStatus(states);
+      const devices = lightRegistry.list().map((d) => ({
+        id: d.id,
+        target: `dev:${d.id}`,
+        name: d.name,
+        room: d.room,
+        transport: d.transport,
+        enabled: d.enabled,
+        health: d.health,
+        capabilities: d.capabilities,
+        segments: d.segments.map((s) => ({ target: `seg:${s.id}`, name: localizeName(s.name, "en"), ledStart: s.ledStart, ledCount: s.ledCount })),
+        state: knownState(d, states),
+      }));
+      return {
+        ok: true,
+        devices,
+        rooms: [...new Set(devices.map((d) => `room:${d.room}`))],
+        groups: lightRegistry.listGroups().map((g) => ({ target: `group:${g.id}`, name: g.name, members: g.members })),
+        scenes: lightRegistry.listScenes().map((s) => ({ id: s.id, name: s.name })),
+        pcOnline: pc.online,
+        haOnline: states !== null,
+      };
+    },
+  },
+  {
+    name: "light_set",
+    description:
+      "Set lights from the registry. target: 'dev:<id>' | 'seg:<segmentId>' | 'group:<id>' | 'room:<room>' | 'all' (ids from light_devices). state: {on, rgb?:[r,g,b], brightnessPct?:0-100, kelvin?:1000-10000, effect?}. Calibration and capability limits are applied automatically (a white-only light gets warm white instead of a colour). Returns per-device result; light_undo reverts it.",
+    schema: z.object({ target: targetSchema, state: lightStateSchema }),
+    scopeKey: ({ target }) => lightTargetKey(target),
+    run: ({ target, state }, by) =>
+      lightRun("mcp.light_set", target as string, JSON.stringify(state), by, () => setLight(target as string, state as z.infer<typeof lightStateSchema>, `mcp:${by}`)),
+  },
+  {
+    name: "light_undo",
+    description: "Revert the most recent light change (light_set, scene, or a desktop/phone change) to the state the lights had before it. Calling it twice re-applies the change.",
+    schema: z.object({}),
+    run: (_args, by) => lightRun("mcp.light_undo", "lights", "undo", by, () => lightUndo(`mcp:${by}`)),
+  },
+  {
+    name: "light_identify",
+    description: "Blink one light three times in white, then restore it, so the user can see which physical light a registry id is. id = device id from light_devices (without the 'dev:' prefix).",
+    schema: z.object({ id: z.string().min(1).max(120) }),
+    scopeKey: ({ id }) => lightTargetKey(typeof id === "string" ? `dev:${id}` : undefined),
+    run: ({ id }, by) => lightRun("mcp.light_identify", id as string, "identify", by, () => lightIdentify(id as string, `mcp:${by}`)),
+  },
+  {
+    name: "light_scene_apply",
+    description: "Apply a saved light scene (snapshot of several lights) by id; list scenes with light_devices. Not the live-stream effects: use scene_set for those.",
+    schema: z.object({ id: z.string().min(1).max(120) }),
+    run: ({ id }, by) => lightRun("mcp.light_scene_apply", id as string, "scene", by, () => applyScene(id as string, `mcp:${by}`)),
+  },
+  {
+    name: "segment_add",
+    description: "Append a named segment of ledCount LEDs to the end of a light (e.g. split a strip into 'Pat' and 'Birou'); segments become addressable as 'seg:<id>' targets. deviceId without the 'dev:' prefix.",
+    schema: z.object({ deviceId: z.string().min(1).max(120), name: z.string().min(1).max(60), ledCount: z.number().int().min(1).max(5000) }),
+    scopeKey: ({ deviceId }) => lightTargetKey(typeof deviceId === "string" ? `dev:${deviceId}` : undefined),
+    run: ({ deviceId, name, ledCount }, by) =>
+      lightRun("mcp.segment_add", deviceId as string, `${name as string} x${ledCount as number}`, by, async () => ({
+        segment: lightRegistry.addSegment(deviceId as string, { name: name as string, ledCount: ledCount as number }),
+      })),
   },
 ];
 

@@ -90,7 +90,15 @@
     },
     "2": {
       "name": "Room lights (HA)",
-      "target": "MELK strip (whole screen)"
+      "target": "HA bulbs moodlight + ambience"
+    },
+    "3": {
+      "name": "Desk bar (Tuya)",
+      "target": "Desk light bar (white only)"
+    },
+    "4": {
+      "name": "MELK strip (BLE)",
+      "target": "MELK-OA10 strip via the PC BLE bridge"
     }
   }
 }

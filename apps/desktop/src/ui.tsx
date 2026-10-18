@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { cn } from "./lib";
 
 export function Card({ title, sub, right, children, className }: { title?: string; sub?: string; right?: React.ReactNode; children: React.ReactNode; className?: string }) {
@@ -77,13 +78,35 @@ export function Stat({ k, v, tone }: { k: string; v: React.ReactNode; tone?: "ok
 }
 
 export function Swatches({ value, onChange, colors }: { value: string; onChange: (hex: string) => void; colors: string[] }) {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-wrap items-center gap-2">
       {colors.map((c) => (
         <button key={c} type="button" aria-label={c} aria-pressed={value.toLowerCase() === c.toLowerCase()} onClick={() => onChange(c)}
           className={cn("size-7 rounded-full border-2 transition-transform", value.toLowerCase() === c.toLowerCase() ? "border-fg scale-110" : "border-transparent hover:scale-105")} style={{ background: c }} />
       ))}
-      <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="h-8 w-10 rounded-lg border border-border bg-transparent p-0.5" aria-label="Culoare personalizată" />
+      <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="h-8 w-10 rounded-lg border border-border bg-transparent p-0.5" aria-label={t("common.customColor")} />
+    </div>
+  );
+}
+
+/** Modal dialog: Escape and backdrop close it, focus moves inside on open and back on close. */
+export function Dialog({ title, sub, onClose, children, width = 520 }: { title: string; sub?: string; onClose: () => void; children: React.ReactNode; width?: number }) {
+  const ref = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null;
+    ref.current?.querySelector<HTMLElement>("button, input, select, textarea")?.focus();
+    const k = (ev: KeyboardEvent) => ev.key === "Escape" && onClose();
+    window.addEventListener("keydown", k);
+    return () => { window.removeEventListener("keydown", k); prev?.focus?.(); };
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 z-30 grid place-items-center bg-bg/70 p-4" onClick={onClose}>
+      <div ref={ref} className="glass max-h-[90vh] w-full overflow-y-auto p-5" style={{ maxWidth: width }} role="dialog" aria-modal="true" aria-label={title} onClick={(ev) => ev.stopPropagation()}>
+        <h3 className="text-lg font-semibold">{title}</h3>
+        {sub && <p className="mb-4 mt-0.5 text-xs text-muted">{sub}</p>}
+        {children}
+      </div>
     </div>
   );
 }

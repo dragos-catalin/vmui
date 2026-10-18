@@ -1,0 +1,32 @@
+{
+  "all": "Toate luminile",
+  "rooms": {
+    "bedroom": "Dormitor",
+    "living_room": "Sufragerie",
+    "kitchen": "Bucătărie",
+    "office": "Birou"
+  },
+  "profiles": {
+    "day": "Zi",
+    "night": "Noapte"
+  },
+  "segments": {
+    "whole": "Bandă"
+  },
+  "errors": {
+    "invalid": "Cerere invalidă",
+    "unknownTarget": "Țintă de lumină necunoscută: {target}",
+    "noDevices": "Nicio lumină activă nu corespunde lui {target}",
+    "deviceNotFound": "Lumina {id} nu există",
+    "segmentNotFound": "Segmentul {id} nu există",
+    "groupNotFound": "Grupul {id} nu există",
+    "sceneNotFound": "Scena {id} nu există",
+    "profileNotFound": "Profilul {id} nu există",
+    "pcOffline": "Agentul de pe PC este offline și lumina nu are alternativă în Home Assistant",
+    "notBle": "Operația cere o lumină Bluetooth controlată de PC",
+    "unsupportedTransport": "Transportul {transport} nu poate fi controlat încă; dă luminii un alias din Home Assistant",
+    "nothingToUndo": "Nu există nimic de anulat",
+    "haOffline": "Home Assistant nu răspunde",
+    "lastSegment": "O lumină are nevoie de cel puțin un segment"
+  }
+}

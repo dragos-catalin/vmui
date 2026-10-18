@@ -18,7 +18,10 @@ red/green/blue via tinytuya.Cloud.
 Transport: LAN first (tinytuya protocol 3.3, ~65 ms per write, no quota;
 needs TUYA_DESKBAR_IP / _VERSION / _LOCAL_KEY in .private/credentials.env,
 written by the one-off cloud lookup), Tuya Cloud as fallback (~0.4 s, 2 Hz
-cap). Idle: when frames stop (movie off, grabber off) the bar is put back in
+cap). A failed LAN write closes the session and reconnects on the next frame;
+after LAN_SOFT_FAILS in a row LAN is retried with backoff (never abandoned)
+while the cloud carries frames. Cloud Err 913 (IoT Core subscription expired,
+2026-10) disables the cloud for the process. Idle: when frames stop (movie off, grabber off) the bar is put back in
 "white" mode so the HA scenes' colour_temp_kelvin calls keep working; the
 ambient() gate turns it off on dark scenes exactly like the case LEDs.
 
@@ -57,6 +60,10 @@ SLEW = 0.12
 CHROMA_HUE = 0.10  # (max-min)/255 below which the hue is noise and is frozen
 IDLE_WHITE = {"temp_value": 374, "bright_value": 356}  # what HA left it at
 DP = {"switch_led": 20, "work_mode": 21, "bright_value": 22, "temp_value": 23, "colour_data": 24}
+# LAN failures in a row before the cloud (if alive) carries frames; LAN is
+# still retried after LAN_BACKOFF_S[min(n, len-1)] -- it is never given up.
+LAN_SOFT_FAILS = 3
+LAN_BACKOFF_S = (1.0, 2.0, 4.0, 8.0, 15.0, 30.0)
 
 
 def _credentials() -> dict[str, str]:
@@ -89,12 +96,19 @@ class DeskBar:
             self.local.set_version(float(v.get("TUYA_DESKBAR_VERSION") or 3.3))
             self.local.set_socketPersistent(True)
             self.local.set_socketTimeout(0.5)  # a dead session must not stall the 10 Hz loop for 2 s
-        self.cloud = (
-            tinytuya.Cloud(apiRegion="eu", apiKey=v["TUYA_ACCESS_ID"], apiSecret=v["TUYA_ACCESS_SECRET"])
-            if v.get("TUYA_ACCESS_ID") and v.get("TUYA_ACCESS_SECRET")
-            else None
-        )
+            # tinytuya defaults to 5 connect attempts 5 s apart = a 25 s stall
+            # per frame when the bar is away; one attempt, reconnect next frame.
+            self.local.set_socketRetryLimit(1)
+            self.local.set_socketRetryDelay(0)
+        self.cloud = None
+        if v.get("TUYA_ACCESS_ID") and v.get("TUYA_ACCESS_SECRET"):
+            try:
+                self.cloud = tinytuya.Cloud(apiRegion="eu", apiKey=v["TUYA_ACCESS_ID"], apiSecret=v["TUYA_ACCESS_SECRET"])
+            except Exception as e:  # noqa: BLE001
+                print(f"  tuya cloud init failed ({e}); LAN only", flush=True)
         self.lan_failures = 0
+        self.lan_retry_at = 0.0
+        self._cloud_carried = False  # last successful write went via cloud ("music" mode)
         self.colour_mode = False
         self.last: tuple[int, int, int] | None = None
         self.on = True
@@ -104,11 +118,36 @@ class DeskBar:
 
     @property
     def use_lan(self) -> bool:
-        return self.local is not None and self.lan_failures < 3
+        """LAN is the active path: healthy, or the only path there is."""
+        return self.local is not None and (self.lan_failures < LAN_SOFT_FAILS or self.cloud is None)
 
     @property
     def max_hz(self) -> float:
         return LAN_HZ if self.use_lan else CLOUD_HZ
+
+    def _cloud_failed(self, r: object) -> None:
+        """Err 913 = the Tuya IoT Core subscription has expired (or another
+        hard cloud error): stop calling the cloud for this process."""
+        if isinstance(r, dict) and str(r.get("Err")) == "913" and self.cloud is not None:
+            self.cloud = None
+            print(f"  tuya cloud unavailable ({r.get('Payload') or r.get('Error')}); LAN only from now on", flush=True)
+        else:
+            print(f"  tuya: {r}", flush=True)
+
+    def _lan_failed(self, r: object) -> None:
+        self.lan_failures += 1
+        try:
+            self.local.close()  # next call opens a fresh session (persistent socket)
+        except Exception:  # noqa: BLE001
+            pass
+        n = self.lan_failures
+        if n >= LAN_SOFT_FAILS:
+            wait = LAN_BACKOFF_S[min(n - LAN_SOFT_FAILS, len(LAN_BACKOFF_S) - 1)]
+            self.lan_retry_at = time.monotonic() + wait
+        # Log the first few, then only at each backoff step change so a bar
+        # that is unplugged for an hour does not write 36000 lines.
+        if n <= LAN_SOFT_FAILS or n - LAN_SOFT_FAILS < len(LAN_BACKOFF_S):
+            print(f"  lan: {r} (fail #{n}, reconnecting)", flush=True)
 
     def describe(self) -> None:
         if self.local is not None:
@@ -118,49 +157,72 @@ class DeskBar:
                 self.colour_mode = st["dps"].get("21") == "color"  # "music" must be re-sent as "color"
                 self.on = bool(st["dps"].get("20", True))
                 return
-            print(f"  Desk Light Bar: LAN status failed ({st}), falling back to cloud")
-            self.lan_failures = 3
+            print(f"  Desk Light Bar: LAN status failed ({st}); will keep retrying LAN")
+            self.lan_failures = LAN_SOFT_FAILS - 1
+            self._lan_failed(st)
         if self.cloud is None:
+            if self.local is not None:
+                return  # LAN-only; the loop reconnects with backoff
             raise RuntimeError("no LAN and no cloud credentials")
         st = self.cloud.getstatus(DEVICE_ID)
         if not isinstance(st, dict) or not st.get("success"):
+            if self.local is not None:
+                self._cloud_failed(st)
+                return
             raise RuntimeError(f"Tuya getstatus failed: {st}")
         mode = next((x["value"] for x in st["result"] if x["code"] == "work_mode"), "?")
         print(f"  Desk Light Bar: cloud work_mode={mode}")
 
     def _send(self, cmds: list[dict]) -> bool:
-        if self.use_lan:
+        if self.local is not None and time.monotonic() >= self.lan_retry_at:
             dps = {}
             for c in cmds:
                 val = c["value"]
                 if c["code"] == "colour_data":
                     j = json.loads(val)
                     val = "%04x%04x%04x" % (j["h"], j["s"], j["v"])
+                if c["code"] == "work_mode" and val == "music":
+                    val = "color"  # LAN takes the firmware's real colour mode
                 dps[str(DP[c["code"]])] = val
             # Tuya 3.3 firmware holds ONE TCP session: any other client
             # (HA polling, a diagnostic status()) evicts ours. Wait for the
             # reply so a dead socket is seen here and reopened on the next
             # frame instead of failing silently forever.
-            r = self.local.set_multiple_values(dps)
+            try:
+                r = self.local.set_multiple_values(dps)
+            except Exception as e:  # noqa: BLE001
+                r = {"Error": f"{type(e).__name__}: {e}"}
             if not isinstance(r, dict) or "Error" in r or "dps" not in r:
-                self.lan_failures += 1
-                print(f"  lan: {r} ({self.lan_failures}/3)", flush=True)
-                try:
-                    self.local.close()
-                except Exception:  # noqa: BLE001
-                    pass
-                if self.lan_failures >= 3 and self.cloud is not None:
-                    print("  lan: giving up, cloud fallback", flush=True)
-                    return self._send(cmds)
+                self._lan_failed(r)
+                if self.lan_failures >= LAN_SOFT_FAILS and self.cloud is not None:
+                    return self._send_cloud(cmds)
                 return False
+            if self.lan_failures >= LAN_SOFT_FAILS:
+                print(f"  lan: back after {self.lan_failures} failures", flush=True)
             self.lan_failures = 0
+            self.lan_retry_at = 0.0
+            if self._cloud_carried:
+                # The cloud left the bar in "music" (mic-reactive): make the
+                # next tick re-send work_mode=color over LAN.
+                self._cloud_carried = False
+                if not any(c["code"] == "work_mode" for c in cmds):
+                    self.colour_mode = False
             return True
+        return self._send_cloud(cmds)
+
+    def _send_cloud(self, cmds: list[dict]) -> bool:
         if self.cloud is None:
             return False
-        r = self.cloud.sendcommand(DEVICE_ID, {"commands": cmds})
+        cmds = [{"code": "work_mode", "value": "music"} if c["code"] == "work_mode" and c["value"] == "color" else c for c in cmds]
+        try:
+            r = self.cloud.sendcommand(DEVICE_ID, {"commands": cmds})
+        except Exception as e:  # noqa: BLE001
+            r = {"Error": f"{type(e).__name__}: {e}"}
         ok = isinstance(r, dict) and bool(r.get("success"))
-        if not ok:
-            print(f"  tuya: {r}")
+        if ok:
+            self._cloud_carried = True
+        else:
+            self._cloud_failed(r)
         return ok
 
     def set_target(self, rgb: tuple[int, int, int]) -> None:
@@ -217,11 +279,16 @@ class DeskBar:
             if not self.on:
                 return
             self._sent = step
-            self._send([{"code": "switch_led", "value": False}])
-            self.on = False
+            if self._send([{"code": "switch_led", "value": False}]):
+                self.on = False
+            else:
+                self._sent = None
             return
         if step == getattr(self, "_sent", None) and self.on and self.colour_mode:
             return
+        if self.local is not None and self.cloud is None and time.monotonic() < self.lan_retry_at:
+            return  # LAN backing off and no cloud: nothing could carry this frame
+        was_on, was_colour = self.on, self.colour_mode
         self._sent = step
         cmds: list[dict] = []
         if not self.on:
@@ -232,7 +299,10 @@ class DeskBar:
             cmds.append({"code": "work_mode", "value": "color" if self.use_lan else "music"})
             self.colour_mode = True
         cmds.append({"code": "colour_data", "value": json.dumps(step)})
-        self._send(cmds)
+        if not self._send(cmds):
+            # Unknown what reached the bar: resend everything on the next tick.
+            self._sent = None
+            self.on, self.colour_mode = was_on, was_colour
 
     def apply(self, rgb: tuple[int, int, int]) -> None:
         """Immediate set (tests / cloud path)."""
@@ -300,7 +370,7 @@ def run_listen(bar: DeskBar, port: int) -> None:
             rgb = tuple(ambient(bytes(data[:3]) * 3)[:3])  # ambient() works on 3 regions; feed one thrice
             bar.set_target(rgb)  # type: ignore[arg-type]
         if now >= next_tick:
-            next_tick = now + tick_s
+            next_tick = now + 1 / bar.max_hz  # drops to CLOUD_HZ while the cloud carries frames
             if not released:
                 try:
                     bar.tick()

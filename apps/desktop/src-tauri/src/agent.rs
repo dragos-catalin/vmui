@@ -7,7 +7,7 @@
 //! mode is active. Commands older than 60 s are dropped (retained/replayed
 //! after a reconnect must not lock the PC).
 
-use crate::stack;
+use crate::{lights, stack};
 use rumqttc::{Client, Event, Incoming, MqttOptions, QoS};
 use serde_json::{json, Value};
 use std::collections::HashSet;
@@ -28,6 +28,18 @@ static INSTANCES: OnceLock<Mutex<Vec<stack::HyperInstance>>> = OnceLock::new();
 
 fn instances_cache() -> &'static Mutex<Vec<stack::HyperInstance>> {
     INSTANCES.get_or_init(|| Mutex::new(Vec::new()))
+}
+
+pub fn cached_instances() -> Vec<stack::HyperInstance> {
+    instances_cache().lock().unwrap().clone()
+}
+
+/// After a grabber change, update the snapshot so the tray checkmark does not
+/// lag up to 30 s behind.
+pub fn set_cached_grabber(ids: &[u32], on: bool) {
+    for i in instances_cache().lock().unwrap().iter_mut().filter(|i| ids.contains(&i.id) && i.running) {
+        i.grabber = Some(on);
+    }
 }
 
 fn refresh_instances_forever() {
@@ -52,6 +64,7 @@ fn state_payload(app: &AppHandle) -> String {
         "source": last.as_ref().map(|h| h.source.clone()).unwrap_or_default(),
         "hyper": last.as_ref().map(|h| h.hyper).unwrap_or(false),
         "instances": instances,
+        "ble": lights::ble_cached(),
     })
     .to_string()
 }
@@ -74,6 +87,9 @@ fn handle(app: &AppHandle, cmd: Value, seen: &Mutex<HashSet<String>>) {
             if errs.is_empty() { Ok("ok".into()) } else { Err(errs.join("; ")) }
         }
         "mode" => crate::desktop::set_mode(app, cmd["mode"].as_str().unwrap_or("")).map(|_| "ok".into()),
+        "light" => lights::apply_light(&cmd).map_err(|e| e.to_string()),
+        "led_count" => lights::apply_led_count(&cmd).map_err(|e| e.to_string()),
+        "ble_scan" => lights::ble_scan(cmd["seconds"].as_u64().unwrap_or(8)).map(|v| format!("{} found", v.as_array().map_or(0, Vec::len))).map_err(|e| e.to_string()),
         a if stack::PC_ACTIONS.contains(&a) => stack::pc_action(a, cmd["value"].as_i64()).map_err(|e| e.to_string()),
         _ => Err(format!("unknown action {action:?}")),
     };
@@ -81,7 +97,11 @@ fn handle(app: &AppHandle, cmd: Value, seen: &Mutex<HashSet<String>>) {
         Ok(r) => stack::log(&format!("agent: {action} -> {r}")),
         Err(e) => stack::log(&format!("agent: {action} failed: {e}")),
     }
-    let _ = app.emit("toast", json!({"kind": if res.is_ok() {"info"} else {"error"}, "text": format!("telefon: {action} {}", if res.is_ok() {"✓"} else {"✗"})}));
+    // light commands arrive from every surface (web, MCP, scenes); toasting each would be noise
+    if !matches!(action, "light" | "led_count") {
+        let text = format!("{} {}", crate::i18n::tf("phoneAction", &[("action", action)]), if res.is_ok() { "✓" } else { "✗" });
+        let _ = app.emit("toast", json!({"kind": if res.is_ok() {"info"} else {"error"}, "text": text}));
+    }
 }
 
 /// Runs forever on its own thread; reconnects with backoff. No-op if MQTT creds are missing.
@@ -97,6 +117,7 @@ pub fn run(app: AppHandle) {
     let pass = pass.clone();
     let seen = Arc::new(Mutex::new(HashSet::new()));
     std::thread::spawn(refresh_instances_forever);
+    std::thread::spawn(lights::refresh_ble_forever);
     let mut backoff = 5u64;
     loop {
         let mut opts = MqttOptions::new(format!("vmui-pc-{}", std::env::var("COMPUTERNAME").unwrap_or_else(|_| "pc".into())), &host, 1883);

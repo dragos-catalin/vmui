@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import * as React from "react";
+import type { BleStatus, Discovered, LightsPayload } from "./lights";
 
 export type Health = {
   state: "ok" | "warn" | "down";
@@ -33,6 +34,13 @@ export const api = {
   vmuiGet: <T = unknown>(path: string) => invoke<T>("vmui_get", { path }),
   vmuiSend: <T = unknown>(method: "POST" | "PUT", path: string, body: unknown) => invoke<T>("vmui_send", { method, path, body }),
   appInfo: () => invoke<{ root: string; vmui: string; haUrl: string; displayUrl: string; version: string }>("app_info"),
+  lightsGet: () => invoke<LightsPayload>("lights_get"),
+  lightsOp: <T = unknown>(body: Record<string, unknown>) => invoke<T>("lights_op", { body }),
+  bleScan: (seconds = 8) => invoke<Discovered[]>("ble_scan", { seconds }),
+  bleStatus: () => invoke<BleStatus[]>("ble_status"),
+  langGet: () => invoke<"ro" | "en">("lang_get"),
+  langSet: (lang: "ro" | "en") => invoke<void>("lang_set", { lang }),
+  piStatus: <T = unknown>(log?: string) => invoke<T>("pi_status", log ? { log } : {}),
 };
 
 /** Subscribe to a Rust-emitted event; unsubscribes on unmount. */

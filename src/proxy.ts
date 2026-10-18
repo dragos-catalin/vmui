@@ -10,6 +10,7 @@ const PUBLIC_PREFIXES = [
   "/api/turzx", // Turzx desk screen renderer: same shared token
   "/api/display", // Nest Hub kiosk API: token-authenticated (?k=), the Hub cannot log in
   "/api/desktop", // Tauri desktop app: same shared token
+  "/api/lights", // light registry for desktop / PC bridge / phone: shared token or vmd_ device token (espAuthorized)
   "/display", // Nest Hub kiosk page: gated by ?k= inside the page
   "/api/copilot", // agent-harness hooks -> physical signals: same shared token
   "/api/nutrition", // codai phone assistant posts meals: same shared token (espAuthorized)

@@ -26,7 +26,10 @@ HA = os.environ.get("HA_URL", "http://127.0.0.1").rstrip("/")
 CATT = os.path.expanduser("~/.local/bin/catt")
 HUB_ENTITY = "media_player.bedroom_smart_display"
 OURS = ("DashCast",)
-LEAVE_ALONE = ("YouTube", "Spotify", "Netflix", "Home Assistant Lovelace", "Google Photos")
+# Apps the owner started on the Hub. "Bluetooth Audio" = the Hub is a BT speaker: recasting
+# /display kills the stream (hub-cast.log 2026-10: dozens of casts over it). "Google Photos"
+# is NOT here: it is the Hub's own fallback frame after a dropped cast, exactly when we must recast.
+LEAVE_ALONE = ("YouTube", "Spotify", "Netflix", "Home Assistant Lovelace", "Bluetooth Audio")
 
 
 def log(msg: str) -> None:
@@ -70,6 +73,7 @@ def main() -> int:
     url = f"{LAN_VMUI}/display?k={tok}"
     last_cast = 0.0
     fails = 0
+    ha_down_logged = False
     while True:
         st = get(f"{VMUI}/api/display/state?k={tok}")
         cfg = ((st or {}).get("display") or {}).get("cast") or {}
@@ -78,10 +82,18 @@ def main() -> int:
             time.sleep(30)
             continue
         hub = get(f"{HA}/api/states/{HUB_ENTITY}", {"Authorization": f"Bearer {ha_tok}"})
-        state = (hub or {}).get("state", "unavailable")
-        app = ((hub or {}).get("attributes") or {}).get("app_name") or ""
+        if hub is None:
+            # HA unreachable / bad token looks like a Hub that is off; say so once instead of silently idling
+            if not ha_down_logged:
+                log("HA state read failed (HA down or HA_TOKEN wrong); not casting")
+                ha_down_logged = True
+            time.sleep(30)
+            continue
+        ha_down_logged = False
+        state = hub.get("state", "unavailable")
+        app = (hub.get("attributes") or {}).get("app_name") or ""
         showing_ours = app in OURS and state not in ("off", "unavailable", "unknown")
-        busy = cfg.get("respectPlayback", True) and (app in LEAVE_ALONE or state == "playing" and app not in OURS)
+        busy = cfg.get("respectPlayback", True) and (app in LEAVE_ALONE or state in ("playing", "paused") and app not in OURS)
         if showing_ours or busy or state == "unavailable":
             fails = 0
             time.sleep(20)

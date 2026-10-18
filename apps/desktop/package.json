@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "node scripts/check-locales.mjs && tsc --noEmit && vite build",
+    "check:locales": "node scripts/check-locales.mjs",
     "preview": "vite preview",
     "tauri": "tauri",
     "app:dev": "tauri dev",
@@ -15,9 +16,11 @@
     "@tauri-apps/api": "2.11.1",
     "@tauri-apps/plugin-autostart": "2.5.1",
     "@tauri-apps/plugin-opener": "2.5.5",
+    "i18next": "^26.4.7",
     "lucide-react": "1.47.0",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "react-i18next": "^17.0.20"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.3",
