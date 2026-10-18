@@ -51,3 +51,20 @@ the `[0, 1, 2]` list in `ha-scenes.yaml` → `ambilight_all`. Run
 `scripts\ambilight.ps1 -Configure -InstallHaScenes` after editing.
 
 Expect ~40–60 fps over WiFi; disable WiFi sleep in WLED if you see stutter.
+
+## MELK-OC21 (strip under the monitors) — same swap, 2 segments
+
+The OC21 (`BE:16:2F:00:05:29`, `melk_oc21` in the device registry) has the
+same one-colour BLE protocol. Registry segments already match the physical
+cuts: **Dreapta 14 LEDs (0–13)** + **Stânga 15 LEDs (14–28)**, 29 total.
+
+1. Same board as above (one ESP32 + level shifter); WLED LED count **29**,
+   two WLED segments 0–13 and 14–28 so the strip still reads as two in WLED.
+2. HyperHDR: a further **ddp** instance, `hardwareLedCount = 29`, layout =
+   a bottom edge running right→left (the strip sits under the screens):
+   `New-BorderLayout -Order bottom -Counts @{ bottom = 29 } -Depth 0.08`
+   then reverse if the first LED is on the left. Brightness stays on
+   `scaleOutput` like every other instance.
+3. vmui: in **Dispozitive**, delete the BLE `melk_oc21` entry and add the
+   WLED one (transport WLED/HA), re-create the same two segments; the BLE
+   hub stops trying to reach the old MAC once it is out of the registry.

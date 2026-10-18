@@ -685,8 +685,12 @@ lines then a slow vertical scroll, faded backdrop, slide in/out from the
 nearest edge; position top/centre/bottom, duration, "show text" and the
 package list are configurable. Rotation pauses while a card is up.
 "Only when I'm at the desk" reads `home.presence` in `/api/turzx/state`; the
-WENZI-II mmWave sensor died (2026-10) and was removed, so until a new one is
-wired there the gate is open (no sensor = present). Every card logs
+WENZI-II mmWave sensor died (2026-10) and was removed. `home.presence` is
+resolved by `presenceEntityId` (`src/lib/home/presence.ts`): the catalog's
+`kind: "presence"` device if HA has it, else the first `binary_sensor` with
+`device_class` occupancy/presence, so pairing a new sensor in HA re-arms the
+gate with no code change (add it to the catalog for the floor plan). With no
+such sensor the gate is open (no sensor = present). Every card logs
 `notify show|drop <reason> pkg=…` to `/srv/homepi/logs/turzx.log`; the most
 common drop is `not-allowed-app` (package not in the Turzx list).
 `python turzx\turzx.py --demo-notify` pops a fake WhatsApp card after 5 s.

@@ -1,6 +1,6 @@
 id,area,item,status,evidence,notes
 D-001,tray,status line (disabled item) shows health detail,works,menu screenshot 2026-10-18 04:35: 'vmui · systemgrabber · captură pornită',
-D-002,tray,tooltip,works,"new build 09:39: tooltip set only via set_tooltip after refresh, no builder tooltip; UIA tray name not re-read (screen tools disabled by user)","EXPECTED (code-verified, not clicked live: screen tools off by user choice). code path verified; visual re-check pending user"
+D-002,tray,tooltip,works,"new build 09:39: tooltip set only via set_tooltip after refresh, no builder tooltip; UIA tray name not re-read (screen tools disabled by user)","VERIFIED live 2026-10-18 11:07: UIA tray overflow button name = 'vmui — systemgrabber · captură pornită' (tooltip updated by set_tooltip after refresh)."
 D-003,tray,Deschide vmui (Ctrl+Shift+V),works,04:41 click -> window vmui-desktop.exe focused (list_windows),Ctrl+Shift+V is only a label: no global shortcut registered
 D-004,tray,Mod film,works,04:35:51 script.movie_mode_on last_triggered; moodlight off 04:35:50; pc agent mode=movie,
 D-005,tray,Mod muzică,works,04:36:57 script.music_mode; HyperHDR inst 0-4 visible EFFECT@40 'Music: stereo for LED strip',
@@ -19,7 +19,7 @@ D-017,tray,lights per room / groups,works,10:00 POST /api/lights set dev:star_pr
 D-018,tray,ambilight on/off + brightness,works,"amb:on/off = clear p40 (success=True) + grabber; brightness FIXED: HyperHDR rejects adjustment.brightness (validation error), scaleOutput 0.6 -> serverinfo 0.6 -> restored 1",stack.rs now reads scaleOutput
 D-019,tray,open page X,works,page:<id> emits navigate + show_main; window opened via Ctrl+Alt+V 09:46 on Dispozitive,new
 D-020,tray,offline devices,works,/api/lights health 10:00: all 7 ok (tray line shows none offline),refresh every 60 s
-D-021,tray,i18n RO+EN,works,"tray labels via i18n.rs (ro/en), new build shows RO menu","EXPECTED (code-verified, not clicked live: screen tools off by user choice)."
+D-021,tray,i18n RO+EN,works,"tray labels via i18n.rs (ro/en), new build shows RO menu","VERIFIED live 2026-10-18 11:08: right-click menu screenshot all RO (Deschide vmui, Film, Muzică, Lumini stinse, Captură ecran, Șterge efectele, Repornește stack-ul, Ieșire); tooltip RO too."
 D-030,runtime,tray process alive at logon,works,2026-10-18: vmui-tray TimeTrigger Repetition PT5M + MultipleInstances IgnoreNew + RestartCount 999/PT1M (Get-ScheduledTask),watchdog re-launches within 5 min; single-instance plugin keeps one copy
 D-031,runtime,HyperHDR health,works,"HyperHDR ws Open, serverinfo 5 instances running (10:00)",restart 04:32 + -Configure
 D-032,runtime,PC agent MQTT heartbeat,works,sensor.vmui_pc_agent online 04:04; Pi /api/desktop/pc online:true seenAgo 15,
@@ -46,7 +46,7 @@ D-058,page,Update banner (mobile APK),works,mobile only,
 D-059,page,Devices (paired phones banner),works,PendingBanner + DevicesCard,
 D-060,page,Lights (all lights in the house),works,Lumini page + /api/lights: 7 devices from homepi (HA seed + MELK-OA10 + OC21),new
 D-061,page,Devices registry (detail/calibration/segments/scan),works,"Dispozitive 09:46: OC21 detail, colour #5ad1ff applied -> hub lastWriteAt 09:46:40, user confirmed light blue; calibration saved {gamma:1,gains:[1,1,0.9]}",new
-D-062,page,Setări,works,Setari page present in new build nav,"EXPECTED (code-verified, not clicked live: screen tools off by user choice). new (language/autostart/phones/paths)"
+D-062,page,Setări,works,Setari page present in new build nav,"VERIFIED live 2026-10-18 11:09: UIA on control window Setări page: Limbă Română/English toggle, Pornește cu Windows, Repo/settings/log Deschide, Versiune 0.3.2, 2 paired phones with Revocă."
 D-063,page,Sistem (Servicii + homepi),works,"Sistem page present (Servicii + homepi), /api/desktop/pi 200",merge Servicii + Pi
 D-064,ui,i18n RO+EN for all pages,works,check-locales.mjs passes; UI rendered in RO,i18next
 D-070,command,health,works,used by tray loop,
@@ -62,7 +62,7 @@ D-079,command,devices_list / devices_op,works,Pi /api/devices 200,
 D-080,command,notify_list / notify_act / notify_op / notify_settings,works,Notificări page,
 D-081,command,app_info,works,version row,
 D-090,web-gap,STREAM_SCENES (7) not in desktop,works,HA 10:13:12 stream_scene_calm + 10:13:14 stream_scene_default triggered (tray stream:<id> call),7 scenes in Scene submenu
-D-091,web-gap,MCP lights_set/lights_all/scene_set/flash_color not mirrored,works,Lumini page mirrors lights_set/all/scene_set/flash via /api/lights ops,"EXPECTED (code-verified, not clicked live: screen tools off by user choice). Lights page"
+D-091,web-gap,MCP lights_set/lights_all/scene_set/flash_color not mirrored,works,Lumini page mirrors lights_set/all/scene_set/flash via /api/lights ops,"VERIFIED live 2026-10-18 11:09: clicked Moodlight toggle in Lumini -> HA light.moodlight on at 11:09:24 (vmui HA token context); restored off 11:09:48. Page shows Toate aprinse/stinse, scenes, per-light Culoare și efecte."
 D-092,web-gap,light.main_light not in catalog,works,registry seeds main_light from HA (in /api/lights list),registry seeds from HA
 D-093,web-gap,HYPERHDR_INSTANCES catalog lists 3 of 5,works,catalog.ts lists ids 0-4 = serverinfo 5 instances; desktop stack.rs HYPER_INSTANCES [0..4],instance 4 target now names ble_lights.py
 D-100,device,MELK-OC21 strip under monitors (BE:16:2F:00:05:29),works,OC21 registered melk_oc21: Dreapta 14 (0-13) + Stanga 15 (14-28) confirmed by user count; 3rd segment add -> start 29 total 30 -> deleted,per-LED not supported by controller (whole-strip colour)
