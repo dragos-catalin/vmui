@@ -7,9 +7,9 @@
   Deploy only from a clean tree (deploy-clean.ps1): the source upload is the working directory.
 #>
 param([switch]$Verify, [int]$Jobs = 0, [string]$Project = 'dragos-devcloud', [string]$Region = 'europe-west4',
-  [string]$RunnerProject = 'codai-training', [string]$Org = 'codai-ro', [string]$AllowRepos = 'codai-ro/codai-cc;brivio-ro/brivio',
+  [string]$RunnerProject = 'codai-training', [string]$Org = 'codai-ro', [string]$AllowRepos = 'codai-ro/codai-cc;brivio-ro/brivio;horae-ro/watch-faces',
   # Repos whose workflows read vars.DEVCLOUD_FALLBACK instead of a hosted gate job (DC-046); ';'-separated.
-  [string]$FallbackVarRepos = 'brivio-ro/brivio')
+  [string]$FallbackVarRepos = 'brivio-ro/brivio;horae-ro/watch-faces')
 $ErrorActionPreference = 'Stop'
 # --quiet on run deploy: --source asks interactively to create the cloud-run-source-deploy AR repo
 # in a new region; under a hidden/agent shell that prompt waited forever (2026-10-12).
