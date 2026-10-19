@@ -18,6 +18,10 @@
   300 GB hyperdisk-balanced, metadata windows-startup-script-ps1 (agentq cloud/workspace-startup.ps1)
   + runner-agent. -UpdateAgent on Windows only rewrites metadata: the idle agent adopts it within ~60 s.
 
+  devbox (interactive dev machine, 2026-10-19; DEVBOX-DESIGN.md D1/D2): VS Code Remote-SSH / codai desktop attach
+  to it; the agent never suspends while a login session (`who`) or load > 1.0 is present, else after -IdleMin.
+  pwsh -NoProfile -File infra/devcloud/workspace.ps1 -Ws devbox -Interactive -Machine c4d-standard-32 -BootGb 500 -IdleMin 30
+
   ws-watch-faces (Gradle/Android gates, 2026-10-19): own service account, so only this VM can read the
   Horae signing keys (accessor on exactly those secrets, in their own project):
   pwsh -NoProfile -File infra/devcloud/workspace.ps1 -Ws watch-faces -Machine c4d-highcpu-32 -BootGb 150 -Iops 6000 -ThroughputMb 400 `
@@ -36,7 +40,9 @@ param(
   # metadata devcloud-clean-keep for runner-agent: extra `git clean -e` patterns kept between jobs
   [string]$CleanKeep = '',
   # 'project:secret;project:secret' -> roles/secretmanager.secretAccessor for -Sa on each secret only
-  [string]$SecretAccess = ''
+  [string]$SecretAccess = '',
+  # devbox: interactive workspace (metadata devcloud-interactive=1)
+  [switch]$Interactive
 )
 $ErrorActionPreference = 'Stop'
 if (-not $Machine) { $Machine = if ($Os -eq 'windows') { 'c4d-standard-16' } else { 'c4d-highcpu-64' } }
@@ -88,6 +94,7 @@ foreach ($f in 'runner-agent.mjs', $startup) {
 $meta = "devcloud-bucket=$bucket,devcloud-ws=$Ws,devcloud-idle-min=$IdleMin,devcloud-turbo-api=$turboApi,devcloud-secret-project=$CtlProject,node-version=24.21.0,pnpm-version=12.9.1"
 # values with commas need gcloud's alternate-delimiter syntax: ^@^ makes '@' the pair separator
 $meta = '^@^' + ($meta -replace ',', '@') + "@devcloud-toolchains=$Toolchains@devcloud-clean-keep=$CleanKeep"
+if ($Interactive) { $meta += '@devcloud-interactive=1@devcloud-busy-load=1.0' }
 $startupKey = if ($Os -eq 'windows') { 'windows-startup-script-ps1' } else { 'startup-script' }
 $metaFiles = "$startupKey=$mdFile\$startup,runner-agent=$mdFile\runner-agent.mjs"
 $img = if ($Os -eq 'windows') { @('--image-family', 'devcloud-ci-win-desktop', '--image-project', $Project) } else { @('--image-family', 'ubuntu-2404-lts-amd64', '--image-project', 'ubuntu-os-cloud') }
@@ -100,7 +107,7 @@ if (-not $exists) {
     --boot-disk-provisioned-iops $Iops --boot-disk-provisioned-throughput $ThroughputMb `
     --service-account $sa --scopes cloud-platform `
     --metadata $meta --metadata-from-file $metaFiles `
-    --labels "app=devcloud,ws=$Ws,os=$Os,reaper=keep" --shielded-secure-boot --shielded-vtpm `
+    --labels "app=devcloud,ws=$Ws,os=$Os,reaper=keep,kind=$(if ($Interactive) { 'devbox' } else { 'runner' })" --shielded-secure-boot --shielded-vtpm `
     --reservation-affinity none | Out-Null
   "created $name ($Os, $Machine, $Zone)"
 } else {
