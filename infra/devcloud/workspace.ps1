@@ -42,10 +42,14 @@ param(
   # 'project:secret;project:secret' -> roles/secretmanager.secretAccessor for -Sa on each secret only
   [string]$SecretAccess = '',
   # devbox: interactive workspace (metadata devcloud-interactive=1)
-  [switch]$Interactive
+  [switch]$Interactive,
+  # DC-062: GCE max-run-duration (action STOP) backstop; 0 = default (runner 6 h, devbox 14 h). GCE refuses to
+  # change it while RUNNING (suspend/stop clears the timer, so it only fires on a VM RUNNING that long).
+  [int]$MaxRunHours = 0
 )
 $ErrorActionPreference = 'Stop'
 if (-not $Machine) { $Machine = if ($Os -eq 'windows') { 'c4d-standard-16' } else { 'c4d-highcpu-64' } }
+if ($MaxRunHours -le 0) { $MaxRunHours = if ($Interactive) { 14 } else { 6 } }
 $name = "ws-$Ws"; $bucket = "$CtlProject-devcloud-jobs"; $sa = "$Sa@$Project.iam.gserviceaccount.com"; $region = $Zone -replace '-[a-z]$', ''
 function G { $o = & gcloud @args 2>&1; if ($LASTEXITCODE) { throw "gcloud $($args -join ' ') failed: $o" }; $o }
 
@@ -108,11 +112,15 @@ if (-not $exists) {
     --service-account $sa --scopes cloud-platform `
     --metadata $meta --metadata-from-file $metaFiles `
     --labels "app=devcloud,ws=$Ws,os=$Os,reaper=keep,kind=$(if ($Interactive) { 'devbox' } else { 'runner' })" --shielded-secure-boot --shielded-vtpm `
-    --reservation-affinity none | Out-Null
-  "created $name ($Os, $Machine, $Zone)"
+    --reservation-affinity none --max-run-duration "$($MaxRunHours)h" --instance-termination-action STOP | Out-Null
+  "created $name ($Os, $Machine, $Zone, max-run $($MaxRunHours) h STOP)"
 } else {
   G compute instances add-metadata $name --zone $Zone --project $Project --metadata $meta --metadata-from-file $metaFiles | Out-Null
   "metadata updated on $name ($exists)"
+  if ($exists -ne 'RUNNING') {
+    G compute instances set-scheduling $name --zone $Zone --project $Project --max-run-duration "$($MaxRunHours)h" --instance-termination-action STOP | Out-Null
+    "max-run $($MaxRunHours) h STOP set on $name"
+  } else { "max-run unchanged on $name (RUNNING: GCE refuses; codai-jobs devcloud-cost-watch sets it once stopped)" }
   if ($UpdateAgent -and $exists -eq 'RUNNING') {
     if ($Os -eq 'windows') { 'windows: the idle agent adopts the new runner-agent from metadata within ~60 s' }
     else { G compute ssh $name --zone $Zone --project $Project --command 'sudo google_metadata_script_runner startup' | Out-Null; 'agent restarted' }
