@@ -17,16 +17,30 @@
   -> image family devcloud-ci-win-desktop (codai-training, DC-051), c4d-standard-16 (16 vCPU / 62 GB),
   300 GB hyperdisk-balanced, metadata windows-startup-script-ps1 (agentq cloud/workspace-startup.ps1)
   + runner-agent. -UpdateAgent on Windows only rewrites metadata: the idle agent adopts it within ~60 s.
+
+  ws-watch-faces (Gradle/Android gates, 2026-10-19): own service account, so only this VM can read the
+  Horae signing keys (accessor on exactly those secrets, in their own project):
+  pwsh -NoProfile -File infra/devcloud/workspace.ps1 -Ws watch-faces -Machine c4d-highcpu-32 -BootGb 150 -Iops 6000 -ThroughputMb 400 `
+    -Sa devcloud-ws-horae -Toolchains android-jdk21 -CleanKeep 'build,tools/wff-tools/*.jar' `
+    -SecretAccess 'horae-watchfaces:horae-keystore-push-jks;horae-watchfaces:horae-keystore-push-properties;...'
 #>
 param(
   [string]$Ws = 'codai', [string]$Project = 'codai-training', [string]$Zone = 'europe-west4-a',
   [string]$CtlProject = 'dragos-devcloud', [ValidateSet('linux', 'windows')][string]$Os = 'linux',
   [string]$Machine = '', [int]$BootGb = 300, [int]$Iops = 24000, [int]$ThroughputMb = 1000, [int]$IdleMin = 15,
-  [string]$AgentDir = 'E:\gh\agentq\cloud', [switch]$Status, [switch]$Delete, [switch]$UpdateAgent
+  [string]$AgentDir = 'E:\gh\agentq\cloud', [switch]$Status, [switch]$Delete, [switch]$UpdateAgent,
+  # service account id in -Project (default devcloud-ws, shared by codai + vitals-win)
+  [string]$Sa = 'devcloud-ws',
+  # metadata devcloud-toolchains for workspace-startup.sh (linux): e.g. android-jdk21
+  [string]$Toolchains = '',
+  # metadata devcloud-clean-keep for runner-agent: extra `git clean -e` patterns kept between jobs
+  [string]$CleanKeep = '',
+  # 'project:secret;project:secret' -> roles/secretmanager.secretAccessor for -Sa on each secret only
+  [string]$SecretAccess = ''
 )
 $ErrorActionPreference = 'Stop'
 if (-not $Machine) { $Machine = if ($Os -eq 'windows') { 'c4d-standard-16' } else { 'c4d-highcpu-64' } }
-$name = "ws-$Ws"; $bucket = "$CtlProject-devcloud-jobs"; $sa = "devcloud-ws@$Project.iam.gserviceaccount.com"; $region = $Zone -replace '-[a-z]$', ''
+$name = "ws-$Ws"; $bucket = "$CtlProject-devcloud-jobs"; $sa = "$Sa@$Project.iam.gserviceaccount.com"; $region = $Zone -replace '-[a-z]$', ''
 function G { $o = & gcloud @args 2>&1; if ($LASTEXITCODE) { throw "gcloud $($args -join ' ') failed: $o" }; $o }
 
 if ($Status) {
@@ -48,9 +62,14 @@ if (-not $b) {
   G storage buckets update "gs://$bucket" --lifecycle-file $lc | Out-Null; "bucket $bucket"
 }
 $s = & gcloud iam service-accounts describe $sa --project $Project --format='value(email)' 2>$null
-if (-not $s) { G iam service-accounts create 'devcloud-ws' --project $Project --display-name 'devcloud warm workspaces' | Out-Null; Start-Sleep 5; "sa $sa" }
+if (-not $s) { G iam service-accounts create $Sa --project $Project --display-name "devcloud warm workspace ($Sa)" | Out-Null; Start-Sleep 5; "sa $sa" }
 G storage buckets add-iam-policy-binding "gs://$bucket" --member "serviceAccount:$sa" --role roles/storage.objectAdmin | Out-Null
 G secrets add-iam-policy-binding devcloud-turbo-token --project $CtlProject --member "serviceAccount:$sa" --role roles/secretmanager.secretAccessor | Out-Null
+foreach ($ps in @($SecretAccess -split ';' | Where-Object { $_ })) {
+  $sp, $sn = $ps -split ':', 2
+  G secrets add-iam-policy-binding $sn --project $sp --member "serviceAccount:$sa" --role roles/secretmanager.secretAccessor | Out-Null
+  "secret accessor: $sp/$sn"
+}
 # suspend itself: custom role with only instances.suspend/get, bound on the VM itself (not the project)
 $role = "projects/$Project/roles/devcloudSelfSuspend"
 $r = & gcloud iam roles describe devcloudSelfSuspend --project $Project --format='value(name)' 2>$null
@@ -65,6 +84,8 @@ foreach ($f in 'runner-agent.mjs', $startup) {
   [IO.File]::WriteAllText((Join-Path $mdFile $f), $t, [Text.UTF8Encoding]::new($false))
 }
 $meta = "devcloud-bucket=$bucket,devcloud-ws=$Ws,devcloud-idle-min=$IdleMin,devcloud-turbo-api=$turboApi,devcloud-secret-project=$CtlProject,node-version=24.21.0,pnpm-version=12.9.1"
+# values with commas need gcloud's alternate-delimiter syntax: ^@^ makes '@' the pair separator
+$meta = '^@^' + ($meta -replace ',', '@') + "@devcloud-toolchains=$Toolchains@devcloud-clean-keep=$CleanKeep"
 $startupKey = if ($Os -eq 'windows') { 'windows-startup-script-ps1' } else { 'startup-script' }
 $metaFiles = "$startupKey=$mdFile\$startup,runner-agent=$mdFile\runner-agent.mjs"
 $img = if ($Os -eq 'windows') { @('--image-family', 'devcloud-ci-win-desktop', '--image-project', $Project) } else { @('--image-family', 'ubuntu-2404-lts-amd64', '--image-project', 'ubuntu-os-cloud') }
