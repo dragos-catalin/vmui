@@ -62,7 +62,9 @@ if (-not $b) {
   G storage buckets update "gs://$bucket" --lifecycle-file $lc | Out-Null; "bucket $bucket"
 }
 $s = & gcloud iam service-accounts describe $sa --project $Project --format='value(email)' 2>$null
-if (-not $s) { G iam service-accounts create $Sa --project $Project --display-name "devcloud warm workspace ($Sa)" | Out-Null; Start-Sleep 5; "sa $sa" }
+# $sa (email) and the -Sa param are the SAME PowerShell variable (names are case-insensitive): take the id from the email.
+$saId = ($sa -split '@')[0]
+if (-not $s) { G iam service-accounts create $saId --project $Project --display-name "devcloud warm workspace ($saId)" | Out-Null; Start-Sleep 5; "sa $sa" }
 G storage buckets add-iam-policy-binding "gs://$bucket" --member "serviceAccount:$sa" --role roles/storage.objectAdmin | Out-Null
 G secrets add-iam-policy-binding devcloud-turbo-token --project $CtlProject --member "serviceAccount:$sa" --role roles/secretmanager.secretAccessor | Out-Null
 foreach ($ps in @($SecretAccess -split ';' | Where-Object { $_ })) {
