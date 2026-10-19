@@ -34,6 +34,9 @@
 		// Manager devcloud-mac-tailscale-authkey in dragos-devcloud). A cloud VM is not a home
 		// device: it reaches nothing here, only the owner reaches it.
 		"tag:devcloud-mac": ["autogroup:admin"],
+		// The owner's Linux devbox on GCE (ws-devbox, DEVBOX-DESIGN D2). Keys are minted by the home OAuth client
+		// (auth_keys limited to tag:appliance), so it is owned by tag:appliance. Like the mac host it reaches nothing here.
+		"tag:devcloud-devbox": ["autogroup:admin", "tag:appliance"],
 	},
 
 	"hosts": {
@@ -78,6 +81,10 @@
 		// (tailscale serve -> QEMU on 127.0.0.1). Host shell is Tailscale SSH (ssh block below).
 		// No grant FROM tag:devcloud-mac: the VM cannot open connections into the tailnet.
 		{"src": ["autogroup:member"], "dst": ["tag:devcloud-mac"], "ip": ["tcp:10022", "tcp:5900", "tcp:5901", "tcp:5930"]},
+
+		// Owner -> devbox: OpenSSH 22 only (VS Code Remote-SSH, Mutagen; dev servers via ssh -L).
+		// No grant FROM tag:devcloud-devbox: the VM cannot open connections into the tailnet.
+		{"src": ["autogroup:member"], "dst": ["tag:devcloud-devbox"], "ip": ["tcp:22"]},
 	],
 
 	"ssh": [
@@ -101,6 +108,15 @@
 			"accept": ["tag:appliance:8123", "tag:appliance:443", "tag:funnel-hooks:22", "tag:funnel-hooks:3737", "homepi:3128",
 			           "tag:devcloud-mac:10022", "tag:devcloud-mac:5900", "tag:devcloud-mac:5930"],
 			"deny":   ["tag:devcloud-mac:3389"],
+		},
+		{
+		        "src":    "vladulescu.catalin@gmail.com",
+		        "accept": ["tag:devcloud-devbox:22"],
+		        "deny":   ["tag:devcloud-devbox:3389", "tag:devcloud-devbox:8080"],
+		},
+		{
+		        "src":    "tag:devcloud-devbox",
+		        "deny":   ["homepi:22", "homepi:3128", "tag:appliance:8123", "tag:funnel-hooks:3737", "tag:devcloud-mac:10022"],
 		},
 		{
 			"src":    "tag:devcloud-mac",
