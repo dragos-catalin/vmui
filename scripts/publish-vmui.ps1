@@ -41,6 +41,9 @@ $Root = Split-Path $PSScriptRoot -Parent
 $StateDir = Join-Path $Root '.private\publish'
 $LegoDir = Join-Path $StateDir 'lego'
 $Caddyfile = Join-Path $StateDir 'Caddyfile'
+# Not 2019 (Caddy's default): Windows/Hyper-V reserves 1978-2077 on this PC, so the bind fails with
+# 'access a socket in a way forbidden' and caddy exits at once (mui down, 2026-10-19). 22019 = brivio.
+$AdminPort = 22020
 $TaskName = 'vmui-publish-caddy'
 $RenewTask = 'vmui-publish-renew'
 $EnsureTask = 'vmui-publish-ensure'
@@ -106,7 +109,7 @@ function Write-Caddyfile {
     $key = $p.key -replace '\\', '/'
     @"
 {
-	admin localhost:2019
+	admin localhost:$AdminPort
 	auto_https off
 }
 
@@ -202,6 +205,9 @@ function Ensure-Attached {
     }
     # :443 is free or ours: run our own front (Caddyfile carries mui + the ESP :8737 server).
     if (-not (Get-Process caddy -ErrorAction SilentlyContinue)) {
+        # Regenerate first: a stale Caddyfile (admin :2019 in a reserved port range) made caddy
+        # exit on every 5-min start and nothing ever rewrote it.
+        Write-Caddyfile | Out-Null
         Enable-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue | Out-Null
         Start-ScheduledTask -TaskName $TaskName
         Write-Step 'no caddy on :443; started own'
@@ -211,7 +217,7 @@ function Ensure-Attached {
     if (-not $espUp) {
         Write-Step 'own caddy up but :8737 (ESP) missing; reloading Caddyfile'
         Write-Caddyfile | Out-Null
-        try { Invoke-RestMethod -Method POST -Uri 'http://localhost:2019/load' -ContentType 'text/caddyfile' -Body (Get-Content $Caddyfile -Raw) | Out-Null; Write-Ok 'caddy reloaded' } catch { Write-Warn "reload failed: $($_.Exception.Message)" }
+        try { Invoke-RestMethod -Method POST -Uri "http://localhost:$AdminPort/load" -ContentType 'text/caddyfile' -Body (Get-Content $Caddyfile -Raw) | Out-Null; Write-Ok 'caddy reloaded' } catch { Write-Warn "reload failed: $($_.Exception.Message)" }
     }
 }
 
@@ -223,7 +229,7 @@ function Restart-Caddy {
     if ($foreign) { Attach-ToForeignCaddy $foreign; return }
     $running = Get-Process caddy -ErrorAction SilentlyContinue
     if ($running) {
-        try { Invoke-RestMethod -Method POST -Uri 'http://localhost:2019/load' -ContentType 'text/caddyfile' -Body (Get-Content $Caddyfile -Raw) | Out-Null; Write-Ok 'caddy reloaded'; return } catch {}
+        try { Invoke-RestMethod -Method POST -Uri "http://localhost:$AdminPort/load" -ContentType 'text/caddyfile' -Body (Get-Content $Caddyfile -Raw) | Out-Null; Write-Ok 'caddy reloaded'; return } catch {}
         $running | Stop-Process -Force
     }
     Start-ScheduledTask -TaskName $TaskName
@@ -231,8 +237,18 @@ function Restart-Caddy {
     if (Get-Process caddy -ErrorAction SilentlyContinue) { Write-Ok 'caddy running' } else { throw 'caddy failed to start; see .private/publish' }
 }
 
+# netstat, NOT Get-NetTCPConnection: the MSFT_NetTCPConnection provider walks every socket inside
+# WmiPrvSE (~5 s of its CPU per call with ~1400 sockets, measured elevated 2026-10-19) and this runs
+# every 5 min from vmui-publish-ensure. netstat answers in ~0.15 s with no WMI involved.
+function Get-TcpListener([int]$LocalPort) {
+    foreach ($line in (netstat -ano -p TCP)) {
+        if ($line -match "^\s*TCP\s+\S+:$LocalPort\s+\S+\s+LISTENING\s+(\d+)\s*$") { return [pscustomobject]@{ LocalPort = $LocalPort; OwningProcess = [int]$Matches[1] } }
+    }
+    $null
+}
+
 function Get-ForeignCaddyAdmin {
-    $l = Get-NetTCPConnection -LocalPort 443 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
+    $l = Get-TcpListener 443
     if (-not $l) { return $null }
     $owner = Get-Process -Id $l.OwningProcess -ErrorAction SilentlyContinue
     if ($owner -and $owner.Path -and $owner.Path -like "$env:LOCALAPPDATA*") { return $null }   # that is ours
@@ -312,7 +328,7 @@ function Show-Status {
     $t = (Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue).State
     $live = if (Get-Process caddy -ErrorAction SilentlyContinue) { 'running' } else { 'NOT running' }
     Write-Host "  caddy    task=$($t ?? 'absent') process=$live"
-    $up = Get-NetTCPConnection -LocalPort $Upstream -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
+    $up = Get-TcpListener $Upstream
     Write-Host "  upstream :$Upstream $(if ($up) { 'listening' } else { 'NOT listening - start vmui (pnpm start)' })"
     Test-Live
 }

@@ -34,7 +34,14 @@ $LogDir = Join-Path $Root '.copilot-tmp\service-logs'
 
 function Write-Ok($m) { Write-Host "  $m" -ForegroundColor Green }
 
-function Get-Listener { Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1 }
+# netstat, NOT Get-NetTCPConnection: that provider costs WmiPrvSE ~5 s of CPU per call with ~1400
+# sockets (measured elevated 2026-10-19). Callers only read .OwningProcess / truthiness.
+function Get-Listener {
+    foreach ($line in (netstat -ano -p TCP)) {
+        if ($line -match "^\s*TCP\s+\S+:$Port\s+\S+\s+LISTENING\s+(\d+)\s*$") { return [pscustomobject]@{ LocalPort = $Port; OwningProcess = [int]$Matches[1] } }
+    }
+    $null
+}
 
 function Stop-Service-Tree {
     # Preferred: the pid the launcher recorded.
