@@ -11,9 +11,13 @@ reading a screen:
            rest breathes; repeats until cancelled (max 10 s, like the bulbs).
   done     calm: a green wave rises from the bottom of both sides, meets at
            the top, then fades out. 3 s, once.
-  blocked  a red flash from the middle of the top outwards, twice, sharp.
-  failed   two amber double-blinks over the whole strip, sharp attack, soft
-           release.
+    blocked  a red ring swells from the middle of the top outwards, twice.
+    failed   two amber double-pulses over the whole strip.
+
+No hard on/off anywhere: every pattern ramps with a raised-cosine envelope
+and the whole notification crossfades in from and out to the live ambilight
+frame (`Animator.base`). Hard 0->100 % steps at 30 fps read as a strobe next
+to the room bulbs, which use 0.3 s transitions (user, 2026-10-20).
 
 Frames are 65*3 bytes in strip order, rendered at FPS by `Animator.frame()`;
 the bridge calls it instead of the HyperHDR frame while `active`.
@@ -37,6 +41,8 @@ LEFT = range(48, 65)        # top -> bottom
 # first 50 fps animation tests. Unproven link, cheap insurance.
 FPS = 30
 FX_PORT = 19460
+FADE_IN_S = 0.5
+FADE_OUT_S = 0.8
 
 # Height 0..1 of every LED (0 = desk level, 1 = top edge) and its position
 # along the whole strip 0..1 (right-bottom -> top -> left-bottom).
@@ -71,20 +77,35 @@ def _shift_hue(rgb: tuple[int, int, int], dh: float) -> tuple[int, int, int]:
     return int(r * 255), int(g * 255), int(b * 255)
 
 
+def _smooth(x: float) -> float:
+    """0..1 -> 0..1 raised cosine (zero slope at both ends)."""
+    x = max(0.0, min(1.0, x))
+    return 0.5 - 0.5 * math.cos(math.pi * x)
+
+
+def _hump(t: float, start: float, width: float) -> float:
+    """sin^2 bump over [start, start+width): smooth rise and fall, 0 outside."""
+    if not start <= t < start + width:
+        return 0.0
+    return math.sin(math.pi * (t - start) / width) ** 2
+
+
 # ---------------------------------------------------------------- patterns
 # Each returns per-LED intensity 0..1 (and optionally a colour override) for
 # time t (seconds since start). `done`/`blocked`/`failed` end on their own by
 # returning None; `ask` loops until duration.
 
 def fx_ask(t: float, base: tuple[int, int, int]) -> list[tuple[int, int, int]] | None:
-    lap = 1.2                                  # seconds per lap
+    lap = 2.4                                  # seconds per lap
     head = (t / lap) % 1.0
     breathe = 0.10 + 0.08 * (0.5 + 0.5 * math.sin(t * 2 * math.pi / 1.5))
     out = []
     for i in range(LED_COUNT):
         d = (POS[i] - head) % 1.0              # distance behind the head
-        tail = max(0.0, 1.0 - d / 0.18)        # 18 % of the strip long
-        k = max(breathe, tail ** 2)
+        # soft front (last 20 % before the head) so an LED ramps up over a few
+        # frames instead of jumping 0 -> 100 % when the head reaches it
+        tail = _smooth(1.0 - d / 0.3) if d < 0.8 else _smooth((d - 0.8) / 0.2)
+        k = max(breathe, tail)
         out.append(_scale(base, k))
     return out
 
@@ -98,60 +119,55 @@ def fx_done(t: float, base: tuple[int, int, int]) -> list[tuple[int, int, int]] 
     out = []
     for i in range(LED_COUNT):
         edge = rise * 1.15 - HEIGHT[i]         # >0 once the front passed
-        k = 0.0 if edge < 0 else min(1.0, edge / 0.25)
+        k = _smooth(edge / 0.4)
         # a slightly lighter crest right at the front
-        crest = math.exp(-((edge - 0.05) ** 2) / 0.004) * 0.6
+        crest = math.exp(-((edge - 0.1) ** 2) / 0.012) * 0.4
         col = _shift_hue(base, 0.04 * crest)
         out.append(_scale(col, (k + crest) * fade))
     return out
 
 
 def fx_blocked(t: float, base: tuple[int, int, int]) -> list[tuple[int, int, int]] | None:
-    dur = 1.6
-    if t >= dur:
+    if t >= DURATION["blocked"]:
         return None
-    ph = (t % 0.8) / 0.8                       # two shots of 0.8 s
-    radius = ph * 40                           # LEDs from the top middle
+    ph = (t % 1.5) / 1.5                       # two shots of 1.5 s
+    env = _smooth(ph / 0.42) if ph < 0.42 else 1.0 - _smooth((ph - 0.42) / 0.58)
+    radius = _smooth(ph) * 34                  # LEDs from the top middle
     out = []
     for i in range(LED_COUNT):
         dist = abs(i - TOP_MID)
-        k = max(0.0, 1.0 - abs(dist - radius) / 6.0) * (1.0 - ph) ** 0.7
-        if ph < 0.08:                          # the initial full flash
-            k = max(k, 1.0 - ph / 0.08)
-        out.append(_scale(base, k))
+        ring = _smooth(1.0 - abs(dist - radius) / 20.0)
+        out.append(_scale(base, env * max(ring, 0.4)))
     return out
 
 
 def fx_failed(t: float, base: tuple[int, int, int]) -> list[tuple[int, int, int]] | None:
-    dur = 2.4
-    if t >= dur:
+    if t >= DURATION["failed"]:
         return None
-    ph = t % 1.2
-    # double blink: 0.00-0.12 on, 0.12-0.30 off, 0.30-0.42 on, then release
-    if ph < 0.12 or 0.30 <= ph < 0.42:
-        k = 1.0
-    elif ph < 0.30:
-        k = 0.15
-    else:
-        k = max(0.0, 1.0 - (ph - 0.42) / 0.6) * 0.5
-    col = _scale(base, k)
-    return [col] * LED_COUNT
+    ph = t % 2.2
+    # double pulse: two sin^2 humps (the second a bit softer), then a rest
+    k = max(_hump(ph, 0.0, 1.0), 0.8 * _hump(ph, 0.85, 1.0))
+    return [_scale(base, k)] * LED_COUNT
 
 
 PATTERNS = {"ask": fx_ask, "done": fx_done, "blocked": fx_blocked, "failed": fx_failed}
 DEFAULT_COLOR = {"ask": "#ff5a1f", "done": "#2ecc71", "blocked": "#ff2d2d", "failed": "#ffc400"}
+# Self-ending patterns; `ask` loops until cleared or `duration`.
+DURATION = {"done": 3.0, "blocked": 3.0, "failed": 4.4}
 
 
 class Animator:
     """Owns the current notification. `frame()` returns the next 195-byte
-    frame or None when nothing is playing."""
+    frame or None when nothing is playing. The bridge keeps `base` set to the
+    latest ambilight frame so the notification blends in and out of it."""
 
     def __init__(self) -> None:
         self.event: str | None = None
         self.color = (0, 0, 0)
         self.t0 = 0.0
         self.until = 0.0
-        self._last: bytes | None = None
+        self.base: bytes | None = None
+        self._fade_out_at: float | None = None
 
     @property
     def active(self) -> bool:
@@ -163,6 +179,7 @@ class Animator:
         self.event = event
         self.color = _hex(color or DEFAULT_COLOR[event])
         self.t0 = time.monotonic()
+        self._fade_out_at = None
         # `ask` loops; cap it like the bulbs so a lost cancel cannot pin the strip
         self.until = self.t0 + (duration if duration is not None else (10.0 if event == "ask" else 60.0))
         print(f"  fx: {event} {color or DEFAULT_COLOR[event]}", flush=True)
@@ -171,6 +188,12 @@ class Animator:
         if self.event:
             print(f"  fx: {self.event} end", flush=True)
         self.event = None
+        self._fade_out_at = None
+
+    def release(self, now: float | None = None) -> None:
+        """Graceful stop: fade back to `base` over FADE_OUT_S."""
+        if self.event and self._fade_out_at is None:
+            self._fade_out_at = time.monotonic() if now is None else now
 
     def handle(self, payload: bytes) -> None:
         try:
@@ -179,22 +202,29 @@ class Animator:
             return
         ev = msg.get("event")
         if ev == "clear":
-            self.stop()
+            self.release()
         elif ev in PATTERNS:
             self.start(ev, msg.get("color"), msg.get("duration"))
 
-    def frame(self) -> bytes | None:
+    def frame(self, now: float | None = None) -> bytes | None:
         if not self.event:
             return None
-        now = time.monotonic()
-        if now >= self.until:
+        now = time.monotonic() if now is None else now
+        t = now - self.t0
+        if now >= self.until - FADE_OUT_S:
+            self.release(now)
+        mix = _smooth(t / FADE_IN_S)
+        if self.event in DURATION:
+            mix = min(mix, _smooth((DURATION[self.event] - t) / FADE_OUT_S))
+        if self._fade_out_at is not None:
+            mix = min(mix, 1.0 - _smooth((now - self._fade_out_at) / FADE_OUT_S))
+        px = PATTERNS[self.event](t, self.color)
+        if px is None or (self._fade_out_at is not None and now - self._fade_out_at >= FADE_OUT_S):
             self.stop()
             return None
-        px = PATTERNS[self.event](now - self.t0, self.color)
-        if px is None:
-            self.stop()
-            return None
-        return b"".join(bytes(p) for p in px)
+        fx = b"".join(bytes(p) for p in px)
+        base = self.base if self.base is not None and len(self.base) == len(fx) else bytes(len(fx))
+        return bytes(int(b + (f - b) * mix) for b, f in zip(base, fx))
 
 
 def preview(event: str, seconds: float = 4.0) -> None:

@@ -28,6 +28,16 @@
   `/api/copilot/event` (needs `/api/copilot` in proxy.ts PUBLIC_PREFIXES) →
   HA `script.copilot_{ask,clear,done,blocked,failed}` via `script.turn_on`
   (direct service call blocks until the looping script ends → timeout).
+- "Lights flash fast on a Copilot notification, others animate smoothly"
+  (2026-10-20). NOT the OpenRGB case path: HA notify_flash on the case
+  measured a clean 0.6 s ramp (HyperHDR smoothing 700 ms), and Copilot
+  events never reach OpenRGB. Copilot -> `notify_fx.py` on the DX strip:
+  blocked/failed were hard 0->255 blinks and `ask` a runner with a hard
+  edge, max step 254/255 in one 30 fps frame; the strip cut in/out of the
+  picture with no blend. Fix: raised-cosine envelopes, softer runner, fade
+  in 0.5 s / out 0.8 s against the live frame (`Animator.base`), `clear`
+  fades instead of cutting. Gate: `ambilight/test_notify_fx.py` (max 40 per
+  frame; old code 254-255 -> red).
 
 ## "Something duplicates the case LEDs" — two DIFFERENT causes (2026-09-14)
 1. OpenRGB **Effects Plugin** profile with `AutoStart=true` (found by the

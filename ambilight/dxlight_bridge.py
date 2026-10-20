@@ -365,7 +365,10 @@ def run_listen(dx: DxLight, port: int) -> None:
         timeout = max(0.0, fx_next - time.monotonic()) if fx.active else 1.0
         ready, _, _ = select.select([sock, fxsock], [], [], timeout)
         if fxsock in ready:
+            was_active = fx.active
             fx.handle(fxsock.recvfrom(1024)[0])
+            if fx.active and not was_active and gate.last is not None:
+                fx.base = gate.last  # blend in from what the strip shows now
             if not fx.active:
                 gate.last = None  # force the next HyperHDR frame through, no dedupe
         if sock in ready:
@@ -378,6 +381,8 @@ def run_listen(dx: DxLight, port: int) -> None:
                 frames += 1
                 if fx.active:
                     gate.last_rx = time.monotonic()  # seen, not shown
+                    if not is_black(data):
+                        fx.base = black_gate(data)  # blend out into the live picture
                 else:
                     gate.on_frame(black_gate(data), dx.frame, off_signal=is_black(data))
         elif not fx.active and not ready:
