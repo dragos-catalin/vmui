@@ -13,9 +13,23 @@ const SPEC = {
   components: {
     securitySchemes: {
       bearerAuth: { type: "http", scheme: "bearer", bearerFormat: "vmui_*" },
+      deviceAuth: { type: "http", scheme: "bearer", bearerFormat: "vmd_*", description: "Paired device token (POST /api/devices/pair)." },
     },
   },
   paths: {
+    "/api/v1/me/health": {
+      get: {
+        summary: "The owner's health readings and nutrition totals (for the Vitals apps)",
+        description:
+          "Owner's paired devices only. Token in the Authorization header, never in the URL. Every reading is null when not measured. Meals, coach messages and hydration entries are not included. Never cached.",
+        security: [{ deviceAuth: [] }],
+        responses: {
+          "200": { description: "OK: { at, health, nutrition }" },
+          "401": { description: "Missing, unknown or revoked device token" },
+          "403": { description: "Device belongs to a member who is not the owner" },
+        },
+      },
+    },
     "/api/v1/instances": {
       get: {
         summary: "List cached instances across all accounts",
