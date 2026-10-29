@@ -78,12 +78,29 @@ export async function pairingStatus(id: string): Promise<{ status: string; code:
   return r ? { status: r.status, code: r.status === "pending" ? r.code : null } : null;
 }
 
-/** `userId` = the family member this device will act as (lib/home/access.ts); the approver binds it to themselves by default. */
-export async function approveDevice(id: string, code: string, by: string, userId: string | null = null): Promise<{ ok: true } | { ok: false; error: PairingError }> {
+/** Platforms of the Vitals apps; they read the owner's own health (`/api/v1/me/health`). */
+export const VITALS_PLATFORMS = new Set(["vitals-desktop", "vitals-ios", "vitals-android"]);
+
+/**
+ * Who a newly approved device acts as. The approver's own member when known.
+ * An approval through the shared desktop token has no identity: a Vitals app
+ * is then bound to the household owner, because the token lives on the
+ * owner's PC and an unbound Vitals device can never read its Health page
+ * (S23-14, live test 2026-10-28: approved, then 401). Every other platform
+ * stays unbound until rebound in the family card, as before.
+ */
+export function bindingFor(platform: string, approverUserId: string | null, ownerUserId: string | null): string | null {
+  if (approverUserId) return approverUserId;
+  return VITALS_PLATFORMS.has(platform) ? ownerUserId : null;
+}
+
+/** `userId` = the family member this device will act as (lib/home/access.ts); the approver binds it to themselves by default. `ownerUserId` is used only by `bindingFor`. */
+export async function approveDevice(id: string, code: string, by: string, approverUserId: string | null = null, ownerUserId: string | null = null): Promise<{ ok: true } | { ok: false; error: PairingError }> {
   const r = await db.select().from(pairedDevices).where(eq(pairedDevices.id, id)).get();
   if (!r || r.status !== "pending") return { ok: false, error: "not_found" };
   if (r.createdAt.getTime() < Date.now() - PENDING_TTL_MS) return { ok: false, error: "expired" };
   if ((r.code ?? "") !== code) return { ok: false, error: "code_mismatch" };
+  const userId = bindingFor(r.platform, approverUserId, ownerUserId);
   await db.update(pairedDevices).set({ status: "approved", code: null, approvedBy: by, userId }).where(eq(pairedDevices.id, id));
   await db.insert(auditLog).values({ accountId: "devices", action: "device.pair.approve", target: id, status: "ok", message: `${r.name} approved by ${by}${userId ? ` as user ${userId}` : ""}` });
   bump();

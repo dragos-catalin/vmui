@@ -1,6 +1,7 @@
 import { getCurrentUser } from "@/lib/auth";
 import { approveDevice, deviceFromRequest, devicesVersion, listDevices, pendingDevices, rejectDevice, renameDevice, revokeDevice } from "@/lib/devices/pairing";
 import { espAuthorized } from "@/lib/esp/auth";
+import { ownerActor } from "@/lib/home/access";
 import { deviceLocale } from "@/lib/notify/i18n";
 import { getTranslations } from "next-intl/server";
 import { NextResponse, type NextRequest } from "next/server";
@@ -50,7 +51,9 @@ export async function POST(req: NextRequest) {
   if (!p.success) return NextResponse.json({ ok: false, error: "invalid" }, { status: 400 });
   switch (p.data.op) {
     case "approve": {
-      const r = await approveDevice(p.data.id, p.data.code, by, who.userId);
+      // The shared token is the owner's PC: a Vitals app approved from it acts as the owner (bindingFor).
+      const owner = who.userId ? null : await ownerActor();
+      const r = await approveDevice(p.data.id, p.data.code, by, who.userId, owner && owner.userId !== "solo" ? owner.userId : null);
       if (r.ok) return NextResponse.json(r);
       // the client shows `error` verbatim, so render it in the caller's language here
       const t = await getTranslations({ locale: deviceLocale(req.headers.get("accept-language")), namespace: "notify.errors.pairing" });
