@@ -104,6 +104,14 @@
       "copilot": {
         "title": "Semnale Copilot",
         "hint": "Lumini și carduri pentru evenimente agent"
+      },
+      "house": {
+        "title": "Casa",
+        "hint": "Camere, dispozitive, import din Home Assistant"
+      },
+      "integrations": {
+        "title": "Integrări",
+        "hint": "Home Assistant, gospodărie, Wake-on-LAN"
       }
     },
     "quick": {

@@ -1,7 +1,7 @@
 export const HOME_TABS = ["home", "ambilight", "notifications", "nutrition", "settings"] as const;
 export type HomeTab = (typeof HOME_TABS)[number];
 
-export const SETTINGS_SECTIONS = ["family", "turzx", "nestHub", "deskButton", "copilot"] as const;
+export const SETTINGS_SECTIONS = ["family", "house", "integrations", "turzx", "nestHub", "deskButton", "copilot"] as const;
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
 
 /** Old `?tab=` values keep working: bookmarks, the desktop app and HA links use them.

@@ -104,6 +104,14 @@
       "copilot": {
         "title": "Copilot signals",
         "hint": "Lights and cards for agent events"
+      },
+      "house": {
+        "title": "House",
+        "hint": "Rooms, devices, import from Home Assistant"
+      },
+      "integrations": {
+        "title": "Integrations",
+        "hint": "Home Assistant, household, Wake-on-LAN"
       }
     },
     "quick": {

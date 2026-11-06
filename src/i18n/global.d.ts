@@ -19,6 +19,7 @@ import type govern from "../../messages/govern/en.json";
 import type observe from "../../messages/observe/en.json";
 import type ops from "../../messages/ops/en.json";
 import type cloud from "../../messages/cloud/en.json";
+import type setup from "../../messages/setup/en.json";
 import type { LOCALES } from "./config";
 
 declare module "next-intl" {
@@ -45,6 +46,7 @@ declare module "next-intl" {
       settings: typeof settings;
       auth: typeof auth;
       misc: typeof misc;
+      setup: typeof setup;
     };
   }
 }

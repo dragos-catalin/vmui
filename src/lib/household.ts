@@ -4,7 +4,6 @@ import { db } from "@/lib/db";
 import { settings } from "@/lib/db/schema";
 import { credential } from "@/lib/home/credentials";
 import { eq } from "drizzle-orm";
-import { z } from "zod";
 
 /**
  * Household-level configuration: everything that used to be a literal for the
@@ -13,24 +12,8 @@ import { z } from "zod";
  * wizard and Settings can edit it; env / credentials.env values seed it, so an
  * existing install keeps working without touching the database.
  */
-export const householdSchema = z.object({
-  /** IANA zone used for day buckets (water, meals), clocks on screens and i18n. */
-  timeZone: z.string().min(1).max(64).default("UTC"),
-  /** Language of server-rendered texts that have no viewer: ESP/Turzx screens, HA friendly names, activity feed. */
-  locale: z.enum(["en", "ro"]).default("en"),
-  /** Owner's HA person entity, e.g. `person.ana` (presence, "away" logic). Empty = none. */
-  ownerPerson: z.string().max(120).default(""),
-  /** HA companion device slug of the owner's phone, e.g. `pixel_9` (sensors `sensor.<slug>_*`). */
-  ownerPhone: z.string().max(120).default(""),
-  /** HA notify service for the owner's phone fallback, e.g. `mobile_app_pixel_9`. */
-  ownerNotifyService: z.string().max(120).default(""),
-  /** Wake-on-LAN target. */
-  pcWolMac: z.string().max(32).default(""),
-  pcWolIp: z.string().max(64).default(""),
-  /** Public base URL of this hub (shown on device screens, QR pairing), no trailing slash. */
-  publicUrl: z.string().max(200).default(""),
-});
-export type Household = z.infer<typeof householdSchema>;
+import { householdSchema, type Household } from "./household-model";
+export { householdSchema, type Household };
 
 const KEY = "household";
 
