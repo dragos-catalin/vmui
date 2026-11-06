@@ -14,20 +14,26 @@ vi.mock("drizzle-orm", () => ({
 vi.mock("@/lib/db/schema", () => ({
   homeNotifications: { id: "id", tag: "tag", dismissedAt: "dismissedAt", readAt: "readAt", deliveredTo: "deliveredTo", createdAt: "createdAt" },
   pairedDevices: { id: "id", pushToken: "pushToken", language: "language", status: "status" },
+  homeMembers: { userId: "userId", role: "role" },
+  users: { id: "uid", role: "infraRole" },
   auditLog: {},
 }));
+vi.mock("@/lib/household", () => ({ household: () => ({ ownerNotifyService: "", ownerPhone: "" }) }));
 vi.mock("@/lib/db", () => {
-  const devices: Row[] = [{ id: "d1", pushToken: "tok-1", language: "en", status: "approved" }];
+  // the paired phone belongs to the owner (pc cards are owner-only)
+  const devices: Row[] = [{ id: "d1", pushToken: "tok-1", language: "en", status: "approved", role: "owner" }];
   const table = (t: { id: string; status?: string }) => ("status" in t ? devices : [...rows.values()]);
+  const where = (t: { id: string; status?: string }) => (pred: (r: Row) => boolean) => {
+    const out = table(t).filter(pred);
+    return Object.assign(Promise.resolve(out), { get: async () => out[0] });
+  };
   return {
     db: {
       select: () => ({
-        from: (t: { id: string; status?: string }) => ({
-          where: (pred: (r: Row) => boolean) => {
-            const out = table(t).filter(pred);
-            return Object.assign(Promise.resolve(out), { get: async () => out[0] });
-          },
-        }),
+        from: (t: { id: string; status?: string }) => {
+          const q = { where: where(t), leftJoin: () => q };
+          return q;
+        },
       }),
       update: () => ({
         set: (v: Row) => ({

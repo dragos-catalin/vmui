@@ -1,4 +1,4 @@
-import { ack, dismiss, listCards, localizeCard, localizeCards, markRead, notify, notifyInputSchema } from "@/lib/notify";
+import { ack, dismiss, getCard, listCards, localizeCard, localizeCards, markRead, notify, notifyInputSchema, visibleToRole } from "@/lib/notify";
 import { notifyActor } from "@/lib/notify/auth";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
@@ -10,7 +10,8 @@ export async function GET(req: NextRequest) {
   const who = await notifyActor(req);
   if (!who) return new NextResponse("forbidden", { status: 403 });
   const all = req.nextUrl.searchParams.get("all") === "1";
-  const cards = await localizeCards(await listCards({ includeDismissed: all, limit: all ? 200 : 100 }), who.locale);
+  const visible = (await listCards({ includeDismissed: all, limit: all ? 200 : 100 })).filter((c) => visibleToRole(c.kind, who.role));
+  const cards = await localizeCards(visible, who.locale);
   return NextResponse.json({ cards, now: Date.now() }, { headers: { "Cache-Control": "no-store" } });
 }
 
@@ -34,11 +35,13 @@ export async function POST(req: NextRequest) {
       await markRead(p.data.ids);
       return NextResponse.json({ ok: true });
     case "dismiss": {
+      const target = await getCard(p.data.id);
+      if (target && !visibleToRole(target.kind, who.role)) return new NextResponse("forbidden", { status: 403 });
       const c = await dismiss(p.data.id, who.by, "dismiss");
       return NextResponse.json({ ok: true, card: c ? await localizeCard(c, who.locale) : null });
     }
     case "dismissAll": {
-      for (const c of await listCards()) if (!c.sticky) await dismiss(c.id, who.by, "dismiss");
+      for (const c of await listCards()) if (!c.sticky && visibleToRole(c.kind, who.role)) await dismiss(c.id, who.by, "dismiss");
       return NextResponse.json({ ok: true });
     }
     case "ack":

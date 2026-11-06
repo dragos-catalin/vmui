@@ -1,6 +1,6 @@
 import type { Locale } from "@/i18n/config";
 import { db } from "@/lib/db";
-import { auditLog, homeNotifications as notifications, pairedDevices, type HomeNotificationRow as NotificationRow } from "@/lib/db/schema";
+import { auditLog, homeMembers, homeNotifications as notifications, pairedDevices, users, type HomeNotificationRow as NotificationRow } from "@/lib/db/schema";
 import { credential } from "@/lib/home/credentials";
 import { ha } from "@/lib/home/ha-client";
 import { and, desc, eq, isNull } from "drizzle-orm";
@@ -22,6 +22,14 @@ import { household } from "@/lib/household";
 
 export const NOTIFY_KINDS = ["copilot", "agents", "intercom", "pairing", "water", "pc", "pi", "door", "window", "presence", "battery", "contact", "system"] as const;
 export type NotifyKind = (typeof NOTIFY_KINDS)[number];
+
+/** Kinds that concern the household; everything else (agents, pairing, PC/Pi, contact form, system)
+ *  is the owner's business and never reaches a child's or guest's phone. */
+const HOUSEHOLD_KINDS = new Set<NotifyKind>(["intercom", "door", "window", "presence", "battery", "water"]);
+
+/** Whether a member with this family role may see a card of this kind. */
+export const visibleToRole = (kind: string, role: "owner" | "adult" | "child" | "guest"): boolean =>
+  role === "owner" || HOUSEHOLD_KINDS.has(kind as NotifyKind);
 
 /** A literal string or a `{ key, params }` reference into messages/notify (rendered per consumer language). */
 const textSchema = z.union([z.string().max(600), z.object({ key: z.string().min(1).max(80), params: z.record(z.string(), z.union([z.string(), z.number()])).optional() })]);
@@ -209,11 +217,19 @@ function inQuiet(from: string, to: string): boolean {
 
 async function wakePhones(card: Card, fcm: { enabled: boolean }): Promise<void> {
   if (!fcm.enabled) return;
-  const devs = await db.select({ id: pairedDevices.id, pushToken: pairedDevices.pushToken, language: pairedDevices.language }).from(pairedDevices).where(eq(pairedDevices.status, "approved"));
+  const devs = await db
+    .select({ id: pairedDevices.id, pushToken: pairedDevices.pushToken, language: pairedDevices.language, role: homeMembers.role, infraRole: users.role })
+    .from(pairedDevices)
+    .leftJoin(homeMembers, eq(homeMembers.userId, pairedDevices.userId))
+    .leftJoin(users, eq(users.id, pairedDevices.userId))
+    .where(eq(pairedDevices.status, "approved"));
   // one FCM payload per language the paired phones speak
   const byLocale = new Map<Locale, string[]>();
   for (const d of devs) {
     if (!d.pushToken) continue;
+    // an infra admin with no membership row is the owner (same rule as lib/home/access.ts)
+    const role = d.role ?? (d.infraRole === "admin" ? "owner" : "guest");
+    if (!visibleToRole(card.kind, role)) continue;
     const l = deviceLocale(d.language);
     byLocale.set(l, [...(byLocale.get(l) ?? []), d.pushToken]);
   }

@@ -1,4 +1,4 @@
-import { listCards, localizeCard, localizeCards, onNotify } from "@/lib/notify";
+import { listCards, localizeCard, localizeCards, onNotify, visibleToRole } from "@/lib/notify";
 import { notifyActor } from "@/lib/notify/auth";
 import "server-only";
 
@@ -17,8 +17,12 @@ export async function GET(req: Request) {
       const send = (event: string, data: unknown) => {
         try { controller.enqueue(enc.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)); } catch { /* closed */ }
       };
-      send("snapshot", { cards: await localizeCards(await listCards(), who.locale), now: Date.now() });
-      off = onNotify((ev) => { void localizeCard(ev.card, who.locale).then((c) => send(ev.type, c)); });
+      const mine = (await listCards()).filter((c) => visibleToRole(c.kind, who.role));
+      send("snapshot", { cards: await localizeCards(mine, who.locale), now: Date.now() });
+      off = onNotify((ev) => {
+        if (!visibleToRole(ev.card.kind, who.role)) return;
+        void localizeCard(ev.card, who.locale).then((c) => send(ev.type, c));
+      });
       ping = setInterval(() => { try { controller.enqueue(enc.encode(": ping\n\n")); } catch { /* closed */ } }, 25_000);
       req.signal.addEventListener("abort", () => { off?.(); if (ping) clearInterval(ping); try { controller.close(); } catch { /* already */ } }, { once: true });
     },
