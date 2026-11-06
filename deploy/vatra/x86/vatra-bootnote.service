@@ -1,0 +1,9 @@
+[Unit]
+Description=Show the Vatra setup code on the console (x86 image)
+After=vatra-firstboot.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/vatra/bin/vatra_netsetup.py --issue
+# agetty prints /etc/issue.d only when it (re)starts
+ExecStartPost=-/usr/bin/systemctl try-restart serial-getty@ttyS0.service getty@tty1.service

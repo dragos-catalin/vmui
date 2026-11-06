@@ -1,0 +1,34 @@
+#!/bin/bash
+# vatra-stack (P5-01): loads the images baked into the card (once), then brings the stack up.
+# Vatra + Mosquitto are baked in, so the hub answers /api/discover and can be claimed with no
+# internet at all. Home Assistant + ESPHome are pulled (by digest) once the hub is online; until
+# then this keeps retrying with backoff. Status: /var/lib/vatra/stack-status.
+set -uo pipefail
+ST=/var/lib/vatra/stack-status
+say() { echo "$*" > "$ST"; echo "[vatra-stack] $*"; }
+dc() { docker compose --env-file /srv/vatra/.env -f /srv/vatra/compose.yaml "$@"; }
+
+install -d -m 0755 /var/lib/vatra
+until docker info >/dev/null 2>&1; do sleep 2; done
+
+shopt -s nullglob
+for f in /opt/vatra/images/*.tar.zst; do
+  say "loading $(basename "$f")"
+  if zstd -dc "$f" | docker load; then rm -f "$f"; else say "load failed: $(basename "$f")"; fi
+done
+
+systemctl start vatra-bootnote.service || true
+
+say "starting core"
+until dc up -d --pull missing mosquitto vatra; do
+  say "core failed, retrying"
+  sleep 30
+done
+say "core up; companions pending"
+
+delay=15
+until dc up -d --pull missing homeassistant esphome; do
+  sleep "$delay"
+  delay=$(( delay * 2 > 300 ? 300 : delay * 2 ))
+done
+say "all up"

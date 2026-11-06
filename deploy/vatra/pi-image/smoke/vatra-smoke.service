@@ -1,0 +1,12 @@
+[Unit]
+Description=Vatra image smoke (test copy only)
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/vatra-smoke-guest
+StandardOutput=journal+console
+TimeoutStartSec=infinity
+
+[Install]
+WantedBy=multi-user.target

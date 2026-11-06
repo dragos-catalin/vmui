@@ -1,0 +1,14 @@
+[Unit]
+Description=Vatra network setup (wifi hotspot + captive portal while offline)
+After=NetworkManager.service vatra-firstboot.service
+Wants=NetworkManager.service
+# soft: the hotspot must work even if the boot partition does not mount
+After=boot-firmware.mount
+
+[Service]
+ExecStart=/usr/bin/python3 /opt/vatra/bin/vatra_netsetup.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

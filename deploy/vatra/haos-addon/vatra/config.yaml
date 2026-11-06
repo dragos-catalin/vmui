@@ -1,0 +1,31 @@
+# Vatra hub as a Home Assistant OS add-on (P5-05), for people who already run HAOS.
+# The Supervisor builds it locally FROM the release image (build.yaml, signed by
+# release-image.yml) and adds only an entry that gives the root-owned add-on /data to the
+# unprivileged node user. Home Assistant is reached through the Supervisor proxy with the
+# add-on's own token: no long-lived HA token to paste. State lives in /data (in HA backups).
+name: Vatra
+version: "0.4.0"
+slug: vatra
+description: Vatra home hub (rooms, lights, PC, intercom, phone and watch apps) on top of this Home Assistant.
+url: https://github.com/dragos-catalin/vmui
+arch:
+  - aarch64
+  - amd64
+init: false
+startup: application
+boot: auto
+host_network: true
+homeassistant_api: true
+hassio_api: false
+ports:
+  3737/tcp: 3737
+ports_description:
+  3737/tcp: Vatra web app and API (the phone and desktop apps connect here)
+webui: http://[HOST]:[PORT:3737]/
+watchdog: http://[HOST]:[PORT:3737]/api/discover
+map: []
+environment:
+  VMUI_DB_PATH: /data/vmui.db
+  VMUI_CREDENTIALS_FILE: /data/credentials.env
+  VATRA_HAOS_ADDON: "1"
+backup: hot

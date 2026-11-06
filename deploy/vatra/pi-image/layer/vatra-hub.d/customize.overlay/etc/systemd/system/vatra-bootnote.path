@@ -1,0 +1,9 @@
+[Unit]
+Description=Mirror the Vatra setup code to the boot partition
+
+[Path]
+PathChanged=/srv/vatra/data/vatra-setup-code.txt
+Unit=vatra-bootnote.service
+
+[Install]
+WantedBy=multi-user.target

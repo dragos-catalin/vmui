@@ -1,0 +1,6 @@
+#!/bin/bash
+# Installs the Vatra stack into the rootfs ($1). Runs on the (arm64) build host after every
+# package and this layer's customize.overlay are in place.
+set -euo pipefail
+V="$(cd "$LAYER_DIR/../.." && pwd)"   # deploy/vatra
+bash "$V/hub-install.sh" --root "$1" --arch arm64 --bake "${IGconf_vatra_bakedir:?IGconf_vatra_bakedir not set}" --platform pi

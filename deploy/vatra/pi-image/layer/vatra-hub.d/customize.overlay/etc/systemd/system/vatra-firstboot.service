@@ -1,0 +1,15 @@
+[Unit]
+Description=Vatra first boot (hostname, root partition, SSH host keys)
+DefaultDependencies=no
+After=local-fs.target
+Before=NetworkManager.service avahi-daemon.service vatra-netsetup.service vatra-stack.service sysinit.target
+ConditionPathExists=!/var/lib/vatra/firstboot.done
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/opt/vatra/bin/vatra-firstboot
+TimeoutStartSec=10min
+
+[Install]
+WantedBy=sysinit.target

@@ -13,6 +13,12 @@
  * --no-wait (launch only), --attach <runId> (follow an existing run), --ledger (cost history),
  * --ref <rev> (baseline: app code from <rev>, harness files — scripts/e2e-cloud, tests/e2e,
  * playwright.config.ts, package.json, pnpm-lock.yaml — from the working tree).
+ * --plain: a plain Debian 13 spot VM runs --cmd as root from the unpacked tree (vm-plain.sh): no
+ * node/next build, no Playwright (image builds). --arm64 implies --plain on c4a (default
+ * c4a-standard-8, europe-west4-a); plain amd64 defaults to n2-standard-8 there. $RUN
+ * (gs://…/runs/<id>) and gsput are exported so the command can upload artefacts;
+ * --max-run-duration still deletes the VM server-side (default 2h, --max-run up to 6h).
+ * --nested: nested virtualisation (/dev/kvm on an n2 VM), e.g. Packer + QEMU/KVM.
  *
  * What travels: the WORKING TREE (tracked + untracked, minus .gitignore) via a throwaway git
  * index, so uncommitted edits are tested and the shared index is never touched. No secrets:
@@ -32,7 +38,10 @@ const BUCKET = `vmui-e2e-runs-${PROJECT}`;
 const SA = `vmui-e2e-runner@${PROJECT}.iam.gserviceaccount.com`;
 const IMAGE_FAMILY = "vmui-e2e-runner";
 const MAX_RUN = "2h";
-const SPOT_USD_PER_HOUR = { "n2d-standard-4": 0.045, "n2d-standard-8": 0.09, "n2d-standard-16": 0.18 };
+const SPOT_USD_PER_HOUR = {
+  "n2d-standard-4": 0.045, "n2d-standard-8": 0.09, "n2d-standard-16": 0.18,
+  "c4a-standard-8": 0.13, "c4a-standard-16": 0.26, "n2-standard-8": 0.1, "n2-standard-16": 0.2,
+};
 const vmName = (id) => `vmui-e2e-${id}`;
 const runPath = (id) => `gs://${BUCKET}/runs/${id}`;
 
@@ -41,10 +50,10 @@ const argv = process.argv.slice(2);
 const own = new Map();
 const fetchDirs = [];
 const pw = [];
-const VALUED = new Set(["machine", "zone", "cmd", "attach", "ref"]);
-const BOOL = new Set(["keep", "no-wait", "ledger", "help"]);
+const VALUED = new Set(["machine", "zone", "cmd", "attach", "ref", "max-run"]);
+const BOOL = new Set(["keep", "no-wait", "ledger", "help", "arm64", "plain", "nested"]);
 for (let i = 0; i < argv.length; i++) {
-  const m = /^--([a-z-]+)(?:=(.*))?$/s.exec(argv[i]);
+  const m = /^--([a-z0-9-]+)(?:=(.*))?$/s.exec(argv[i]);
   if (m && m[1] === "fetch") fetchDirs.push(...String(m[2] ?? argv[++i]).split(",").map((s) => s.trim()).filter(Boolean));
   else if (m && VALUED.has(m[1])) own.set(m[1], m[2] ?? argv[++i]);
   else if (m && BOOL.has(m[1])) own.set(m[1], true);
@@ -85,10 +94,21 @@ if (own.get("ledger")) {
   process.exit(0);
 }
 
+const arm64 = Boolean(own.get("arm64"));
+const plain = arm64 || Boolean(own.get("plain")) || Boolean(own.get("nested"));
+if (plain && !own.get("cmd") && !own.get("attach")) {
+  console.error("--plain/--arm64/--nested need --cmd (there is no app build on that VM)");
+  process.exit(2);
+}
 if (!own.get("cmd") && !pw.some((a) => a.startsWith("--reporter"))) pw.push("--reporter=list,html");
 
-const zone = own.get("zone") ?? "europe-central2-a";
-const machine = own.get("machine") ?? "n2d-standard-8";
+const zone = own.get("zone") ?? (plain ? "europe-west4-a" : "europe-central2-a");
+const machine = own.get("machine") ?? (arm64 ? "c4a-standard-8" : plain ? "n2-standard-8" : "n2d-standard-8");
+const maxRun = own.get("max-run") ?? MAX_RUN;
+if (!/^\d{1,2}h$/.test(maxRun) || Number(maxRun.slice(0, -1)) > 6) {
+  console.error("--max-run: 1h..6h");
+  process.exit(2);
+}
 let runId = own.get("attach");
 if (!runId) {
   runId = `${new Date().toISOString().replace(/[-:T]/g, "").slice(2, 12)}-${Math.random().toString(36).slice(2, 6)}`;
@@ -133,7 +153,8 @@ function launch() {
 
   const b64 = (s) => Buffer.from(s, "utf8").toString("base64");
   const startup = join(TMP, `${runId}.startup.sh`);
-  writeFileSync(startup, readFileSync(join(ROOT, "scripts/e2e-cloud/vm-run.sh"), "utf8").replace(/\r\n/g, "\n"));
+  const script = plain ? "scripts/e2e-cloud/vm-plain.sh" : "scripts/e2e-cloud/vm-run.sh";
+  writeFileSync(startup, readFileSync(join(ROOT, script), "utf8").replace(/\r\n/g, "\n"));
   const md = [
     `run-id=${runId}`,
     `bucket=${BUCKET}`,
@@ -142,16 +163,21 @@ function launch() {
     `fetch=${b64(fetchDirs.join(" "))}`,
     `keep=${own.get("keep") ? "1" : "0"}`,
   ].join(",");
+  const image = arm64
+    ? ["--image-family=debian-13-arm64", "--image-project=debian-cloud", "--boot-disk-size=120GB", "--boot-disk-type=hyperdisk-balanced"]
+    : plain
+      ? ["--image-family=debian-13", "--image-project=debian-cloud", "--boot-disk-size=120GB", "--boot-disk-type=pd-ssd"]
+      : [`--image-family=${IMAGE_FAMILY}`, `--image-project=${PROJECT}`, "--boot-disk-size=50GB", "--boot-disk-type=pd-ssd"];
   try {
     gcloud([
       // Name MUST start with vmui-e2e-: the runner SA may delete only VMs with that prefix
       // (IAM condition in provision.ps1), so any other name never self-deletes.
       "compute", "instances", "create", vmName(runId),
       `--zone=${zone}`, `--machine-type=${machine}`,
-      `--image-family=${IMAGE_FAMILY}`, `--image-project=${PROJECT}`,
-      "--boot-disk-size=50GB", "--boot-disk-type=pd-ssd",
+      ...image,
+      ...(own.get("nested") ? ["--enable-nested-virtualization"] : []),
       "--provisioning-model=SPOT", "--instance-termination-action=DELETE",
-      `--max-run-duration=${MAX_RUN}`,
+      `--max-run-duration=${maxRun}`,
       `--service-account=${SA}`, "--scopes=cloud-platform",
       "--labels=purpose=e2e,owner=vmui",
       `--metadata=${md}`, `--metadata-from-file=startup-script=${startup}`,
@@ -202,8 +228,8 @@ async function follow(id) {
         break;
       }
     }
-    if (Date.now() - started > 2.2 * 3600_000) {
-      console.error("✗ no exit-code after 2.2 h — VM hit max-run-duration");
+    if (Date.now() - started > (Number(maxRun.slice(0, -1)) + 0.2) * 3600_000) {
+      console.error(`✗ no exit-code after ${maxRun} — VM hit max-run-duration`);
       preempted = true;
       break;
     }

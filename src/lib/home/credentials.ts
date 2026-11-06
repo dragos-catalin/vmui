@@ -39,7 +39,18 @@ function load(): Record<string, string> {
 }
 
 export function credential(key: string): string | undefined {
-  return process.env[key] ?? fromStore(key) ?? load()[key];
+  return process.env[key] ?? fromStore(key) ?? load()[key] ?? supervisor(key);
+}
+
+/** Inside a Home Assistant OS add-on (homeassistant_api: true) the Supervisor proxies Core at
+ *  http://supervisor/core with the add-on's own SUPERVISOR_TOKEN: the HAOS add-on (P5-05) works
+ *  with no HA token pasted. Anything configured explicitly still wins. */
+function supervisor(key: string): string | undefined {
+  const token = process.env.SUPERVISOR_TOKEN;
+  if (!token || process.env.VATRA_HAOS_ADDON !== "1") return undefined;
+  if (key === "HA_URL") return "http://supervisor/core";
+  if (key === "HA_TOKEN") return token;
+  return undefined;
 }
 
 /** Encrypted settings written from the UI. lib/integrations.ts registers itself here

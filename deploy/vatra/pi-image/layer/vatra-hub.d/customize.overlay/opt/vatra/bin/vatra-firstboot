@@ -1,0 +1,38 @@
+#!/bin/bash
+# vatra-firstboot (P5-01): runs once, early, before the network setup and the stack.
+#   hostname vatra-xxxx (unique per hub, shown on the boot partition and as the hotspot name),
+#   root partition grown to the whole card, fresh SSH host keys.
+set -euo pipefail
+log() { echo "[vatra-firstboot] $*"; }
+STAMP=/var/lib/vatra/firstboot.done
+[ -f "$STAMP" ] && exit 0
+install -d -m 0755 /var/lib/vatra
+
+if [ "$(cat /etc/hostname 2>/dev/null)" = vatra ]; then
+  name="vatra-$(head -c2 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+  echo "$name" > /etc/hostname
+  if grep -q '^127\.0\.1\.1' /etc/hosts; then
+    sed -i "s/^127\.0\.1\.1.*/127.0.1.1\t$name/" /etc/hosts
+  else
+    printf '127.0.1.1\t%s\n' "$name" >> /etc/hosts
+  fi
+  hostname "$name"
+  log "hostname $name"
+fi
+
+dev="$(readlink -f "$(findmnt -no SOURCE /)")"
+part="$(basename "$dev")"
+disk="$(lsblk -no PKNAME "$dev" | head -n1)"
+num="$(cat "/sys/class/block/$part/partition" 2>/dev/null || true)"
+if [ -n "$disk" ] && [ -n "$num" ]; then
+  before="$(lsblk -bno SIZE "$dev")"
+  growpart "/dev/$disk" "$num" && resize2fs "$dev" || log "root partition already fills the disk"
+  log "root $dev: $before -> $(lsblk -bno SIZE "$dev") bytes"
+fi
+
+if [ -d /etc/ssh ] && ! ls /etc/ssh/ssh_host_*_key >/dev/null 2>&1; then
+  ssh-keygen -A >/dev/null 2>&1 || true
+fi
+
+touch "$STAMP"
+log done

@@ -1,0 +1,14 @@
+[Unit]
+Description=Vatra container stack (baked-in images first, companions when online)
+After=docker.service vatra-firstboot.service
+Wants=docker.service
+RequiresMountsFor=/srv/vatra
+
+[Service]
+Type=simple
+ExecStart=/opt/vatra/bin/vatra-stack
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target

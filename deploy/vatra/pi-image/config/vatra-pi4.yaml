@@ -1,0 +1,16 @@
+# Vatra hub for Raspberry Pi 4 / 400 / CM4.
+#   rpi-image-gen build -S deploy/vatra/pi-image -c vatra-pi4.yaml -- IGconf_vatra_bakedir=<dir>
+device:
+  layer: rpi4
+  hostname: vatra
+  user1: vatra
+
+image:
+  layer: image-rpios
+  name: vatra-hub-pi4
+  boot_part_size: 200%
+  root_part_size: 200%
+  devid_scheme: partuuid
+
+layer:
+  base: vatra-hub

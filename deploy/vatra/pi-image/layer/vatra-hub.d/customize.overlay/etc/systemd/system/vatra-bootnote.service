@@ -1,0 +1,9 @@
+[Unit]
+Description=Write vatra-setup.txt (setup code, hotspot) on the boot partition
+After=boot-firmware.mount
+ConditionPathIsMountPoint=/boot/firmware
+After=vatra-firstboot.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/vatra/bin/vatra_netsetup.py --bootnote

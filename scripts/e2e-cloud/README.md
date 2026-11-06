@@ -22,6 +22,8 @@ node scripts/e2e-cloud/run.mjs --ledger                                # cost hi
 
 Flags: `--cmd`, `--fetch dir[,dir]`, `--machine` (default `n2d-standard-8`), `--zone` (default `europe-central2-a`), `--keep`, `--no-wait`, `--attach`, `--ledger`. Anything else is passed through to `playwright test`.
 
+Image builds use a plain Debian 13 VM instead (`vm-plain.sh`: no app build, `--cmd` runs as root, `$RUN` + `gsput <file> <name>` upload artefacts to the run folder): `--plain` (amd64, `n2-standard-8`, `europe-west4-a`), `--arm64` (native arm64 on `c4a-standard-8`, for the Pi images), `--nested` (plain amd64 with `/dev/kvm`, for Packer), `--max-run 1h..6h` (server-side deadline, default 2h). See `deploy/vatra/pi-image/README.md`.
+
 Results land in `.copilot-tmp/e2e-cloud/<id>/`: `playwright-report/`, `test-results/`, the fetched dirs, and `vm.log`. The process exit code is the VM command's exit code. The `--cmd` exit code is the exit code of the LAST command in the chain.
 
 On the VM, specs get `PW_BASE_URL` and `PW_SESSION_FILE` (the session id for the `vmui_session` cookie). Audit knobs: `UI_AUDIT_WIDTHS`, `UI_AUDIT_ROUTES` (a regex), `UI_AUDIT_LOCALES`, `UI_AUDIT_THEMES`, `UI_AUDIT_AXE_WIDTHS`, `UI_AUDIT_STRICT=1`, plus `LH_ROUTES` and `LH_PRESETS` for Lighthouse.

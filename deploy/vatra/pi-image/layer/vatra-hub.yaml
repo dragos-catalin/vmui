@@ -1,0 +1,45 @@
+# METABEGIN
+# X-Env-Layer-Name: vatra-hub
+# X-Env-Layer-Category: suite
+# X-Env-Layer-Desc: Vatra home hub appliance: Debian Trixie arm64, NetworkManager
+#  (wired + wifi + setup hotspot), Docker with the Vatra stack baked in, avahi,
+#  the signed updater, first-boot identity.
+# X-Env-Layer-Version: 1.0.0
+# X-Env-Layer-Requires: debian-trixie-arm64-multi,
+#  rpi-debian-trixie,
+#  rpi-misc-utils,
+#  rpi-essential-base,
+#  rpi-misc-skel,
+#  systemd-min,
+#  network-manager,
+#  openssh-server,
+#  systemd-timesyncd,
+#  wireless-regulatory,
+#  docker-debian-trixie
+#
+# X-Env-VarPrefix: vatra
+#
+# X-Env-Var-bakedir:
+# X-Env-Var-bakedir-Desc: Directory written by deploy/vatra/pi-image/build.sh with
+#  vatra.env (the pinned stack) and images/*.tar.zst (images loaded at first boot).
+# X-Env-Var-bakedir-Required: y
+# X-Env-Var-bakedir-Valid: string
+# X-Env-Var-bakedir-Set: y
+# METAEND
+---
+mmdebstrap:
+  packages:
+    - avahi-daemon
+    - libnss-mdns
+    - python3
+    - zstd
+    - curl
+    - ca-certificates
+    - cloud-guest-utils
+    - fdisk
+    - dnsmasq-base
+    - wpasupplicant
+    - iw
+    - rfkill
+    - iproute2
+    - nftables
