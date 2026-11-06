@@ -87,7 +87,8 @@ scp -q -o BatchMode=yes $credFile "${Pi}:$Dest/.private/credentials.env"
 $haTok = ((Get-Content $credFile | Where-Object { $_ -match '^VATRA_TOKEN_HOME_ASSISTANT=' }) -replace '^VATRA_TOKEN_HOME_ASSISTANT=', '').Trim('"')
 if ($haTok) {
   # HA's own token as a header secret (never in an entity state, the package file or a URL)
-  "Bearer $haTok" | ssh -o BatchMode=yes $Pi 'read -r U; F=/srv/homepi/ha/secrets.yaml; sudo touch $F; sudo sed -i "/^vmui_pc_wake_url:/d; /^vmui_ha_auth:/d" $F; echo "vmui_ha_auth: \"$U\"" | sudo tee -a $F >/dev/null'
+  # PowerShell pipes end lines with CRLF: strip the CR or HA sends "Bearer vmd_…\r"
+  "Bearer $haTok" | ssh -o BatchMode=yes $Pi 'read -r U; U=$(printf %s "$U" | tr -d "\r"); F=/srv/homepi/ha/secrets.yaml; sudo touch $F; sudo sed -i "/^vmui_pc_wake_url:/d; /^vmui_ha_auth:/d" $F; echo "vmui_ha_auth: \"$U\"" | sudo tee -a $F >/dev/null'
 }
 if ($SyncOnly) { return }
 
@@ -102,7 +103,7 @@ for u in vmui turzx desk-button hub-cast; do sudo install -m 644 pi/`$u.service 
 sudo systemctl daemon-reload; sudo systemctl enable vmui turzx desk-button hub-cast >/dev/null 2>&1
 sudo systemctl restart vmui; sleep 4; sudo systemctl restart turzx desk-button hub-cast
 node scripts/appliance-tokens.mjs register --env .private/credentials.env --db vmui.db && sudo systemctl restart turzx desk-button hub-cast
-HT=`$(grep '^HA_TOKEN=' .private/credentials.env | cut -d= -f2- | tr -d '"'); curl -s -o /dev/null -w 'ha rest_command reload %{http_code}\n' -X POST -H "Authorization: Bearer `$HT" http://127.0.0.1/api/services/rest_command/reload || true
+HT=`$(grep '^HA_TOKEN=' .private/credentials.env | cut -d= -f2- | tr -d '"\r'); curl -s -o /dev/null -w 'ha rest_command reload %{http_code}\n' -X POST -H "Authorization: Bearer `$HT" http://127.0.0.1/api/services/rest_command/reload 2>/dev/null || true
 for u in vmui turzx desk-button hub-cast; do printf '%s %s\n' `$u "`$(systemctl is-active `$u)"; done
 curl -s -o /dev/null -w 'http %{http_code}\n' http://127.0.0.1:3737/ || true
 "@ -replace "`r`n", "`n"
