@@ -95,6 +95,38 @@ export type HaForecast = {
 };
 
 /** Server-Sent Events stream of `state_changed` from HA's WebSocket API. */
+/**
+ * Run WebSocket-only commands (area/device/entity registries) in one short-lived
+ * connection and return each result in order. 10 s timeout for the whole batch.
+ */
+export async function haWsCommands<T extends unknown[]>(types: string[]): Promise<T> {
+  const { url, token } = cfg();
+  const ws = new WebSocket(url.replace(/^http/, "ws") + "/api/websocket");
+  return new Promise<T>((resolve, reject) => {
+    const out: unknown[] = new Array(types.length);
+    let pending = types.length;
+    const timer = setTimeout(() => { ws.close(); reject(new Error("HA websocket timeout")); }, 10_000);
+    const done = (err?: Error) => {
+      clearTimeout(timer);
+      if (ws.readyState === WebSocket.OPEN) ws.close();
+      if (err) reject(err);
+      else resolve(out as T);
+    };
+    ws.onerror = () => done(new Error("HA websocket error"));
+    ws.onmessage = (ev) => {
+      const msg = JSON.parse(String(ev.data)) as { type: string; id?: number; success?: boolean; result?: unknown; error?: { message?: string } };
+      if (msg.type === "auth_required") ws.send(JSON.stringify({ type: "auth", access_token: token }));
+      else if (msg.type === "auth_invalid") done(new Error("HA token rejected"));
+      else if (msg.type === "auth_ok") types.forEach((type, i) => ws.send(JSON.stringify({ id: i + 1, type })));
+      else if (msg.type === "result" && msg.id) {
+        if (!msg.success) return done(new Error(`HA ${types[msg.id - 1]}: ${msg.error?.message ?? "failed"}`));
+        out[msg.id - 1] = msg.result;
+        if (--pending === 0) done();
+      }
+    };
+  });
+}
+
 export async function* haStateChanges(signal: AbortSignal): AsyncGenerator<HaState> {
   const { url, token } = cfg();
   const wsUrl = url.replace(/^http/, "ws") + "/api/websocket";

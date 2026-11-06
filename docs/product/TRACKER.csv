@@ -8,8 +8,8 @@ P0-06,P0,Remove ?k= / ?d= query-string tokens (header only) with a deprecation w
 P0-07,P0,Romanian strings outside i18n moved to messages/* (pairing errors / intercom / button labels / turzx / nutrition prompt),partial,43c0f52 messages/api + apiError codes,intercom / button labels / turzx / nutrition prompt still open
 P0-08,P0,Owner-only features behind an owner profile flag (contact hook / copilot signals / egress proxy / host-exec / codai provisioning),partial,verified 2026-11-06: contact hook needs CONTACT_HOOK_SECRET / host-exec needs VMUI_HOST_SSH / egress proxy is a separate compose stack -> inert on a fresh install,"Settings UI should group them under ""Extensions (advanced)"" in P2; Copilot signals stay as a documented optional integration"
 P0-09,P0,Notifications filtered per member,done,6132a32 visibleToRole on list/stream/dismiss/FCM + audience.test.ts,
-P1-01,P1,DB tables rooms/devices/entity_map + HA area/device import,todo,,
-P1-02,P1,access.ts / display whitelist / floor plan read DB; catalog.ts becomes the owner seed,todo,,
+P1-01,P1,DB tables rooms/devices/entity_map + HA area/device import,partial,62d4905 home_rooms/home_devices + house.ts (house.test.ts); ha-import.ts planImport (ha-import.test.ts) + haWsCommands probed live (4 areas / 27 devices),real HA has only 4/27 devices with an area -> wizard must offer an 'unassigned' tray (P1-03)
+P1-02,P1,access.ts / display whitelist / floor plan read DB; catalog.ts becomes the owner seed,done,62d4905 access/display/actions/queries/mcp/esp/presence/lights + RoomsProvider for client components,
 P1-03,P1,Rooms/devices editor UI (RO+EN),todo,,
 P2-01,P2,/setup wizard with setup code claim,todo,,
 P2-02,P2,Integration secrets encrypted in SQLite with settings UI; credentials.env import once,todo,,
