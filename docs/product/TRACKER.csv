@@ -14,7 +14,7 @@ P1-03,P1,Rooms/devices editor UI (RO+EN),done,ac9e5c0 house-card.tsx (add/delete
 P2-01,P2,/setup wizard with setup code claim,partial,9a7237d claim with setup code at /sign-up + code printed at boot (instrumentation.ts),guided steps after claim (HA connect -> import -> family) = Settings sections today; a dedicated stepper lands with the Pi image (P5)
 P2-02,P2,Integration secrets encrypted in SQLite with settings UI; credentials.env import once,done,ea569f3 integrations.ts (AES-GCM; env > db > file) + integrations.test.ts; ac9e5c0 Integrations card (HA test connection),
 P2-03,P2,Bundled HA onboarding automation (onboarding API + long-lived token),todo,,
-P2-04,P2,Master key mandatory + generated at first boot; key id in ciphertext for rotation,partial,ea569f3 vatra-master.key generated 0600 next to the DB when no env key,key id / rotation format still open
+P2-04,P2,Master key mandatory + generated at first boot; key id in ciphertext for rotation,done,ea569f3 vatra-master.key 0600; v1.<keyId>. ciphertext + legacy read + retired keys (vatra-master.prev / VATRA_MASTER_KEY_PREV) + rekey.ts (every *_enc column + integrations.enc in one transaction) + Settings > Integrations > Security rotate (owner; audit) + rekey.test.ts (mutation-checked),
 P3-01,P3,defineRoute helper + /api/v1/app/* routes (state / control / lights / notify / intercom / nutrition / pc),todo,,
 P3-02,P3,Generated OpenAPI 3.1 + drift test + contract fixtures (packages/protocol),todo,,
 P3-03,P3,QR pairing (vatra://pair) + per-device scoped tokens replacing ESP_DISPLAY_TOKEN,partial,QR invite (one-time 10 min / bound to the member) api/devices/pair/invite + pair-qr.tsx + pair-invite.test.ts,per-device scoped tokens for ESP/Nest replacing ESP_DISPLAY_TOKEN still open

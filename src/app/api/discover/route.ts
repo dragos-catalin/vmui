@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const claimed = (await userCount().catch(() => 1)) > 0;
   return NextResponse.json(
-    { app: "vmui", product: "vatra", host: hostname(), version: process.env.npm_package_version ?? "", apiVersion: API_VERSION, minClient: MIN_CLIENT, claimed, pair: "/api/devices/pair" },
+    { app: "vmui", product: "vatra", host: hostname(), version: process.env.VATRA_VERSION ?? "", apiVersion: API_VERSION, minClient: MIN_CLIENT, claimed, pair: "/api/devices/pair" },
     { headers: { "Cache-Control": "no-store", "Access-Control-Allow-Origin": "*" } },
   );
 }

@@ -101,7 +101,7 @@ export function HomeDashboard({
   buttons: ButtonBindings;
   haScripts: string[];
   /** Owner-only settings data (house editor, integrations); null for other members. */
-  setup: { devices: CatalogDevice[]; haConnected: boolean; integrations: IntegrationsView; household: Household } | null;
+  setup: { devices: CatalogDevice[]; haConnected: boolean; integrations: IntegrationsView; household: Household; masterKeyPinned: boolean } | null;
 }) {
   const t = useTranslations("home");
   const reduced = useReducedMotion();
@@ -160,7 +160,7 @@ export function HomeDashboard({
                 <m.div key={section} initial={{ opacity: 0, y: shift }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -shift }} transition={{ duration: 0.22, ease: EASE_OUT }}>
                   {section === "family" && family && <FamilyCard {...family} me={access.userId} />}
                   {section === "house" && setup && <HouseCard devices={setup.devices} haConnected={setup.haConnected} defaultOpen />}
-                  {section === "integrations" && setup && <IntegrationsCard integrations={setup.integrations} household={setup.household} defaultOpen />}
+                  {section === "integrations" && setup && <IntegrationsCard integrations={setup.integrations} household={setup.household} masterKeyPinned={setup.masterKeyPinned} defaultOpen />}
                   {section === "turzx" && <TurzxCard initial={turzx} pomodoro={pomodoro} defaultOpen />}
                   {section === "nestHub" && <DisplayCard initial={display} espToken={espToken} defaultOpen />}
                   {section === "deskButton" && <ButtonBindingsCard initial={buttons} scripts={haScripts} defaultOpen />}

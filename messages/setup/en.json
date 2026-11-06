@@ -33,8 +33,18 @@
       "ha_token_rejected": "Home Assistant rejected the token",
       "ha_unreachable": "Home Assistant did not answer at that address",
       "timezone_invalid": "Unknown time zone",
-      "forbidden": "Only the home owner can change this"
-    }
+      "forbidden": "Only the home owner can change this",
+      "key_pinned": "The master key is pinned by the environment.",
+      "rotate_failed": "Rotation failed; nothing was changed."
+    },
+    "security": "Security",
+    "securityHint": "Stored secrets (tokens, SSH keys, 2FA) are encrypted with a master key kept next to the database. Back up both together.",
+    "keyPinned": "The master key is set by VMUI_MASTER_KEY in the environment; rotate it there.",
+    "rotate": "Rotate master key",
+    "rotateConfirm": "Generate a new key and re-encrypt every secret? Old backups need the old key.",
+    "rotateYes": "Rotate now",
+    "cancel": "Cancel",
+    "rotated": "New master key in place · {rows} secrets re-encrypted"
   },
   "house": {
     "title": "House",

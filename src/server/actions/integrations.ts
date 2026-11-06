@@ -6,6 +6,8 @@ import { HomeAccessError, requireOwner } from "@/lib/home/access";
 import { credential } from "@/lib/home/credentials";
 import { saveHousehold, householdSchema, type Household } from "@/lib/household";
 import { INTEGRATION_KEYS, integrationsView, writeIntegrations, type IntegrationKey } from "@/lib/integrations";
+import { masterKeyFromEnv } from "@/lib/env";
+import { rotateMasterKey } from "@/lib/rekey";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -14,6 +16,21 @@ type Result<T = undefined> = ({ ok: true } & (T extends undefined ? object : { d
 const patchSchema = z.partialRecord(z.enum(INTEGRATION_KEYS), z.string().max(8000));
 
 export type IntegrationsView = ReturnType<typeof integrationsView>;
+
+/** New master key + every stored secret re-encrypted in one transaction. Not available
+ *  when the key is pinned by VMUI_MASTER_KEY (the env owner rotates it there). */
+export async function rotateMasterKeyAction(): Promise<Result<{ rows: number }>> {
+  try {
+    await requireOwner();
+    if (masterKeyFromEnv()) return { ok: false, error: "key_pinned" };
+    const r = rotateMasterKey();
+    await db.insert(auditLog).values({ accountId: "home", action: "security.master_key.rotate", target: "vatra-master.key", status: "ok", message: `${r.rows} rows re-encrypted` });
+    return { ok: true, data: { rows: r.rows } };
+  } catch (e) {
+    await db.insert(auditLog).values({ accountId: "home", action: "security.master_key.rotate", target: "vatra-master.key", status: "error", message: e instanceof Error ? e.message : String(e) }).catch(() => undefined);
+    return { ok: false, error: e instanceof HomeAccessError ? "forbidden" : "rotate_failed" };
+  }
+}
 
 export async function getIntegrationsAction(): Promise<Result<IntegrationsView>> {
   try {

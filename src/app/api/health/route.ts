@@ -42,7 +42,7 @@ export async function GET() {
       checks,
       uptimeSec: Math.round(process.uptime()),
       memoryMB: Math.round(process.memoryUsage().rss / 1024 / 1024),
-      version: process.env.npm_package_version ?? "0.0.0",
+      version: process.env.VATRA_VERSION ?? "0.0.0",
       latencyMs: Date.now() - started,
       ts: Date.now(),
     }, null, 2),

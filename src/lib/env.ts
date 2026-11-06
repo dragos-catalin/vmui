@@ -1,6 +1,6 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { z } from "zod";
 
@@ -63,4 +63,36 @@ export function requireMasterKey(): Buffer {
     }
   }
   return Buffer.from(fileKey, "hex");
+}
+
+/** Keys retired by a rotation, still accepted for decryption until every row is re-encrypted:
+ *  `VATRA_MASTER_KEY_PREV` (comma-separated hex) or `vatra-master.prev` next to the key file. */
+export function previousMasterKeys(): Buffer[] {
+  const hex = (process.env.VATRA_MASTER_KEY_PREV ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  const f = `${masterKeyFile().replace(/\.key$/, "")}.prev`;
+  if (existsSync(f)) hex.push(...readFileSync(f, "utf8").split(/\s+/).filter(Boolean));
+  return hex.filter((h) => /^[0-9a-f]{64}$/i.test(h)).map((h) => Buffer.from(h, "hex"));
+}
+
+/** Rotation writes the key file, so it is only possible when the key is not pinned by env. */
+export const masterKeyFromEnv = () => Boolean(env.VMUI_MASTER_KEY);
+
+/** Replace the file key: the old one moves to `vatra-master.prev` (kept until the caller drops it). */
+export function installNewMasterKey(): { file: string; prevFile: string } {
+  if (masterKeyFromEnv()) throw new Error("master key is pinned by VMUI_MASTER_KEY");
+  const old = requireMasterKey().toString("hex");
+  const f = masterKeyFile();
+  const prevFile = `${f.replace(/\.key$/, "")}.prev`;
+  writeFileSync(prevFile, `${old}\n`, { mode: 0o600 });
+  const next = randomBytes(32).toString("hex");
+  writeFileSync(`${f}.tmp`, `${next}\n`, { mode: 0o600 });
+  renameSync(`${f}.tmp`, f);
+  try { chmodSync(f, 0o600); chmodSync(prevFile, 0o600); } catch { /* Windows */ }
+  fileKey = next;
+  return { file: f, prevFile };
+}
+
+export function dropPreviousMasterKeys(): void {
+  const prevFile = `${masterKeyFile().replace(/\.key$/, "")}.prev`;
+  if (existsSync(prevFile)) unlinkSync(prevFile);
 }

@@ -6,19 +6,19 @@ import { Input } from "@/components/ui/input";
 import { Field, SettingsPanel, Subsection } from "@/components/ui/settings-panel";
 import type { Household } from "@/lib/household-model";
 import type { IntegrationsView } from "@/server/actions/integrations";
-import { saveHouseholdAction, saveIntegrationsAction, testHomeAssistantAction } from "@/server/actions/integrations";
-import { CheckCircle2, Home, PlugZap, Power } from "lucide-react";
+import { rotateMasterKeyAction, saveHouseholdAction, saveIntegrationsAction, testHomeAssistantAction } from "@/server/actions/integrations";
+import { CheckCircle2, Home, KeyRound, PlugZap, Power } from "lucide-react";
 import { useTranslations } from "next-intl";
 import * as React from "react";
 import { toast } from "sonner";
 import { useHomeAction } from "./use-home-action";
 
-type Props = { integrations: IntegrationsView; household: Household; defaultOpen?: boolean };
+type Props = { integrations: IntegrationsView; household: Household; masterKeyPinned?: boolean; defaultOpen?: boolean };
 
 const ZONES = typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : ["UTC", "Europe/Bucharest", "Europe/London", "Europe/Berlin", "America/New_York"];
 
 /** Owner-only: Home Assistant connection, household facts, Wake-on-LAN. Secrets are never echoed back. */
-export function IntegrationsCard({ integrations, household, defaultOpen = false }: Props) {
+export function IntegrationsCard({ integrations, household, masterKeyPinned = false, defaultOpen = false }: Props) {
   const t = useTranslations("setup.integrations");
   const errorText = (e: string) => (t.has(`errors.${e}` as never) ? t(`errors.${e}` as never) : t("failed"));
   const [ha, setHa] = React.useState({ url: integrations.HA_URL.value ?? "", token: "" });
@@ -53,6 +53,15 @@ export function IntegrationsCard({ integrations, household, defaultOpen = false 
     const r = await saveInt.run({ PC_WOL_MAC: wol.mac || "-", PC_WOL_IP: wol.ip || "-" });
     setBusy(null);
     if (!r.ok) toast.error(errorText(r.error));
+  };
+  const [confirmRotate, setConfirmRotate] = React.useState(false);
+  const rotate = async () => {
+    setBusy("rotate");
+    const r = await rotateMasterKeyAction();
+    setBusy(null);
+    setConfirmRotate(false);
+    if (r.ok) toast.success(t("rotated", { rows: r.data.rows }));
+    else toast.error(errorText(r.error));
   };
 
   return (
@@ -121,6 +130,22 @@ export function IntegrationsCard({ integrations, household, defaultOpen = false 
             </Field>
           </div>
           <div className="mt-3"><Button variant="outline" onClick={saveWol} loading={busy === "wol"}>{t("save")}</Button></div>
+        </Subsection>
+
+        <Subsection title={<span className="inline-flex items-center gap-1.5"><KeyRound className="size-3.5" aria-hidden />{t("security")}</span>} hint={masterKeyPinned ? t("keyPinned") : t("securityHint")} collapsible defaultOpen={false}>
+          {!masterKeyPinned && (
+            <div className="flex flex-wrap items-center gap-2">
+              {confirmRotate ? (
+                <>
+                  <span role="status" className="text-sm text-warning">{t("rotateConfirm")}</span>
+                  <Button variant="danger" onClick={rotate} loading={busy === "rotate"}>{t("rotateYes")}</Button>
+                  <Button variant="ghost" onClick={() => setConfirmRotate(false)} disabled={busy === "rotate"}>{t("cancel")}</Button>
+                </>
+              ) : (
+                <Button variant="outline" onClick={() => setConfirmRotate(true)}>{t("rotate")}</Button>
+              )}
+            </div>
+          )}
         </Subsection>
       </div>
     </SettingsPanel>

@@ -33,8 +33,18 @@
       "ha_token_rejected": "Home Assistant a refuzat tokenul",
       "ha_unreachable": "Home Assistant nu a răspuns la acea adresă",
       "timezone_invalid": "Fus orar necunoscut",
-      "forbidden": "Doar proprietarul casei poate schimba asta"
-    }
+      "forbidden": "Doar proprietarul casei poate schimba asta",
+      "key_pinned": "Cheia principală e fixată din mediu.",
+      "rotate_failed": "Schimbarea a eșuat; nu s-a modificat nimic."
+    },
+    "security": "Securitate",
+    "securityHint": "Secretele salvate (tokenuri, chei SSH, 2FA) sunt criptate cu o cheie principală ținută lângă baza de date. Fă backup la amândouă împreună.",
+    "keyPinned": "Cheia principală e setată prin VMUI_MASTER_KEY în mediu; schimb-o acolo.",
+    "rotate": "Schimbă cheia principală",
+    "rotateConfirm": "Generez o cheie nouă și recriptez toate secretele? Backupurile vechi au nevoie de cheia veche.",
+    "rotateYes": "Schimbă acum",
+    "cancel": "Anulează",
+    "rotated": "Cheie nouă activă · {rows} secrete recriptate"
   },
   "house": {
     "title": "Casa",

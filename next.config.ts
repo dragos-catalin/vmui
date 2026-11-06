@@ -38,6 +38,8 @@ const DISPLAY_HEADERS = SECURITY_HEADERS.map((h) =>
 );
 
 const config: NextConfig = {
+  // systemd runs `next start` directly, so npm_package_version is unset at runtime
+  env: { VATRA_VERSION: process.env.npm_package_version ?? "" },
   reactStrictMode: true,
   reactCompiler: true,
   // Native bindings must never be bundled. The cloud SDKs are pure server
