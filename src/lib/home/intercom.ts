@@ -6,6 +6,7 @@ import { pushActivity } from "@/lib/esp/activity";
 import { listNodes, showMessage } from "@/lib/esp/gallery";
 import { credential } from "@/lib/home/credentials";
 import { ha } from "@/lib/home/ha-client";
+import { deviceText } from "@/lib/home/device-text";
 
 /** Electra IA02 intercom, wired to the office ESP32 (ring on GPIO34, two
  *  relays on GPIO16/17). One in-memory state: the current call and the
@@ -65,7 +66,7 @@ export async function armAutoOpen(minutes: number, by = "web"): Promise<Intercom
   st.autoOpenUntil = minutes > 0 ? Date.now() + minutes * 60_000 : null;
   note(minutes > 0 ? "armed" : "disarmed", by);
   await db.insert(auditLog).values({ accountId: "home", action: "intercom.autoopen", target: by, status: "ok", message: minutes > 0 ? `armed ${minutes} min` : "disarmed" });
-  pushActivity({ at: Date.now(), kind: "other", text: minutes > 0 ? `interfon: deschidere automată ${minutes} min` : "interfon: deschidere automată oprită" });
+  pushActivity({ at: Date.now(), kind: "other", text: minutes > 0 ? deviceText().autoOpenOn(minutes) : deviceText().autoOpenOff });
   publishToHa().catch(() => undefined);
   return st;
 }
@@ -108,8 +109,8 @@ export async function publishToHa(): Promise<void> {
   if (!credential("HA_TOKEN")) return;
   const s = intercomState();
   await Promise.all([
-    ha.setState("binary_sensor.vmui_intercom_ringing", s.ringingSince ? "on" : "off", { friendly_name: "Interfon sună", device_class: "sound", since: s.ringingSince, last_ring: s.lastRingAt }).catch(() => undefined),
-    ha.setState("binary_sensor.vmui_intercom_auto_open", isAutoOpenArmed() ? "on" : "off", { friendly_name: "Interfon deschidere automată", icon: "mdi:door-open", until: s.autoOpenUntil }).catch(() => undefined),
+    ha.setState("binary_sensor.vmui_intercom_ringing", s.ringingSince ? "on" : "off", { friendly_name: deviceText().haRinging, device_class: "sound", since: s.ringingSince, last_ring: s.lastRingAt }).catch(() => undefined),
+    ha.setState("binary_sensor.vmui_intercom_auto_open", isAutoOpenArmed() ? "on" : "off", { friendly_name: deviceText().haAutoOpen, icon: "mdi:door-open", until: s.autoOpenUntil }).catch(() => undefined),
     ha.setState("sensor.vmui_intercom_last_open", s.lastOpenAt ? new Date(s.lastOpenAt).toISOString() : "unknown", { friendly_name: "Interfon ultima deschidere", device_class: "timestamp", icon: "mdi:door" }).catch(() => undefined),
   ]);
 }
@@ -123,7 +124,7 @@ export async function onEspEvent(event: IntercomEvent, node: string): Promise<{ 
     st.ringingSince = now;
     st.lastRingAt = now;
     note("ring", node);
-    pushActivity({ at: now, kind: "other", text: armed ? "interfon: sună, deschid automat" : "interfon: sună" });
+    pushActivity({ at: now, kind: "other", text: armed ? deviceText().ringingAutoOpen : deviceText().ringing });
     for (const n of listNodes()) showMessage(n.name, "INTERFON", armed ? "Suna jos. Deschid automat." : "Suna jos! Raspunde de pe telefon.", 30);
     await db.insert(auditLog).values({ accountId: "home", action: "intercom.ring", target: node, status: "ok", message: armed ? "auto-open armed" : "waiting" });
     phoneRing().catch((e) => console.error("[vmui] intercom phone push failed", e));
@@ -134,7 +135,7 @@ export async function onEspEvent(event: IntercomEvent, node: string): Promise<{ 
     st.lastOpenAt = now;
     const by = isAutoOpenArmed() && st.ringingSince ? "auto" : "telefon";
     note("opened", by);
-    pushActivity({ at: now, kind: "other", text: `interfon: ușa deschisă (${by})` });
+    pushActivity({ at: now, kind: "other", text: deviceText().doorOpened(by) });
     for (const n of listNodes()) showMessage(n.name, "INTERFON", "Usa deschisa", 6);
     await db.insert(auditLog).values({ accountId: "home", action: "intercom.open", target: node, status: "ok", message: by });
     phoneOpened(by).catch(() => undefined);

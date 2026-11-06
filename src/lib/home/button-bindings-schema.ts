@@ -4,7 +4,6 @@ import { z } from "zod";
 
 export const GESTURES = ["1", "2", "3", "4", "5", "long"] as const;
 export type Gesture = (typeof GESTURES)[number];
-export const GESTURE_LABEL: Record<Gesture, string> = { "1": "1 click", "2": "2 clickuri", "3": "3 clickuri", "4": "4 clickuri", "5": "5 clickuri", long: "apăsare lungă" };
 
 export const buttonActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("none") }),
@@ -39,18 +38,19 @@ export const BUTTON_DEFAULTS: ButtonBindings = {
   },
 };
 
+/** Language-neutral one-liner for the audit log (UI labels come from messages/homeCards). */
 export function describeAction(a: ButtonAction): string {
   switch (a.type) {
-    case "none": return "nimic";
-    case "water_add": return `+${a.ml} ml apă`;
-    case "water_undo": return "anulează ultima apă";
-    case "ha_script": return `script HA: ${a.script}`;
+    case "none": return "none";
+    case "water_add": return `water +${a.ml} ml`;
+    case "water_undo": return "water undo";
+    case "ha_script": return `HA script ${a.script}`;
     case "ha_service": return `${a.service}${a.entityId ? ` → ${a.entityId}` : ""}`;
-    case "intercom_open": return "deschide interfonul";
-    case "intercom_arm": return `auto-deschidere ${a.minutes} min`;
-    case "turzx_next": return "Turzx: view următor";
-    case "turzx_pause": return "Turzx: pauză/continuă";
-    case "ambilight_movie": return "Ambilight: movie mode";
-    case "pc_wake": return "PC: Wake-on-LAN";
+    case "intercom_open": return "intercom open";
+    case "intercom_arm": return `intercom auto-open ${a.minutes} min`;
+    case "turzx_next": return "turzx next view";
+    case "turzx_pause": return "turzx pause/resume";
+    case "ambilight_movie": return "ambilight movie mode";
+    case "pc_wake": return "PC wake-on-lan";
   }
 }

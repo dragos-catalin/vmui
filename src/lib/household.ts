@@ -16,6 +16,8 @@ import { z } from "zod";
 export const householdSchema = z.object({
   /** IANA zone used for day buckets (water, meals), clocks on screens and i18n. */
   timeZone: z.string().min(1).max(64).default("UTC"),
+  /** Language of server-rendered texts that have no viewer: ESP/Turzx screens, HA friendly names, activity feed. */
+  locale: z.enum(["en", "ro"]).default("en"),
   /** Owner's HA person entity, e.g. `person.ana` (presence, "away" logic). Empty = none. */
   ownerPerson: z.string().max(120).default(""),
   /** HA companion device slug of the owner's phone, e.g. `pixel_9` (sensors `sensor.<slug>_*`). */
@@ -37,6 +39,7 @@ function seed(): Partial<Household> {
   const phoneSvc = credential("PHONE_NOTIFY_SERVICE");
   return {
     timeZone: credential("VATRA_TIMEZONE") ?? process.env.TZ ?? undefined,
+    locale: (credential("VATRA_LOCALE") as Household["locale"] | undefined) ?? undefined,
     ownerPerson: credential("VATRA_OWNER_PERSON") ?? undefined,
     ownerPhone: credential("VATRA_OWNER_PHONE") ?? phoneSvc?.replace(/^mobile_app_/, "") ?? undefined,
     ownerNotifyService: phoneSvc ?? undefined,
