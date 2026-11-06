@@ -1,13 +1,13 @@
 id,phase,item,status,evidence,notes
-P0-01,P0,/api/events (audit SSE) requires a session or api key and filters by role,todo,,public in proxy.ts and no auth check today
-P0-02,P0,Device tokens resolve to a family member; /api/display/* /api/lights /api/desktop/* enforce room grants,todo,,any approved vmd_ token = owner today
-P0-03,P0,Session cookie secure when served over HTTPS (x-forwarded-proto / VATRA_PUBLIC_URL),todo,,secure:false hardcoded
+P0-01,P0,/api/events (audit SSE) requires a session or api key and filters by role,done,6127cd4 requireRole(viewer) + dropped from proxy PUBLIC_PREFIXES,
+P0-02,P0,Device tokens resolve to a family member; /api/display/* /api/lights /api/desktop/* enforce room grants,done,6127cd4 tokenActor/canControlEntity/ownerTokenAuthorized; token-actor.test.ts (old behaviour = 3/6 red),lights per-room mapping waits for P1
+P0-03,P0,Session cookie secure when served over HTTPS (x-forwarded-proto / VATRA_PUBLIC_URL),done,6127cd4 requestIsHttps(),
 P0-04,P0,Hub refuses home/API traffic until claimed (setup code) instead of SOLO_OWNER,todo,,needs P2 /setup
-P0-05,P0,Owner literals (person.dragos / *_s25_ultra / mobile_app_dragos_* / Europe/Bucharest / 192.168.100.*) become config or per-member settings,todo,,blocker inventory 2026-11-06 §1
-P0-06,P0,Remove ?k= / ?d= query-string tokens (header only) with a deprecation window,todo,,ESP firmware + desktop use ?k=
-P0-07,P0,Romanian strings outside i18n moved to messages/* (pairing errors / intercom / button labels / turzx / nutrition prompt),todo,,
-P0-08,P0,Owner-only features behind an owner profile flag (contact hook / copilot signals / egress proxy / host-exec / codai provisioning),todo,,
-P0-09,P0,Notifications filtered per member,todo,,listCards returns every household card
+P0-05,P0,Owner literals (person.dragos / *_s25_ultra / mobile_app_dragos_* / Europe/Bucharest / 192.168.100.*) become config or per-member settings,partial,f8f6087 src/lib/household.ts + household.test.ts,house entities (AC/door/temp) move with P1; desktop/pi/scripts literals still open
+P0-06,P0,Remove ?k= / ?d= query-string tokens (header only) with a deprecation window,blocked,"clients using ?k= today: esp32-display.ps1 (5 firmware URLs), turzx.py (3), hub-cast.py (2), desktop notify.rs/desktop.rs/mobile.rs, Update.tsx",server already accepts x-esp-token / Bearer; remove the query form once P3 per-device tokens + P6 firmware ship. The Nest Hub kiosk page (/display) cannot send headers -> keep a one-time ?code= exchanged for a cookie there
+P0-07,P0,Romanian strings outside i18n moved to messages/* (pairing errors / intercom / button labels / turzx / nutrition prompt),partial,43c0f52 messages/api + apiError codes,intercom / button labels / turzx / nutrition prompt still open
+P0-08,P0,Owner-only features behind an owner profile flag (contact hook / copilot signals / egress proxy / host-exec / codai provisioning),partial,verified 2026-11-06: contact hook needs CONTACT_HOOK_SECRET / host-exec needs VMUI_HOST_SSH / egress proxy is a separate compose stack -> inert on a fresh install,"Settings UI should group them under ""Extensions (advanced)"" in P2; Copilot signals stay as a documented optional integration"
+P0-09,P0,Notifications filtered per member,done,6132a32 visibleToRole on list/stream/dismiss/FCM + audience.test.ts,
 P1-01,P1,DB tables rooms/devices/entity_map + HA area/device import,todo,,
 P1-02,P1,access.ts / display whitelist / floor plan read DB; catalog.ts becomes the owner seed,todo,,
 P1-03,P1,Rooms/devices editor UI (RO+EN),todo,,

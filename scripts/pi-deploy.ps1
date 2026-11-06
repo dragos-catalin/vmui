@@ -46,7 +46,17 @@ tar -cf - -T $list | ssh -o BatchMode=yes $Pi "tar -xf - -C $Dest"
 ssh -o BatchMode=yes $Pi "rm -rf $Dest/.next.new; mkdir -p $Dest/.next.new"
 # .next/node_modules holds junctions into the Windows pnpm store (serverExternalPackages);
 # tar would follow them and ship half a dependency tree. Recreate them on the Pi.
-tar -cf - --exclude=.next/cache --exclude=.next/node_modules .next | ssh -o BatchMode=yes $Pi "tar -xf - -C $Dest/.next.new"
+# Archive to a file + scp, not `tar | ssh`: that PowerShell pipe hung mid-stream on
+# 2026-11-06 (27 of 138 MB sent, both ends idle, link fine at 10 MB/s).
+$nextTar = Join-Path $root '.copilot-tmp\pi\next.tar'
+tar -cf $nextTar --exclude=.next/cache --exclude=.next/node_modules .next
+if ($LASTEXITCODE -ne 0) { throw "tar .next failed ($LASTEXITCODE)" }
+scp -q -o BatchMode=yes $nextTar "${Pi}:$Dest/.next.new.tar"
+if ($LASTEXITCODE -ne 0) { throw "scp .next failed ($LASTEXITCODE)" }
+$want = (Get-Item $nextTar).Length
+ssh -o BatchMode=yes $Pi "test `$(stat -c %s $Dest/.next.new.tar) -eq $want && tar -xf $Dest/.next.new.tar -C $Dest/.next.new && rm -f $Dest/.next.new.tar"
+if ($LASTEXITCODE -ne 0) { throw ".next extract on the Pi failed ($LASTEXITCODE)" }
+Remove-Item $nextTar -ErrorAction SilentlyContinue
 $links = Get-ChildItem .next\node_modules -Recurse -Force | Where-Object { $_.LinkType -eq 'Junction' } | ForEach-Object {
   $rel = $_.FullName.Substring((Join-Path $root '.next\node_modules').Length + 1) -replace '\\', '/'
   $pkg = ($rel -replace '-[0-9a-f]{16}$', '')
