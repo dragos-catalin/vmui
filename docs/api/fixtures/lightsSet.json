@@ -1,0 +1,19 @@
+{
+  "request": {
+    "op": "set",
+    "target": "room:bedroom",
+    "state": {
+      "on": true,
+      "rgb": [
+        255,
+        140,
+        60
+      ],
+      "brightnessPct": 50
+    }
+  },
+  "response": {
+    "ok": true,
+    "applied": 2
+  }
+}

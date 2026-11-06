@@ -1,0 +1,36 @@
+{
+  "response": {
+    "day": "2026-11-06",
+    "targets": {
+      "calories": 2100,
+      "protein": 140,
+      "carbs": 220,
+      "fats": 70
+    },
+    "today": {
+      "calories": 820,
+      "protein": 55,
+      "carbs": 90,
+      "fats": 28
+    },
+    "remaining": {
+      "calories": 1280,
+      "protein": 85,
+      "carbs": 130,
+      "fats": 42
+    },
+    "meals": [
+      {
+        "id": 12,
+        "name": "Omletă",
+        "mealType": "breakfast",
+        "calories": 420,
+        "protein": 28,
+        "carbs": 6,
+        "fats": 30,
+        "at": 1793940000000
+      }
+    ],
+    "streak": 5
+  }
+}

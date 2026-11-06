@@ -8,6 +8,8 @@
     "no_room_access": "You don't have access to this room",
     "unauthorized": "Sign in required",
     "sent_to_pc": "Sent to the PC",
-    "invite_invalid": "This pairing code is invalid or expired. Show a new QR on the hub."
+    "invite_invalid": "This pairing code is invalid or expired. Show a new QR on the hub.",
+    "upstream_failed": "Home Assistant did not carry out the command",
+    "not_found": "Not found"
   }
 }

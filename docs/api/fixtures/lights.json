@@ -1,0 +1,28 @@
+{
+  "response": {
+    "devices": [
+      {
+        "id": "melk_oa10",
+        "name": "MELK-OA10",
+        "room": "bedroom",
+        "health": "ok",
+        "segments": [
+          {
+            "id": "melk_oa10-1",
+            "name": "Strip"
+          }
+        ],
+        "capabilities": {
+          "onoff": true,
+          "rgb": true
+        }
+      }
+    ],
+    "scenes": [
+      {
+        "id": "evening",
+        "name": "Evening"
+      }
+    ]
+  }
+}

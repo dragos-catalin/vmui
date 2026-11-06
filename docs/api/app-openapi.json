@@ -1,0 +1,1820 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Vatra app API",
+    "version": "1.0.0",
+    "description": "Contract between the Vatra hub and its native apps. apiVersion 1, minClient 1 (GET /api/discover). Errors are { ok:false, code, error } with `error` in the device language (Accept-Language or x-vatra-locale)."
+  },
+  "servers": [
+    {
+      "url": "http://vatra.local:3737"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "deviceAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "vmd_*",
+        "description": "Paired device token (POST /api/devices/pair). Header only, never in the URL."
+      }
+    },
+    "schemas": {
+      "Error": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "const": false
+          },
+          "code": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ok",
+          "code",
+          "error"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "paths": {
+    "/api/v1/app/me": {
+      "get": {
+        "operationId": "me",
+        "summary": "Who this device acts as, and what it may do",
+        "description": "Any household member's paired device; room grants apply.",
+        "tags": [
+          "app"
+        ],
+        "security": [
+          {
+            "deviceAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "apiVersion": {
+                      "type": "number"
+                    },
+                    "minClient": {
+                      "type": "number"
+                    },
+                    "member": {
+                      "type": "object",
+                      "properties": {
+                        "displayName": {
+                          "type": "string"
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "owner",
+                            "adult",
+                            "child",
+                            "guest"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "displayName",
+                        "role"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "deviceId": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "rooms": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "string",
+                        "enum": [
+                          "view",
+                          "control"
+                        ]
+                      }
+                    },
+                    "can": {
+                      "type": "object",
+                      "properties": {
+                        "openDoor": {
+                          "type": "boolean"
+                        },
+                        "manageHome": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "openDoor",
+                        "manageHome"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "apiVersion",
+                    "minClient",
+                    "member",
+                    "deviceId",
+                    "rooms",
+                    "can"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "unauthorized: no `Authorization: Bearer vmd_…` header",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "not_bound / forbidden / no_room_access",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/app/state": {
+      "get": {
+        "operationId": "state",
+        "summary": "Rooms, devices and live Home Assistant states the member may see",
+        "description": "Rooms and devices outside the member's grants are left out entirely. haOnline=false means states is empty and the app should show the last known values.\n\nAny household member's paired device; room grants apply.",
+        "tags": [
+          "app"
+        ],
+        "security": [
+          {
+            "deviceAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "rooms": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "level": {
+                            "type": "string",
+                            "enum": [
+                              "view",
+                              "control"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "level"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "devices": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string"
+                          },
+                          "room": {
+                            "type": "string"
+                          },
+                          "entity": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "entities": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "kind",
+                          "room",
+                          "entity",
+                          "entities"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "states": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "state": {
+                            "type": "string"
+                          },
+                          "attributes": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {}
+                          }
+                        },
+                        "required": [
+                          "state",
+                          "attributes"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "haOnline": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "rooms",
+                    "devices",
+                    "states",
+                    "haOnline"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "unauthorized: no `Authorization: Bearer vmd_…` header",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "not_bound / forbidden / no_room_access",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/app/control": {
+      "post": {
+        "operationId": "control",
+        "summary": "Control one device (toggle, light, climate, select, media) or run a house scene",
+        "description": "Entity commands need control of that entity's room (403 no_room_access otherwise); ambilight and scripts need control of at least one room.\n\nAny household member's paired device; room grants apply.",
+        "tags": [
+          "app"
+        ],
+        "security": [
+          {
+            "deviceAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "const": "toggle"
+                      },
+                      "entity": {
+                        "type": "string",
+                        "pattern": "^[a-z_]+\\.[a-z0-9_]+$"
+                      },
+                      "on": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "entity",
+                      "on"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "const": "light"
+                      },
+                      "entity": {
+                        "type": "string",
+                        "pattern": "^[a-z_]+\\.[a-z0-9_]+$"
+                      },
+                      "rgb": {
+                        "type": "array",
+                        "prefixItems": [
+                          {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 255
+                          },
+                          {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 255
+                          },
+                          {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 255
+                          }
+                        ],
+                        "items": false,
+                        "minItems": 3,
+                        "maxItems": 3
+                      },
+                      "brightnessPct": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 100
+                      },
+                      "kelvin": {
+                        "type": "integer",
+                        "minimum": 1500,
+                        "maximum": 9000
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "entity"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "const": "climate"
+                      },
+                      "entity": {
+                        "type": "string",
+                        "pattern": "^[a-z_]+\\.[a-z0-9_]+$"
+                      },
+                      "hvacMode": {
+                        "type": "string",
+                        "enum": [
+                          "off",
+                          "cool",
+                          "heat",
+                          "dry",
+                          "fan_only",
+                          "auto",
+                          "heat_cool"
+                        ]
+                      },
+                      "temperature": {
+                        "type": "number",
+                        "minimum": 16,
+                        "maximum": 30
+                      },
+                      "fanMode": {
+                        "type": "string",
+                        "maxLength": 32
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "entity"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "const": "select"
+                      },
+                      "entity": {
+                        "type": "string",
+                        "pattern": "^[a-z_]+\\.[a-z0-9_]+$"
+                      },
+                      "option": {
+                        "type": "string",
+                        "maxLength": 64
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "entity",
+                      "option"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "const": "media"
+                      },
+                      "entity": {
+                        "type": "string",
+                        "pattern": "^[a-z_]+\\.[a-z0-9_]+$"
+                      },
+                      "command": {
+                        "type": "string",
+                        "enum": [
+                          "play_pause",
+                          "next_track",
+                          "previous_track",
+                          "volume_up",
+                          "volume_down",
+                          "volume_mute",
+                          "turn_on",
+                          "turn_off"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "entity",
+                      "command"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "const": "ambilight"
+                      },
+                      "mode": {
+                        "type": "string",
+                        "enum": [
+                          "movie",
+                          "music",
+                          "off"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "mode"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "const": "script"
+                      },
+                      "name": {
+                        "type": "string",
+                        "enum": [
+                          "pc_wake",
+                          "movie_mode_on",
+                          "movie_mode_off",
+                          "music_mode"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "name"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request: the body does not match the schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "unauthorized: no `Authorization: Bearer vmd_…` header",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "not_bound / forbidden / no_room_access",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "upstream_failed: Home Assistant did not carry out the command",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/app/lights": {
+      "get": {
+        "operationId": "lights",
+        "summary": "Light registry: devices, groups and scenes in the member's rooms",
+        "description": "Any household member's paired device; room grants apply.",
+        "tags": [
+          "app"
+        ],
+        "security": [
+          {
+            "deviceAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "devices": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "room": {
+                            "type": "string"
+                          },
+                          "health": {
+                            "type": "string"
+                          },
+                          "segments": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "capabilities": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {}
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "room",
+                          "health",
+                          "segments",
+                          "capabilities"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "scenes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "devices",
+                    "scenes"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "unauthorized: no `Authorization: Bearer vmd_…` header",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "not_bound / forbidden / no_room_access",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "lightsSet",
+        "summary": "Set lights, apply a scene or undo the last change",
+        "description": "target: dev:<id> | seg:<id> | group:<id> | room:<room> | all. Every light the target expands to must be in a room the member controls.\n\nAny household member's paired device; room grants apply.",
+        "tags": [
+          "app"
+        ],
+        "security": [
+          {
+            "deviceAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "op": {
+                        "type": "string",
+                        "const": "set"
+                      },
+                      "target": {
+                        "type": "string",
+                        "maxLength": 160
+                      },
+                      "state": {
+                        "type": "object",
+                        "properties": {
+                          "on": {
+                            "type": "boolean"
+                          },
+                          "rgb": {
+                            "type": "array",
+                            "prefixItems": [
+                              {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 255
+                              },
+                              {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 255
+                              },
+                              {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 255
+                              }
+                            ],
+                            "items": false,
+                            "minItems": 3,
+                            "maxItems": 3
+                          },
+                          "brightnessPct": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 100
+                          },
+                          "kelvin": {
+                            "type": "integer",
+                            "minimum": 1000,
+                            "maximum": 10000
+                          },
+                          "effect": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 80
+                          }
+                        },
+                        "required": [
+                          "on"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "op",
+                      "target",
+                      "state"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "op": {
+                        "type": "string",
+                        "const": "scene"
+                      },
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 120
+                      }
+                    },
+                    "required": [
+                      "op",
+                      "id"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "op": {
+                        "type": "string",
+                        "const": "undo"
+                      }
+                    },
+                    "required": [
+                      "op"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "applied": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "applied"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request: the body does not match the schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "unauthorized: no `Authorization: Bearer vmd_…` header",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "not_bound / forbidden / no_room_access",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "upstream_failed: Home Assistant did not carry out the command",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/app/notify": {
+      "get": {
+        "operationId": "notifyList",
+        "summary": "Notification cards this member may see, rendered in the device language",
+        "description": "Any household member's paired device; room grants apply.",
+        "tags": [
+          "app"
+        ],
+        "security": [
+          {
+            "deviceAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "all",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "0",
+                "1"
+              ]
+            }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "cards": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "body": {
+                            "type": "string"
+                          },
+                          "subtitle": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "priority": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "actions": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "style": {
+                                  "type": "string"
+                                },
+                                "url": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "label",
+                                "style"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "createdAt": {},
+                          "readAt": {}
+                        },
+                        "required": [
+                          "id",
+                          "kind",
+                          "title",
+                          "body",
+                          "subtitle",
+                          "priority",
+                          "actions",
+                          "createdAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "now": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "cards",
+                    "now"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "unauthorized: no `Authorization: Bearer vmd_…` header",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "not_bound / forbidden / no_room_access",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "notifyAct",
+        "summary": "Mark cards read, acknowledge delivery, or dismiss one",
+        "description": "Any household member's paired device; room grants apply.",
+        "tags": [
+          "app"
+        ],
+        "security": [
+          {
+            "deviceAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "op": {
+                        "type": "string",
+                        "const": "read"
+                      },
+                      "ids": {
+                        "maxItems": 200,
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "required": [
+                      "op",
+                      "ids"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "op": {
+                        "type": "string",
+                        "const": "ack"
+                      },
+                      "ids": {
+                        "maxItems": 50,
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "required": [
+                      "op",
+                      "ids"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "op": {
+                        "type": "string",
+                        "const": "dismiss"
+                      },
+                      "id": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "op",
+                      "id"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request: the body does not match the schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "unauthorized: no `Authorization: Bearer vmd_…` header",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "not_bound / forbidden / no_room_access",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "upstream_failed: Home Assistant did not carry out the command",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/app/intercom": {
+      "get": {
+        "operationId": "intercom",
+        "summary": "Door intercom state",
+        "description": "Any household member's paired device; room grants apply.",
+        "tags": [
+          "app"
+        ],
+        "security": [
+          {
+            "deviceAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "ringing": {
+                      "type": "boolean"
+                    },
+                    "ringingSince": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "lastRingAt": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "lastOpenAt": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "autoOpenUntil": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "armed": {
+                      "type": "boolean"
+                    },
+                    "canOpen": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "ringing",
+                    "ringingSince",
+                    "lastRingAt",
+                    "lastOpenAt",
+                    "autoOpenUntil",
+                    "armed",
+                    "canOpen"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "unauthorized: no `Authorization: Bearer vmd_…` header",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "not_bound / forbidden / no_room_access",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "intercomAct",
+        "summary": "Open the door, ignore a call, or arm / disarm auto-open",
+        "description": "Any member may ignore a call; open, arm and disarm need an owner or adult (403 forbidden).\n\nAny household member's paired device; room grants apply.",
+        "tags": [
+          "app"
+        ],
+        "security": [
+          {
+            "deviceAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "open",
+                      "ignore",
+                      "arm",
+                      "disarm"
+                    ]
+                  },
+                  "minutes": {
+                    "default": 45,
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 240
+                  }
+                },
+                "required": [
+                  "action"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "ringing": {
+                      "type": "boolean"
+                    },
+                    "ringingSince": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "lastRingAt": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "lastOpenAt": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "autoOpenUntil": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "armed": {
+                      "type": "boolean"
+                    },
+                    "canOpen": {
+                      "type": "boolean"
+                    },
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "ringing",
+                    "ringingSince",
+                    "lastRingAt",
+                    "lastOpenAt",
+                    "autoOpenUntil",
+                    "armed",
+                    "canOpen",
+                    "ok"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request: the body does not match the schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "unauthorized: no `Authorization: Bearer vmd_…` header",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "not_bound / forbidden / no_room_access",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "upstream_failed: Home Assistant did not carry out the command",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/app/nutrition/water": {
+      "get": {
+        "operationId": "water",
+        "summary": "Today's water for this member",
+        "description": "Any household member's paired device; room grants apply.",
+        "tags": [
+          "app"
+        ],
+        "security": [
+          {
+            "deviceAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "ml": {
+                      "type": "number"
+                    },
+                    "target": {
+                      "type": "number"
+                    },
+                    "glasses": {
+                      "type": "number"
+                    },
+                    "underPace": {
+                      "type": "boolean"
+                    },
+                    "lastAt": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ml",
+                    "target",
+                    "glasses",
+                    "underPace",
+                    "lastAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "unauthorized: no `Authorization: Bearer vmd_…` header",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "not_bound / forbidden / no_room_access",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "waterAct",
+        "summary": "Log a glass of water, or undo the newest one",
+        "description": "Any household member's paired device; room grants apply.",
+        "tags": [
+          "app"
+        ],
+        "security": [
+          {
+            "deviceAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "op": {
+                    "default": "drink",
+                    "type": "string",
+                    "enum": [
+                      "drink",
+                      "undo"
+                    ]
+                  },
+                  "ml": {
+                    "default": 250,
+                    "type": "integer",
+                    "minimum": 25,
+                    "maximum": 2000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "ml": {
+                      "type": "number"
+                    },
+                    "target": {
+                      "type": "number"
+                    },
+                    "glasses": {
+                      "type": "number"
+                    },
+                    "underPace": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "ml",
+                    "target",
+                    "glasses",
+                    "underPace"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request: the body does not match the schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "unauthorized: no `Authorization: Bearer vmd_…` header",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "not_bound / forbidden / no_room_access",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "upstream_failed: Home Assistant did not carry out the command",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/app/nutrition/today": {
+      "get": {
+        "operationId": "nutritionToday",
+        "summary": "Today's calories, macros, meals and water for this member",
+        "description": "Any household member's paired device; room grants apply.",
+        "tags": [
+          "app"
+        ],
+        "security": [
+          {
+            "deviceAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "day": {
+                      "type": "string"
+                    },
+                    "targets": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    },
+                    "today": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    },
+                    "remaining": {
+                      "type": "object",
+                      "properties": {
+                        "calories": {
+                          "type": "number"
+                        },
+                        "protein": {
+                          "type": "number"
+                        },
+                        "carbs": {
+                          "type": "number"
+                        },
+                        "fats": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "calories",
+                        "protein",
+                        "carbs",
+                        "fats"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "meals": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {},
+                          "name": {
+                            "type": "string"
+                          },
+                          "mealType": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "calories": {
+                            "type": "number"
+                          },
+                          "protein": {
+                            "type": "number"
+                          },
+                          "carbs": {
+                            "type": "number"
+                          },
+                          "fats": {
+                            "type": "number"
+                          },
+                          "at": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "mealType",
+                          "calories",
+                          "protein",
+                          "carbs",
+                          "fats",
+                          "at"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "streak": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "day",
+                    "targets",
+                    "today",
+                    "remaining",
+                    "meals",
+                    "streak"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "unauthorized: no `Authorization: Bearer vmd_…` header",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "not_bound / forbidden / no_room_access",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "request": {
+    "op": "read",
+    "ids": [
+      "c1"
+    ]
+  },
+  "response": {
+    "ok": true
+  }
+}

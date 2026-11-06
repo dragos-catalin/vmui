@@ -1,0 +1,12 @@
+{
+  "request": {
+    "op": "drink",
+    "ml": 250
+  },
+  "response": {
+    "ml": 1000,
+    "target": 2500,
+    "glasses": 4,
+    "underPace": false
+  }
+}

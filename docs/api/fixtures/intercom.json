@@ -1,0 +1,11 @@
+{
+  "response": {
+    "ringing": false,
+    "ringingSince": null,
+    "lastRingAt": 1793950000000,
+    "lastOpenAt": 1793950020000,
+    "autoOpenUntil": null,
+    "armed": false,
+    "canOpen": true
+  }
+}

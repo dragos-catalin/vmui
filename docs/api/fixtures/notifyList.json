@@ -1,0 +1,28 @@
+{
+  "request": {
+    "all": "0"
+  },
+  "response": {
+    "cards": [
+      {
+        "id": "c1",
+        "kind": "intercom",
+        "title": "Someone is at the door",
+        "body": "",
+        "subtitle": null,
+        "priority": "high",
+        "url": null,
+        "actions": [
+          {
+            "id": "open",
+            "label": "Open",
+            "style": "primary"
+          }
+        ],
+        "createdAt": 1793961000,
+        "readAt": null
+      }
+    ],
+    "now": 1793961005000
+  }
+}

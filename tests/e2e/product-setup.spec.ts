@@ -112,3 +112,18 @@ test("audit SSE refuses an anonymous client", async ({ request }) => {
   const r = await request.get("/api/events", { maxRedirects: 0 });
   expect([307, 401]).toContain(r.status());
 });
+
+test("app API v1: header-only device auth and a generated OpenAPI", async ({ request }) => {
+  const anon = await request.get("/api/v1/app/state", { headers: { "accept-language": "ro" } });
+  expect(anon.status()).toBe(401);
+  expect(await anon.json()).toMatchObject({ ok: false, code: "unauthorized" });
+  expect(anon.headers()["x-vatra-api"]).toBe("1");
+  expect((await request.get("/api/v1/app/state?d=vmd_whatever")).status()).toBe(401);
+  expect((await request.post("/api/v1/app/control", { headers: { authorization: "Bearer vmd_unknown" }, data: { type: "script", name: "pc_wake" } })).status()).toBe(403);
+  const spec = await request.get("/api/v1/app/openapi.json");
+  expect(spec.status()).toBe(200);
+  const doc = (await spec.json()) as { openapi: string; paths: Record<string, Record<string, { operationId: string }>> };
+  expect(doc.openapi).toBe("3.1.0");
+  const ops = Object.values(doc.paths).flatMap((p) => Object.values(p).map((o) => o.operationId));
+  expect(ops).toEqual(expect.arrayContaining(["me", "state", "control", "lights", "lightsSet", "intercomAct", "waterAct"]));
+});

@@ -8,6 +8,8 @@
     "no_room_access": "Nu ai acces la această cameră",
     "unauthorized": "Trebuie să te autentifici",
     "sent_to_pc": "Trimis către PC",
-    "invite_invalid": "Codul de asociere e invalid sau a expirat. Afișează un QR nou pe hub."
+    "invite_invalid": "Codul de asociere e invalid sau a expirat. Afișează un QR nou pe hub.",
+    "upstream_failed": "Home Assistant nu a executat comanda",
+    "not_found": "Nu există"
   }
 }

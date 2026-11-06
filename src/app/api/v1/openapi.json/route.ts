@@ -6,7 +6,7 @@ const SPEC = {
     title: "Vatra public API",
     version: "1.0.0",
     description:
-      "Authenticated bearer-token API for vmui. Create keys at /settings/api-keys.",
+      "Authenticated bearer-token API for vmui. Create keys at /settings/api-keys. The native apps' contract (/api/v1/app/*, paired device tokens) is a separate document: /api/v1/app/openapi.json.",
   },
   servers: [{ url: "http://127.0.0.1:3737" }],
   security: [{ bearerAuth: [] }],

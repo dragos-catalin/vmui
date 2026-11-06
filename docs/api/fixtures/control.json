@@ -1,0 +1,11 @@
+{
+  "request": {
+    "type": "light",
+    "entity": "light.bed_lamp",
+    "brightnessPct": 40,
+    "kelvin": 2700
+  },
+  "response": {
+    "ok": true
+  }
+}

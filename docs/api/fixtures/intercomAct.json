@@ -1,0 +1,16 @@
+{
+  "request": {
+    "action": "arm",
+    "minutes": 30
+  },
+  "response": {
+    "ok": true,
+    "ringing": false,
+    "ringingSince": null,
+    "lastRingAt": 1793950000000,
+    "lastOpenAt": 1793950020000,
+    "autoOpenUntil": 1793962800000,
+    "armed": true,
+    "canOpen": true
+  }
+}
