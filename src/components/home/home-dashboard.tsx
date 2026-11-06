@@ -146,7 +146,7 @@ export function HomeDashboard({
         return (
           <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
             <NotifyCenterCard />
-            <PairedDevicesCard />
+            <PairedDevicesCard isOwner={access.canManage} />
           </div>
         );
       case "nutrition":

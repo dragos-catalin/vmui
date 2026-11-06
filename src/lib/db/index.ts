@@ -997,6 +997,8 @@ sqlite.exec(`CREATE TABLE IF NOT EXISTS paired_devices (
   if (!cols.has("push_token")) alterAddColumn("ALTER TABLE paired_devices ADD COLUMN push_token TEXT");
   if (!cols.has("language")) alterAddColumn("ALTER TABLE paired_devices ADD COLUMN language TEXT");
   if (!cols.has("user_id")) alterAddColumn("ALTER TABLE paired_devices ADD COLUMN user_id TEXT");
+  // appliance tokens (P3-03): JSON array of API path prefixes; NULL = a paired app (member rooms apply)
+  if (!cols.has("scopes")) alterAddColumn("ALTER TABLE paired_devices ADD COLUMN scopes TEXT");
 }
 sqlite.exec(`CREATE TABLE IF NOT EXISTS meals (
   id TEXT PRIMARY KEY,

@@ -191,6 +191,27 @@
       "alt": "Cod QR pentru asocierea unui dispozitiv",
       "failed": "Nu s-a putut crea codul de asociere",
       "section": "Adaugă un dispozitiv"
+    },
+    "appliance": {
+      "section": "Tokenuri pentru aparate",
+      "hint": "Câte un token pentru fiecare ESP32, buton de birou, Nest Hub, Home Assistant sau agent PC. Fiecare poate apela doar rutele lui și poate fi revocat mai jos.",
+      "profile": "Tip",
+      "name": "Nume",
+      "mint": "Creează token",
+      "once": "Token pentru {name}: copiază-l acum, nu mai este afișat.",
+      "copy": "Copiază tokenul",
+      "copyFailed": "Nu s-a putut copia; selectează textul",
+      "usage": "Trimite-l în antetul Authorization: Bearer (sau ?d= pe aparatele care nu pot seta antete).",
+      "done": "Gata",
+      "failed": "Nu s-a putut crea tokenul",
+      "profiles": {
+        "esp32": "Ecran ESP32",
+        "deskButton": "Buton de birou",
+        "nestHub": "Nest Hub",
+        "turzx": "Ecran de birou (Turzx)",
+        "homeAssistant": "Home Assistant",
+        "pcAgent": "Agent PC"
+      }
     }
   }
 }

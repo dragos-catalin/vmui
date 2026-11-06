@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { auditLog, pairedDevices, type PairedDeviceRow } from "@/lib/db/schema";
+import { APPLIANCE_PROFILES, type ApplianceProfile } from "@/lib/devices/appliance-scopes";
 import { msg } from "@/lib/notify/i18n";
 import { and, desc, eq } from "drizzle-orm";
 import { createHash, randomBytes, randomInt } from "node:crypto";
@@ -161,6 +162,17 @@ export async function revokeDevice(id: string, by: string): Promise<void> {
   await db.update(pairedDevices).set({ status: "revoked" }).where(eq(pairedDevices.id, id));
   await db.insert(auditLog).values({ accountId: "devices", action: "device.revoke", target: id, status: "ok", message: `by ${by}` });
   bump();
+}
+
+/** Owner mints a token for one piece of hardware (ESP32, desk button, Nest Hub, HA…): it can only
+ *  call its profile's routes and is revoked like any device. Replaces the shared ESP_DISPLAY_TOKEN. */
+export async function mintApplianceToken(profile: ApplianceProfile, name: string, by: string, ownerUserId: string | null): Promise<{ id: string; token: string }> {
+  const id = randomBytes(8).toString("hex");
+  const token = "vmd_" + randomBytes(24).toString("base64url");
+  await db.insert(pairedDevices).values({ id, name: name.slice(0, 64), platform: `appliance:${profile}`, tokenHash: hash(token), status: "approved", approvedBy: by, userId: ownerUserId, scopes: JSON.stringify(APPLIANCE_PROFILES[profile]) });
+  await db.insert(auditLog).values({ accountId: "devices", action: "device.appliance.mint", target: id, status: "ok", message: `${name} (${profile}) by ${by}` });
+  bump();
+  return { id, token };
 }
 
 export async function renameDevice(id: string, name: string): Promise<void> {

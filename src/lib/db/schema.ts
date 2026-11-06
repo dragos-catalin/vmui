@@ -1336,6 +1336,8 @@ export const pairedDevices = sqliteTable("paired_devices", {
   language: text("language"),
   /** Family member this device acts as; its room permissions apply to every call the device makes. */
   userId: text("user_id"),
+  /** Appliance token: JSON array of allowed API path prefixes (lib/devices/appliance-scopes.ts). NULL = paired app. */
+  scopes: text("scopes"),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 export type PairedDeviceRow = typeof pairedDevices.$inferSelect;

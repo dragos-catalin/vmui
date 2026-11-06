@@ -191,6 +191,27 @@
       "alt": "QR code to pair a device",
       "failed": "Could not create a pairing code",
       "section": "Add a device"
+    },
+    "appliance": {
+      "section": "Appliance tokens",
+      "hint": "One token per ESP32, desk button, Nest Hub, Home Assistant or PC agent. Each can only call its own routes and can be revoked below.",
+      "profile": "Kind",
+      "name": "Name",
+      "mint": "Create token",
+      "once": "Token for {name}: copy it now, it is not shown again.",
+      "copy": "Copy token",
+      "copyFailed": "Could not copy; select the text",
+      "usage": "Send it as the Authorization: Bearer header (or ?d= on devices that cannot set headers).",
+      "done": "Done",
+      "failed": "Could not create the token",
+      "profiles": {
+        "esp32": "ESP32 display",
+        "deskButton": "Desk button",
+        "nestHub": "Nest Hub",
+        "turzx": "Desk screen (Turzx)",
+        "homeAssistant": "Home Assistant",
+        "pcAgent": "PC agent"
+      }
     }
   }
 }

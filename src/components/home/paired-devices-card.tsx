@@ -16,6 +16,7 @@ import * as React from "react";
 import { toast } from "sonner";
 import { EASE_OUT } from "./home-motion";
 import { PairQr } from "./pair-qr";
+import { ApplianceTokens } from "./appliance-tokens";
 
 type T = ReturnType<typeof useTranslations<"notify.devices">>;
 
@@ -23,7 +24,7 @@ const PLATFORM_KEYS = ["android", "ios", "windows", "macos", "linux", "web"] as 
 
 /** Phones and desktops paired with vmui. Long-polls /api/devices so a new
  *  pairing request pops up here (and as a toast) within a second. */
-export function PairedDevicesCard() {
+export function PairedDevicesCard({ isOwner = false }: { isOwner?: boolean }) {
   const t = useTranslations("notify.devices");
   const common = useTranslations("common");
   const confirm = useConfirm();
@@ -75,6 +76,11 @@ export function PairedDevicesCard() {
       <Subsection title={t("qr.section")} className="mb-4">
         <PairQr />
       </Subsection>
+      {isOwner && (
+        <Subsection title={t("appliance.section")} hint={t("appliance.hint")} collapsible defaultOpen={false} className="mb-4">
+          <ApplianceTokens />
+        </Subsection>
+      )}
       {data && data.pending.length > 0 && (
         <Subsection
           title={t("pendingTitle")}
