@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
+import { readFileSync } from "node:fs";
 
 // Local-only binding; no HSTS (no TLS). CSP is deliberately strict — we don't
 // load 3rd-party scripts/styles. `'unsafe-inline'` on style-src is needed for
@@ -38,8 +39,10 @@ const DISPLAY_HEADERS = SECURITY_HEADERS.map((h) =>
 );
 
 const config: NextConfig = {
-  // systemd runs `next start` directly, so npm_package_version is unset at runtime
-  env: { VATRA_VERSION: process.env.npm_package_version ?? "" },
+  // baked at build time: systemd runs `next start` and the image runs server.js, neither sets npm_package_version
+  env: { VATRA_VERSION: process.env.npm_package_version || (JSON.parse(readFileSync("package.json", "utf8")) as { version: string }).version },
+  // the container image (Dockerfile, P4-01) ships the traced standalone server; the Pi keeps `next start`
+  ...(process.env.VATRA_STANDALONE === "1" ? { output: "standalone" as const } : {}),
   reactStrictMode: true,
   reactCompiler: true,
   // Native bindings must never be bundled. The cloud SDKs are pure server
