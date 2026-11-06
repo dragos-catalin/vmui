@@ -3,6 +3,7 @@ import "server-only";
 import { authEnabled, getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { homeMembers, pairedDevices, users, type HomeMemberRow, type UserRow } from "@/lib/db/schema";
+import { parseScopes, pathInScopes } from "@/lib/devices/appliance-scopes";
 import type { RoomId } from "@/lib/home/catalog";
 import { houseDevices, houseRooms } from "@/lib/home/house";
 import { and, eq } from "drizzle-orm";
@@ -103,6 +104,9 @@ export async function deviceHomeActor(req: Request): Promise<HomeActor | null> {
   const hash = createHash("sha256").update(tok).digest("hex");
   const d = await db.select().from(pairedDevices).where(and(eq(pairedDevices.tokenHash, hash), eq(pairedDevices.status, "approved"))).get();
   if (!d?.userId) return null;
+  // an appliance token is its owner's only on its own routes (routes that skip espAuthorized land here too)
+  const scopes = parseScopes(d.scopes);
+  if (scopes && !pathInScopes(new URL(req.url).pathname, scopes)) return null;
   const u = await db.select().from(users).where(eq(users.id, d.userId)).get();
   if (!u) return null;
   return toActor(u, await memberRow(u.id), d.id);

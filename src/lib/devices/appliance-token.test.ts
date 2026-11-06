@@ -65,6 +65,19 @@ describe("appliance tokens", () => {
     expect(A.espAuthorized(req("/api/esp/button", token))).toBe(false);
     expect(A.espAuthorized(req("/displayx", token))).toBe(false);
   });
+
+  it("never resolve to a household actor outside their scope", async () => {
+    const H = await import("@/lib/home/access");
+    const { db } = await import("@/lib/db");
+    const { users } = await import("@/lib/db/schema");
+    await db.insert(users).values({ id: "u-owner", email: "owner@home.test", displayName: "Owner", passwordHash: "x", role: "admin" }).onConflictDoNothing();
+    const { token } = await P.mintApplianceToken("turzx", "Desk", "owner@home", "u-owner");
+    // /api/nutrition/water and /api/lights are not turzx routes: no member identity there
+    expect(await H.deviceHomeActor(req("/api/nutrition/water", token))).toBeNull();
+    expect(await H.tokenActor(req("/api/lights", token))).toBeNull();
+    // its own route still acts as the owner it was minted for
+    expect((await H.deviceHomeActor(req("/api/nutrition/today", token)))?.userId).toBe("u-owner");
+  });
 });
 
 describe("scripts/appliance-tokens.mjs", () => {
