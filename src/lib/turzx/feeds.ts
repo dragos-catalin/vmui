@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { instances } from "@/lib/db/schema";
 import { ha } from "@/lib/home/ha-client";
+import { screenText } from "@/lib/home/device-text";
 import "server-only";
 import type { TurzxBgSource } from "./catalog";
 
@@ -653,7 +654,7 @@ export function moonPhase(at = new Date()): { phase: number; name: string; illum
   const synodic = 29.530588853;
   const days = (at.getTime() - Date.UTC(2000, 0, 6, 18, 14)) / 86_400_000;
   const phase = ((days % synodic) + synodic) % synodic / synodic; // 0 new → 0.5 full → 1 new
-  const names = ["Lună nouă", "Semilună în creștere", "Primul pătrar", "Lună în creștere", "Lună plină", "Lună în descreștere", "Ultimul pătrar", "Semilună în descreștere"];
+  const names = screenText().moon;
   const idx = Math.round(phase * 8) % 8;
   return { phase, name: names[idx] ?? names[0]!, illumination: Math.round((1 - Math.cos(phase * 2 * Math.PI)) * 50) };
 }

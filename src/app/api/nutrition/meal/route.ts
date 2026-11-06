@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { deviceText } from "@/lib/home/device-text";
 import { auditLog } from "@/lib/db/schema";
 import { pushActivity } from "@/lib/esp/activity";
 import { espAuthorized } from "@/lib/esp/auth";
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
   if (created) {
     if (a.isOwner) {
       setNutritionEvent({ kind: "meal", at: Date.now(), name: meal.name, calories: meal.calories, mealType: meal.mealType });
-      pushActivity({ at: Date.now(), kind: "other", text: `Masă: ${meal.name} · ${Math.round(meal.calories)} kcal` });
+      pushActivity({ at: Date.now(), kind: "other", text: deviceText().meal(meal.name, Math.round(meal.calories)) });
     }
     await db.insert(auditLog).values({ accountId: "home", action: "nutrition.meal.add", target: meal.source, status: "ok", message: `${meal.name} ${Math.round(meal.calories)} kcal` });
   }

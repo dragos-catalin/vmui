@@ -100,6 +100,23 @@
         "weekly_review": "This week: {days}/7 days logged, {avg} kcal on average against a {target} kcal target. {onTarget, plural, =0 {Next week closer to target?} one {Next week closer to target?} other {Very consistent!}}",
         "no_data": "Nothing logged yet today."
       }
+    },
+    "copilot": {
+      "title": {
+        "ask": "Copilot is waiting for your answer",
+        "done": "Copilot finished its turn",
+        "blocked": "Command blocked by the guard",
+        "failed": "Build / test failed"
+      },
+      "body": {
+        "ask": "Open VS Code and answer the question.",
+        "done": "You can check the result."
+      },
+      "open": "Open in codai"
+    },
+    "agents": {
+      "title": "{active, plural, one {# agent working} other {# agents working}} · {turns} turns today",
+      "subtitle": "{sessions} sessions today"
     }
   },
   "results": {

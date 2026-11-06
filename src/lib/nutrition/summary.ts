@@ -1,4 +1,5 @@
 import "server-only";
+import { screenText } from "@/lib/home/device-text";
 
 import type { MealRow } from "@/lib/db/schema";
 import { credential } from "@/lib/home/credentials";
@@ -106,7 +107,7 @@ export async function nutritionSummary(scope: { userId: string; isOwner: boolean
 export async function publishToHa(s: NutritionSummary): Promise<void> {
   if (!credential("HA_TOKEN")) return;
   const post = (id: string, state: number | string, attributes: Record<string, unknown>) =>
-    ha.setState(`sensor.vmui_nutrition_${id}`, String(state), { friendly_name: `Nutriție ${id.replace(/_/g, " ")}`, ...attributes }).catch(() => undefined);
+    ha.setState(`sensor.vmui_nutrition_${id}`, String(state), { friendly_name: screenText().haNutrition(id.replace(/_/g, " ")), ...attributes }).catch(() => undefined);
   await Promise.all([
     post("calories_today", s.today.calories, { unit_of_measurement: "kcal", icon: "mdi:food-apple", state_class: "total_increasing", target: s.targets.calories, meals: s.today.meals }),
     post("calories_remaining", s.remaining.calories, { unit_of_measurement: "kcal", icon: "mdi:scale-balance" }),

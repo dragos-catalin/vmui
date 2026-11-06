@@ -10,6 +10,7 @@ import { nutritionSummary, publishToHa } from "@/lib/nutrition/summary";
 import { deleteWater } from "@/lib/nutrition/water";
 import { drinkGlass, undoGlass } from "@/lib/nutrition/water-actions";
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 
 type Result = { ok: true } | { ok: false; error: string };
@@ -85,7 +86,7 @@ export async function saveNutritionProfileAction(raw: unknown): Promise<Result> 
 
 export async function addWaterAction(ml = 250): Promise<Result> {
   const v = z.number().int().min(25).max(2000).safeParse(ml);
-  if (!v.success) return { ok: false, error: "Cantitate invalidă" };
+  if (!v.success) return { ok: false, error: (await getTranslations("nutrition"))("water.invalidAmount") };
   // drinkGlass audits itself; run() only guards + revalidates.
   return run("nutrition.water.web", "water", `${v.data} ml`, (s) => drinkGlass(v.data, "web", s.uid, s.isOwner));
 }

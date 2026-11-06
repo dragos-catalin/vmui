@@ -20,6 +20,7 @@ import { loadPomodoro, loadTurzxSettings } from "@/lib/turzx/settings";
 import { desc } from "drizzle-orm";
 import { NextResponse, type NextRequest } from "next/server";
 import { household, ownerPhoneSensor } from "@/lib/household";
+import { screenText } from "@/lib/home/device-text";
 import { apiForbidden } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
@@ -84,7 +85,7 @@ export async function GET(req: NextRequest) {
     enabled.has("climate") ? haHistory("sensor.temperature_and_humidity_sensor_temperature") : null,
     enabled.has("climate") ? haHistory("sensor.temperature_and_humidity_sensor_humidity") : null,
     enabled.has("calendar") || enabled.has("clock") ? calendarEvents(list(opt("calendar").entities, [...states.keys()].filter((k) => k.startsWith("calendar.")))) : null,
-    enabled.has("quote") ? quoteOfTheDay(str(opt("quote").lang, "ro") === "en" ? "en" : "ro") : null,
+    enabled.has("quote") ? quoteOfTheDay(str(opt("quote").lang, household().locale) === "en" ? "en" : "ro") : null,
     loadPomodoro(),
     enabled.has("weather") && states.has("weather.forecast_home") ? weatherForecast("weather.forecast_home") : null,
     enabled.has("weather") && states.has("weather.forecast_home") ? hourlyForecast("weather.forecast_home") : null,
@@ -214,13 +215,13 @@ export async function GET(req: NextRequest) {
             id: `${nEv.at}|${nEv.kind}`,
             at: nEv.at,
             pkg: `nutrition.${nEv.kind}`,
-            app: "Nutriție",
+            app: screenText().nutritionApp,
             // water events (desk button) have no calories: name is the headline, text the running total
-            title: nEv.kind !== "meal" ? "Coach" : nEv.calories === undefined ? nEv.name : `${nEv.name} salvată`,
+            title: nEv.kind !== "meal" ? "Coach" : nEv.calories === undefined ? nEv.name : screenText().mealSaved(nEv.name),
             text:
               nEv.kind !== "meal" || nEv.calories === undefined
                 ? (nEv.text ?? "")
-                : `${Math.round(nEv.calories)} kcal · ${({ breakfast: "mic dejun", lunch: "prânz", dinner: "cină", snack: "gustare" } as Record<string, string>)[nEv.mealType ?? ""] ?? ""}${nutrition ? ` · rămas ${nutrition.remaining.calories} kcal` : ""}`,
+                : `${Math.round(nEv.calories)} kcal · ${screenText().mealType[nEv.mealType ?? ""] ?? ""}${nutrition ? ` · ${screenText().remaining(nutrition.remaining.calories)}` : ""}`,
             ongoing: false,
             group: false,
             color: nEv.calories === undefined && nEv.kind === "meal" ? "#38bdf8" : "#10b981",

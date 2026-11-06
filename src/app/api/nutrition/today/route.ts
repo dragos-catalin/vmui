@@ -1,7 +1,8 @@
 import { espAuthorized } from "@/lib/esp/auth";
 import { homeActorOrOwner, journalUserId } from "@/lib/home/access";
 import { runCoach } from "@/lib/nutrition/coach";
-import { MEAL_ANALYSIS_JSON_SCHEMA, MEAL_ANALYSIS_SYSTEM_PROMPT, nutritionProfileSchema } from "@/lib/nutrition/schema";
+import { household } from "@/lib/household";
+import { MEAL_ANALYSIS_JSON_SCHEMA, mealAnalysisSystemPrompt, nutritionProfileSchema } from "@/lib/nutrition/schema";
 import { loadProfile, saveProfile } from "@/lib/nutrition/store";
 import { nutritionSummary, publishToHa } from "@/lib/nutrition/summary";
 import { NextResponse, type NextRequest } from "next/server";
@@ -28,7 +29,7 @@ export async function GET(req: NextRequest) {
   if (!a) return new NextResponse("unauthorized", { status: 401 });
   const sp = req.nextUrl.searchParams;
   if (sp.get("contract")) {
-    return NextResponse.json({ systemPrompt: MEAL_ANALYSIS_SYSTEM_PROMPT, responseFormat: { type: "json_schema", json_schema: MEAL_ANALYSIS_JSON_SCHEMA }, postTo: "/api/nutrition/meal", profile: await loadProfile(a.uid, a.isOwner) });
+    return NextResponse.json({ systemPrompt: mealAnalysisSystemPrompt(household().locale), locale: household().locale, responseFormat: { type: "json_schema", json_schema: MEAL_ANALYSIS_JSON_SCHEMA }, postTo: "/api/nutrition/meal", profile: await loadProfile(a.uid, a.isOwner) });
   }
   const s = await nutritionSummary(a.scope);
   // The coach and the HA mirror are household-level: owner only.

@@ -9,7 +9,7 @@ export type MealType = (typeof MEAL_TYPES)[number];
 
 export const mealItemSchema = z.object({
   name: z.string().min(1).max(80),
-  /** Portion as the model saw it: "150 g", "1 felie", "o cană". */
+  /** Portion as the model saw it: "150 g", "1 slice", "a cup". */
   portion: z.string().max(40).default(""),
   calories: z.number().min(0).max(5000),
   protein: z.number().min(0).max(500).default(0),
@@ -96,20 +96,20 @@ export const MEAL_ANALYSIS_JSON_SCHEMA = {
     additionalProperties: false,
     required: ["userMessage", "meal"],
     properties: {
-      userMessage: { type: "string", description: "Descriere prietenoasă în română a ce se vede și a estimării, 1-3 propoziții. Fără JSON, fără liste." },
+      userMessage: { type: "string", description: "Friendly description, in the household language, of what is visible and of the estimate, 1-3 sentences. No JSON, no lists." },
       meal: {
         type: ["object", "null"],
         additionalProperties: false,
         required: ["name", "mealType", "calories", "protein", "carbs", "fats", "fiber", "items", "confidence"],
         properties: {
-          name: { type: "string", description: "Numele mesei, scurt, română. Ex: 'Piept de pui cu orez și salată'" },
+          name: { type: "string", description: "Short meal name in the household language, e.g. 'Chicken breast with rice and salad'" },
           mealType: { type: "string", enum: [...MEAL_TYPES] },
           calories: { type: "number" },
-          protein: { type: "number", description: "grame" },
-          carbs: { type: "number", description: "grame" },
-          fats: { type: "number", description: "grame" },
-          fiber: { type: "number", description: "grame" },
-          confidence: { type: "number", description: "0-1, cât de sigură e estimarea porțiilor" },
+          protein: { type: "number", description: "grams" },
+          carbs: { type: "number", description: "grams" },
+          fats: { type: "number", description: "grams" },
+          fiber: { type: "number", description: "grams" },
+          confidence: { type: "number", description: "0-1, how sure the portion estimate is" },
           items: {
             type: "array",
             items: {
@@ -133,16 +133,21 @@ export const MEAL_ANALYSIS_JSON_SCHEMA = {
   },
 } as const;
 
-/** System prompt for the phone assistant when a photo/text is a meal.
- *  Distilled from mancai's `getSystemPrompt` (lib/openai.ts) minus the plan
- *  and workflow parts, which live in vmui now. */
-export const MEAL_ANALYSIS_SYSTEM_PROMPT = `Ești asistentul de nutriție al utilizatorului. Primești o fotografie și/sau o descriere a unei mese și estimezi conținutul nutrițional.
+const LANGUAGE_NAME = { ro: "Romanian", en: "English" } as const;
 
-Reguli:
-- Răspunde DOAR cu JSON conform schemei date; textul pentru om merge în "userMessage", în română, cald și concis.
-- Descompune masa în componente ("items") cu porția estimată (ex: "150 g", "2 felii", "o lingură"). Totalurile din "meal" sunt suma componentelor.
-- Estimează porții realiste după farfurie, tacâmuri, mâini din cadru. Dacă porția e incertă, spune-o în userMessage și pune "confidence" sub 0.6.
-- Alege "mealType" după ora locală: 05-10 breakfast, 11-15 lunch, 17-22 dinner, altfel snack — dacă utilizatorul nu spune altceva.
-- Dacă imaginea NU conține mâncare sau băutură, pune "meal": null și explică scurt.
-- Nu inventa mărci sau ingrediente care nu se văd. Nu da sfaturi medicale.
-- Unități: kcal și grame. Numere întregi pentru kcal, o decimală maxim pentru grame.`;
+/** System prompt for the phone assistant when a photo/text is a meal, in the
+ *  household language. Distilled from mancai's `getSystemPrompt` (lib/openai.ts)
+ *  minus the plan and workflow parts, which live in vmui now. */
+export function mealAnalysisSystemPrompt(locale: keyof typeof LANGUAGE_NAME): string {
+  const lang = LANGUAGE_NAME[locale];
+  return `You are the user's nutrition assistant. You receive a photo and/or a description of a meal and estimate its nutritional content.
+
+Rules:
+- Reply ONLY with JSON matching the given schema; the text for the person goes in "userMessage", in ${lang}, warm and concise. Meal and item names are in ${lang} too.
+- Break the meal into components ("items") with the estimated portion (e.g. "150 g", "2 slices", "1 tablespoon", written in ${lang}). The totals in "meal" are the sum of the components.
+- Estimate realistic portions from the plate, cutlery and hands in the frame. If the portion is uncertain, say so in userMessage and set "confidence" below 0.6.
+- Pick "mealType" from the local time: 05-10 breakfast, 11-15 lunch, 17-22 dinner, otherwise snack - unless the user says otherwise.
+- If the image does NOT contain food or drink, set "meal": null and explain briefly.
+- Do not invent brands or ingredients that are not visible. Do not give medical advice.
+- Units: kcal and grams. Whole numbers for kcal, at most one decimal for grams.`;
+}

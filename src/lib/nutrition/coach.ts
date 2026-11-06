@@ -36,20 +36,20 @@ export function decide(s: NutritionSummary, now = new Date()): CoachDecision | n
   if (daysWithData.length < 2) return null; // too new to say anything useful
 
   if (s.streak >= 3 && s.today.meals === 0 && hour >= 19)
-    return { kind: "streak_risk", priority: "high", fallback: msg("cards.coach.fallback.streak_risk", { days: s.streak }), facts: `streak ${s.streak} zile, azi 0 mese, ora ${hour}` };
+    return { kind: "streak_risk", priority: "high", fallback: msg("cards.coach.fallback.streak_risk", { days: s.streak }), facts: `streak ${s.streak} days, 0 meals today, hour ${hour}` };
 
   if (dow === 0 && hour >= 18 && daysWithData.length >= 5) {
     const avg = Math.round(daysWithData.reduce((a, d) => a + d.calories, 0) / daysWithData.length);
-    return { kind: "weekly_review", priority: "low", fallback: msg("cards.coach.fallback.weekly_review", { days: daysWithData.length, avg, target: t.calories, onTarget: onTarget >= 4 ? 2 : 0 }), facts: `zile cu date ${daysWithData.length}/7, medie ${avg} kcal, țintă ${t.calories}, zile la țintă ${onTarget}` };
+    return { kind: "weekly_review", priority: "low", fallback: msg("cards.coach.fallback.weekly_review", { days: daysWithData.length, avg, target: t.calories, onTarget: onTarget >= 4 ? 2 : 0 }), facts: `days with data ${daysWithData.length}/7, average ${avg} kcal, target ${t.calories}, days on target ${onTarget}` };
   }
 
-  if (over >= 4) return { kind: "over_target", priority: "medium", fallback: msg("cards.coach.fallback.over_target", { delta: Math.round(last5.reduce((a, d) => a + d.calories, 0) / 5 - t.calories) }), facts: `${over}/5 zile peste țintă cu >15 %` };
-  if (under >= 4) return { kind: "under_target", priority: "medium", fallback: msg("cards.coach.fallback.under_target"), facts: `${under}/5 zile sub 70 % din țintă` };
+  if (over >= 4) return { kind: "over_target", priority: "medium", fallback: msg("cards.coach.fallback.over_target", { delta: Math.round(last5.reduce((a, d) => a + d.calories, 0) / 5 - t.calories) }), facts: `${over}/5 days more than 15 % over target` };
+  if (under >= 4) return { kind: "under_target", priority: "medium", fallback: msg("cards.coach.fallback.under_target"), facts: `${under}/5 days under 70 % of target` };
 
   if (s.today.meals >= 2 && s.today.protein < t.protein * 0.4 && hour >= 16)
-    return { kind: "protein_low", priority: "low", fallback: msg("cards.coach.fallback.protein_low", { protein: s.today.protein, target: t.protein }), facts: `proteine ${s.today.protein}/${t.protein} g la ora ${hour}` };
+    return { kind: "protein_low", priority: "low", fallback: msg("cards.coach.fallback.protein_low", { protein: s.today.protein, target: t.protein }), facts: `protein ${s.today.protein}/${t.protein} g at hour ${hour}` };
 
-  if (onTarget >= 5) return { kind: "celebration", priority: "low", fallback: msg("cards.coach.fallback.celebration"), facts: `${onTarget} zile consecutive la ±10 % din țintă` };
+  if (onTarget >= 5) return { kind: "celebration", priority: "low", fallback: msg("cards.coach.fallback.celebration"), facts: `${onTarget} consecutive days within ±10 % of target` };
 
   return null;
 }
@@ -76,7 +76,7 @@ async function phrase(d: CoachDecision, s: NutritionSummary, language: string): 
         max_tokens: 120,
         messages: [
           { role: "system", content: `You are a warm, concise nutrition coach. Write ONE notification of 1-2 sentences in the language with ISO code "${language}", addressing the reader informally in the second person, no medical advice, at most one emoji. Reply with the notification text only.` },
-          { role: "user", content: `Tip: ${d.kind}. Fapte: ${d.facts}. Țintă zilnică ${s.targets.calories} kcal, azi ${s.today.calories} kcal în ${s.today.meals} mese, streak ${s.streak} zile.` },
+          { role: "user", content: `Kind: ${d.kind}. Facts: ${d.facts}. Daily target ${s.targets.calories} kcal, today ${s.today.calories} kcal in ${s.today.meals} meals, streak ${s.streak} days.` },
         ],
       }),
     });

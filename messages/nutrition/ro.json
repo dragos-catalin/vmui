@@ -40,7 +40,8 @@
     "add": "+{ml} ml",
     "addAria": "Adaugă {ml} ml de apă",
     "undo": "Anulează",
-    "undoAria": "Anulează ultimul pahar"
+    "undoAria": "Anulează ultimul pahar",
+    "invalidAmount": "Cantitate invalidă"
   },
   "meals": {
     "title": "Mesele de azi",

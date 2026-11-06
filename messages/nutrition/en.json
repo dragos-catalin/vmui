@@ -40,7 +40,8 @@
     "add": "+{ml} ml",
     "addAria": "Add {ml} ml of water",
     "undo": "Undo",
-    "undoAria": "Undo the last glass"
+    "undoAria": "Undo the last glass",
+    "invalidAmount": "Invalid amount"
   },
   "meals": {
     "title": "Today's meals",

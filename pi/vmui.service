@@ -14,6 +14,7 @@ Environment=VMUI_HOST=0.0.0.0
 Environment=VMUI_HOST_SSH=vladu@192.168.100.61
 Environment="VMUI_HOST_REPO=E:\\gh\\vmui"
 ExecStart=/usr/bin/node node_modules/next/dist/bin/next start -H 0.0.0.0 -p 3737
+SuccessExitStatus=143
 Restart=always
 RestartSec=3
 # next start waits for open SSE streams on SIGTERM; without this every deploy stalls 90 s

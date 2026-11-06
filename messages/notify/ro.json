@@ -100,6 +100,23 @@
         "weekly_review": "Săptămâna asta: {days}/7 zile înregistrate, medie {avg} kcal față de ținta {target}. {onTarget, plural, =0 {Săptămâna viitoare mai aproape de țintă?} one {Săptămâna viitoare mai aproape de țintă?} other {Foarte constant!}}",
         "no_data": "Nimic înregistrat azi încă."
       }
+    },
+    "copilot": {
+      "title": {
+        "ask": "Copilot așteaptă răspunsul tău",
+        "done": "Copilot a terminat tura",
+        "blocked": "Comandă blocată de guard",
+        "failed": "Build / test eșuat"
+      },
+      "body": {
+        "ask": "Deschide VS Code și răspunde la întrebare.",
+        "done": "Poți verifica rezultatul."
+      },
+      "open": "Deschide în codai"
+    },
+    "agents": {
+      "title": "{active, plural, one {# agent lucrează} few {# agenți lucrează} other {# de agenți lucrează}} · {turns} ture azi",
+      "subtitle": "{sessions} sesiuni azi"
     }
   },
   "results": {

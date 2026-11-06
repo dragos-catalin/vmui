@@ -5,6 +5,7 @@ import { auditLog } from "@/lib/db/schema";
 import { pushActivity } from "@/lib/esp/activity";
 import { listNodes, showFrame } from "@/lib/esp/gallery";
 import { renderWater } from "@/lib/esp/views";
+import { deviceText, screenText } from "@/lib/home/device-text";
 import { setNutritionEvent } from "./events";
 import { dayOf } from "./store";
 import { nutritionSummary, publishToHa } from "./summary";
@@ -37,8 +38,8 @@ export async function drinkGlass(ml = GLASS_ML, source = "web", userId: string |
   const s = await nutritionSummary(scopeOf(userId, isOwner));
   const w = s.water;
   if (isOwner) {
-    setNutritionEvent({ kind: "meal", at: Date.now(), name: `+${fmt(ml)} apă`, text: `${fmt(w.ml)} din ${fmt(w.targetMl)}${w.remainingMl === 0 ? " · țintă atinsă" : ""}` });
-    pushActivity({ at: Date.now(), kind: "other", text: `apă +${ml} ml (${w.glasses} pahare, ${fmt(w.ml)})` });
+    setNutritionEvent({ kind: "meal", at: Date.now(), name: screenText().waterAdded(fmt(ml)), text: screenText().waterTotal(fmt(w.ml), fmt(w.targetMl), w.remainingMl === 0) });
+    pushActivity({ at: Date.now(), kind: "other", text: deviceText().water(ml, w.glasses, fmt(w.ml)) });
     espCard("add", w);
   }
   await db.insert(auditLog).values({ accountId: "home", action: "nutrition.water.add", target: source, status: "ok", message: `${ml} ml -> ${w.ml}/${w.targetMl}` });

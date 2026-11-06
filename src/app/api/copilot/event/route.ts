@@ -12,6 +12,8 @@ import { agentSessions } from "@/lib/turzx/feeds";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { apiForbidden } from "@/lib/api-error";
+import { deviceText } from "@/lib/home/device-text";
+import { msg } from "@/lib/notify/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -30,8 +32,6 @@ const HA_SCRIPT: Record<CopilotEvent, string> = {
   blocked: "copilot_blocked",
   failed: "copilot_failed",
 };
-const TITLE: Record<CopilotEvent, string> = { ask: "Copilot asteapta", done: "Copilot gata", blocked: "Comanda blocata", failed: "A esuat" };
-const PHONE_TITLE: Record<CopilotEvent, string> = { ask: "Copilot așteaptă răspunsul tău", done: "Copilot a terminat tura", blocked: "Comandă blocată de guard", failed: "Build / test eșuat" };
 const CARD_ICON: Record<CopilotEvent, string> = { ask: "message-circle-question", done: "badge-check", blocked: "shield-alert", failed: "octagon-alert" };
 
 /** One card per session: same `tag` so a later event replaces the earlier
@@ -45,12 +45,12 @@ function phoneTag(session: string) {
  *  the mirrored codai session so the prompt can be answered from the phone. */
 async function phonePush(event: CopilotEvent, p: { color: string }, text: string, session: string, source: string, project: string, chat: string) {
   const subtitle = [project, chat].filter(Boolean).join(" · ");
-  const message = text || (event === "ask" ? "Deschide VS Code și răspunde la întrebare." : event === "done" ? "Poți verifica rezultatul." : source);
+  const message = text || (event === "ask" || event === "done" ? msg(`cards.copilot.body.${event}`) : source);
   const url = session ? `codai://session/${session}` : "codai://new";
   await notify({
     kind: "copilot",
     tag: phoneTag(session),
-    title: PHONE_TITLE[event],
+    title: msg(`cards.copilot.title.${event}`),
     body: message,
     subtitle: subtitle || source,
     color: p.color,
@@ -60,7 +60,7 @@ async function phonePush(event: CopilotEvent, p: { color: string }, text: string
     sticky: event === "ask",
     ttlSec: event === "ask" ? undefined : 600,
     url,
-    actions: [{ id: "open", label: "Deschide în codai", style: "primary", url }],
+    actions: [{ id: "open", label: msg("cards.copilot.open"), style: "primary", url }],
     data: { event, session, project, chat, source },
   });
 }
@@ -79,13 +79,13 @@ async function phoneAgentsSummary() {
     await dismissByTag("copilot-agents", "copilot");
     return;
   }
-  const lines = a.active.slice(0, 6).map((s) => `• ${s.repo}${s.profile !== "default" ? ` (${s.profile})` : ""} · ${s.turnsToday} ture${s.lastUser ? ` — ${s.lastUser.slice(0, 60)}` : ""}`);
+  const lines = a.active.slice(0, 6).map((s) => `• ${s.repo}${s.profile !== "default" ? ` (${s.profile})` : ""} · ${s.turnsToday}×${s.lastUser ? ` — ${s.lastUser.slice(0, 60)}` : ""}`);
   await notify({
     kind: "agents",
     tag: "copilot-agents",
-    title: `${a.active.length} ${a.active.length === 1 ? "agent lucrează" : "agenți lucrează"} · ${a.turnsToday} ture azi`,
+    title: msg("cards.agents.title", { active: a.active.length, turns: a.turnsToday }),
     body: lines.join("\n"),
-    subtitle: `${a.sessionsToday} sesiuni azi`,
+    subtitle: msg("cards.agents.subtitle", { sessions: a.sessionsToday }),
     priority: "low",
     sticky: true,
     ttlSec: 3600,
@@ -161,8 +161,8 @@ export async function POST(req: NextRequest) {
     }
   }
   if (p.esp) {
-    for (const n of listNodes()) showMessage(n.name, TITLE[event], text || where || source, event === "ask" ? 10 : 8);
-    pushActivity({ at: now, kind: "other", text: `${TITLE[event]}${where ? ` [${where.slice(0, 40)}]` : ""}${text ? `: ${text.slice(0, 40)}` : ""}` });
+    for (const n of listNodes()) showMessage(n.name, deviceText().copilot[event], text || where || source, event === "ask" ? 10 : 8);
+    pushActivity({ at: now, kind: "other", text: `${deviceText().copilot[event]}${where ? ` [${where.slice(0, 40)}]` : ""}${text ? `: ${text.slice(0, 40)}` : ""}` });
     out.esp = true;
   }
   if (p.phone && !quiet) {
