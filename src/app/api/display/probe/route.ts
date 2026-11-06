@@ -2,13 +2,14 @@ import { db } from "@/lib/db";
 import { auditLog } from "@/lib/db/schema";
 import { espAuthorized } from "@/lib/esp/auth";
 import { NextResponse, type NextRequest } from "next/server";
+import { apiForbidden } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
 // GET  /api/display/probe?k=…  -> tiny HTML that measures the casting browser and POSTs back
 // POST /api/display/probe?k=…  -> stores the report in audit_log (action display.probe)
 export async function GET(req: NextRequest) {
-  if (!espAuthorized(req)) return new NextResponse("forbidden", { status: 403 });
+  if (!espAuthorized(req)) return apiForbidden(req);
   const k = new URL(req.url).searchParams.get("k") ?? "";
   const html = `<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
 <body style="margin:0;background:#101318;color:#eee;font:20px system-ui;padding:24px">
@@ -47,7 +48,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  if (!espAuthorized(req)) return new NextResponse("forbidden", { status: 403 });
+  if (!espAuthorized(req)) return apiForbidden(req);
   const body = await req.text();
   await db.insert(auditLog).values({ accountId: "home", action: "display.probe", target: "nest-hub", status: "ok", message: body.slice(0, 4000) });
   return NextResponse.json({ ok: true });

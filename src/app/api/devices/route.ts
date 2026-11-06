@@ -6,6 +6,7 @@ import { deviceLocale } from "@/lib/notify/i18n";
 import { getTranslations } from "next-intl/server";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
+import { apiForbidden } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,7 @@ async function actor(req: NextRequest): Promise<Actor | null> {
 
 /** GET: everything + pending (with codes) for banners. `?since=N` long-polls up to 25 s for a change. */
 export async function GET(req: NextRequest) {
-  if (!(await actor(req))) return new NextResponse("forbidden", { status: 403 });
+  if (!(await actor(req))) return apiForbidden(req);
   const since = Number(req.nextUrl.searchParams.get("since") ?? NaN);
   if (Number.isFinite(since)) {
     const until = Date.now() + 25_000;
@@ -45,7 +46,7 @@ const body = z.discriminatedUnion("op", [
 
 export async function POST(req: NextRequest) {
   const who = await actor(req);
-  if (!who) return new NextResponse("forbidden", { status: 403 });
+  if (!who) return apiForbidden(req);
   const by = who.by;
   const p = body.safeParse(await req.json().catch(() => null));
   if (!p.success) return NextResponse.json({ ok: false, error: "invalid" }, { status: 400 });

@@ -8,7 +8,7 @@ import { photoPool } from "@/lib/turzx/feeds";
 import { NextResponse, type NextRequest } from "next/server";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { apiError } from "@/lib/api-error";
+import { apiError, apiForbidden } from "@/lib/api-error";
 
 // The Hub sits in the bedroom: it only shows what plays in the bedroom
 // (its own Cast session, the bedroom TV), never the living-room TV.
@@ -29,7 +29,7 @@ export const dynamic = "force-dynamic";
 // live states for the home screen. Turzx state is fetched over loopback rather
 // than duplicating its 200-line aggregator; the cost is ~1 ms in-process.
 export async function GET(req: NextRequest) {
-  if (!espAuthorized(req)) return new NextResponse("forbidden", { status: 403 });
+  if (!espAuthorized(req)) return apiForbidden(req);
   const actor = await tokenActor(req);
   if (!actor) return apiError(req, "not_bound", 403);
   const seen = visibleEntities(actor);

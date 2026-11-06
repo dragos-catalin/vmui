@@ -4,6 +4,7 @@ import { VIEW_ORDER, type ViewId } from "@/lib/esp/views";
 import { ambilightStatus } from "@/lib/home/ambilight-status";
 import { ha } from "@/lib/home/ha-client";
 import { NextResponse, type NextRequest } from "next/server";
+import { apiForbidden } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,7 @@ export const dynamic = "force-dynamic";
 // online_image every few seconds; must stay cheap and never throw.
 export async function GET(req: NextRequest, { params }: { params: Promise<{ node: string }> }) {
   const { node } = await params;
-  if (!espAuthorized(req)) return new NextResponse("forbidden", { status: 403 });
+  if (!espAuthorized(req)) return apiForbidden(req);
   if (!/^[a-z0-9-]{1,32}$/.test(node)) return new NextResponse("bad node", { status: 400 });
   let mode = "--";
   try {

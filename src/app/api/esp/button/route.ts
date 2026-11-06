@@ -11,6 +11,7 @@ import { ha } from "@/lib/home/ha-client";
 import { drinkGlass, undoGlass } from "@/lib/nutrition/water-actions";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
+import { apiForbidden } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +30,7 @@ const Q = z.object({
 //   sip, not a whole glass), long → undo last entry.
 //   Reply carries `led` so the firmware can blink the switch LED 1×/2×.
 export async function POST(req: NextRequest) {
-  if (!espAuthorized(req)) return new NextResponse("forbidden", { status: 403 });
+  if (!espAuthorized(req)) return apiForbidden(req);
   const p = Q.safeParse(Object.fromEntries(new URL(req.url).searchParams));
   if (!p.success) return NextResponse.json({ ok: false, error: "bad query" }, { status: 400 });
   const { node, click, btn } = p.data;

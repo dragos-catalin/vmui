@@ -3,6 +3,7 @@ import { canOpenDoor, currentHomeActor, homeActorOrOwner } from "@/lib/home/acce
 import { armAutoOpen, ignoreCall, intercomState, isAutoOpenArmed, onEspEvent, openDoor } from "@/lib/home/intercom";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
+import { apiForbidden } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ const espQ = z.object({
 //   ring answers {"open":true} while auto-open is armed, so the ESP runs the
 //   talk+open sequence itself without a second round trip.
 export async function POST(req: NextRequest) {
-  if (!espAuthorized(req)) return new NextResponse("forbidden", { status: 403 });
+  if (!espAuthorized(req)) return apiForbidden(req);
   const p = espQ.safeParse(Object.fromEntries(new URL(req.url).searchParams));
   if (!p.success) return NextResponse.json({ ok: false, error: "bad query" }, { status: 400 });
   const r = await onEspEvent(p.data.event, p.data.node);
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
 // GET /api/esp/intercom?k=…            state for the phone / turzx
 export async function GET(req: NextRequest) {
   // shared token (ESP32, HA), a bound device, or any signed-in household member polling the card
-  if (!espAuthorized(req) && !(await currentHomeActor())) return new NextResponse("forbidden", { status: 403 });
+  if (!espAuthorized(req) && !(await currentHomeActor())) return apiForbidden(req);
   const s = intercomState();
   return NextResponse.json({ ringing: s.ringingSince !== null, ringingSince: s.ringingSince, lastRingAt: s.lastRingAt, lastOpenAt: s.lastOpenAt, autoOpenUntil: s.autoOpenUntil, armed: isAutoOpenArmed(), log: s.log }, { headers: { "Cache-Control": "no-store" } });
 }
@@ -41,7 +42,7 @@ const cmd = z.object({
 //   act as the owner. A paired device (`Bearer vmd_`) acts as the member it is
 //   bound to: children and guests may ignore a call but not open or arm the door.
 export async function PUT(req: NextRequest) {
-  if (!espAuthorized(req)) return new NextResponse("forbidden", { status: 403 });
+  if (!espAuthorized(req)) return apiForbidden(req);
   const p = cmd.safeParse(await req.json().catch(() => ({})));
   if (!p.success) return NextResponse.json({ ok: false, error: z.flattenError(p.error) }, { status: 400 });
   const { action, minutes, by } = p.data;

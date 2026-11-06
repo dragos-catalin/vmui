@@ -8,7 +8,7 @@ import { ha } from "@/lib/home/ha-client";
 import { drinkGlass, undoGlass } from "@/lib/nutrition/water-actions";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { apiError } from "@/lib/api-error";
+import { apiError, apiForbidden } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +47,7 @@ const cmd = z.discriminatedUnion("type", [
 ]);
 
 export async function POST(req: NextRequest) {
-  if (!espAuthorized(req)) return new NextResponse("forbidden", { status: 403 });
+  if (!espAuthorized(req)) return apiForbidden(req);
   const p = cmd.safeParse(await req.json().catch(() => ({})));
   if (!p.success) return NextResponse.json({ ok: false, error: p.error.issues[0]?.message ?? "bad command" }, { status: 400 });
   const c = p.data;

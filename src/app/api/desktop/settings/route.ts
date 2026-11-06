@@ -8,6 +8,7 @@ import { catalogText } from "@/lib/turzx/catalog-text";
 import { loadTurzxSettings, saveTurzxSettings, turzxSettingsSchema } from "@/lib/turzx/settings";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
+import { apiForbidden } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ export const dynamic = "force-dynamic";
 // window. It holds the shared display token, not a session, so this mirrors
 // saveTurzxSettingsAction / saveDisplaySettingsAction behind that token.
 export async function GET(req: NextRequest) {
-  if (!espAuthorized(req) || !(await ownerTokenAuthorized(req))) return new NextResponse("forbidden", { status: 403 });
+  if (!espAuthorized(req) || !(await ownerTokenAuthorized(req))) return apiForbidden(req);
   const [turzx, display, meta] = await Promise.all([loadTurzxSettings(), loadDisplaySettings(), catalogText(deviceLocale(req.headers.get("accept-language")))]);
   return NextResponse.json(
     { turzx, display, meta },
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
 const body = z.union([z.object({ turzx: turzxSettingsSchema }), z.object({ display: displaySettingsSchema })]);
 
 export async function PUT(req: NextRequest) {
-  if (!espAuthorized(req) || !(await ownerTokenAuthorized(req))) return new NextResponse("forbidden", { status: 403 });
+  if (!espAuthorized(req) || !(await ownerTokenAuthorized(req))) return apiForbidden(req);
   const p = body.safeParse(await req.json().catch(() => null));
   if (!p.success) return NextResponse.json({ ok: false, error: p.error.issues[0]?.message ?? "invalid" }, { status: 400 });
   if ("turzx" in p.data) {

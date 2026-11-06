@@ -6,6 +6,7 @@ import { ha } from "@/lib/home/ha-client";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { apiText } from "@/lib/api-error";
+import { apiForbidden } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,7 @@ const body = z.union([
 ]);
 
 export async function GET(req: NextRequest) {
-  if (!espAuthorized(req) || !(await ownerTokenAuthorized(req))) return new NextResponse("forbidden", { status: 403 });
+  if (!espAuthorized(req) || !(await ownerTokenAuthorized(req))) return apiForbidden(req);
   const s = await ha.state("sensor.vmui_pc_agent").catch(() => null);
   const a = (s?.attributes ?? {}) as Record<string, unknown>;
   const seen = typeof a.at === "number" ? a.at : 0;
@@ -32,7 +33,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  if (!espAuthorized(req) || !(await ownerTokenAuthorized(req))) return new NextResponse("forbidden", { status: 403 });
+  if (!espAuthorized(req) || !(await ownerTokenAuthorized(req))) return apiForbidden(req);
   const p = body.safeParse(await req.json().catch(() => null));
   if (!p.success) return NextResponse.json({ ok: false, error: p.error.issues[0]?.message ?? "invalid" }, { status: 400 });
   const id = Math.random().toString(36).slice(2, 10);

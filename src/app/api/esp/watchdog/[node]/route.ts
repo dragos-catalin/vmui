@@ -1,6 +1,7 @@
 import { espAuthorized } from "@/lib/esp/auth";
 import { ha } from "@/lib/home/ha-client";
 import { NextResponse, type NextRequest } from "next/server";
+import { apiForbidden } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ const apiDownSince = new Map<string, number>();
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ node: string }> }) {
   const { node } = await params;
-  if (!espAuthorized(req)) return new NextResponse("forbidden", { status: 403 });
+  if (!espAuthorized(req)) return apiForbidden(req);
   if (!/^[a-z0-9-]{1,32}$/.test(node)) return new NextResponse("bad node", { status: 400 });
   const text = (s: string) => new NextResponse(s, { headers: { "Content-Type": "text/plain", "Cache-Control": "no-store" } });
   try {

@@ -28,3 +28,5 @@ export function apiText(req: Request, code: ApiErrorCode): string {
 export function apiError(req: Request, code: ApiErrorCode, status: number): NextResponse {
   return NextResponse.json({ ok: false, code, error: apiText(req, code) }, { status });
 }
+
+export const apiForbidden = (req: Request): NextResponse => apiError(req, "forbidden", 403);

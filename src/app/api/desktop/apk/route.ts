@@ -4,6 +4,7 @@ import { createReadStream, existsSync, statSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
+import { apiForbidden } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ export const dynamic = "force-dynamic";
 const DIR = path.join(process.cwd(), "public-apk");
 
 export async function GET(req: NextRequest) {
-  if (!espAuthorized(req)) return new NextResponse("forbidden", { status: 403 });
+  if (!espAuthorized(req)) return apiForbidden(req);
   const meta = path.join(DIR, "vmui.apk.json");
   const apk = path.join(DIR, "vmui.apk");
   if (!existsSync(meta) || !existsSync(apk)) return NextResponse.json({ error: "no apk published" }, { status: 404 });

@@ -20,6 +20,7 @@ import { loadPomodoro, loadTurzxSettings } from "@/lib/turzx/settings";
 import { desc } from "drizzle-orm";
 import { NextResponse, type NextRequest } from "next/server";
 import { household, ownerPhoneSensor } from "@/lib/household";
+import { apiForbidden } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +58,7 @@ function phoneNotification(s: HaState | undefined) {
 }
 
 export async function GET(req: NextRequest) {
-  if (!espAuthorized(req)) return new NextResponse("forbidden", { status: 403 });
+  if (!espAuthorized(req)) return apiForbidden(req);
   ensureActivityFeed();
   ensureNotifyWatchers();
   let states = new Map<string, HaState>();

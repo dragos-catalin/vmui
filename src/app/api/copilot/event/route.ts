@@ -11,6 +11,7 @@ import { dismissByTag, notify } from "@/lib/notify";
 import { agentSessions } from "@/lib/turzx/feeds";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
+import { apiForbidden } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -95,12 +96,12 @@ async function phoneAgentsSummary() {
 }
 
 export async function GET(req: NextRequest) {
-  if (!espAuthorized(req)) return new NextResponse("forbidden", { status: 403 });
+  if (!espAuthorized(req)) return apiForbidden(req);
   return NextResponse.json({ signal: currentSignal() }, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function DELETE(req: NextRequest) {
-  if (!espAuthorized(req)) return new NextResponse("forbidden", { status: 403 });
+  if (!espAuthorized(req)) return apiForbidden(req);
   const cur = currentSignal();
   const session = new URL(req.url).searchParams.get("session") ?? "";
   if (cur?.active && (!session || !cur.session || cur.session === session)) {
@@ -123,7 +124,7 @@ export async function DELETE(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  if (!espAuthorized(req)) return new NextResponse("forbidden", { status: 403 });
+  if (!espAuthorized(req)) return apiForbidden(req);
   const parsed = copilotEventSchema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return NextResponse.json({ error: z.flattenError(parsed.error) }, { status: 400 });
   const { event, text, session, source, project, chat } = parsed.data;
