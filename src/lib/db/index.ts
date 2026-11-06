@@ -909,6 +909,37 @@ sqlite.exec(`CREATE TABLE IF NOT EXISTS home_layout (
   y REAL NOT NULL,
   updated_at INTEGER NOT NULL DEFAULT (unixepoch())
 )`);
+// The house as data (P1): rooms and devices, seeded from lib/home/catalog.ts for the
+// original install or imported from Home Assistant areas on a fresh one.
+sqlite.exec(`CREATE TABLE IF NOT EXISTS home_rooms (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  ha_area TEXT,
+  x REAL NOT NULL DEFAULT 0,
+  y REAL NOT NULL DEFAULT 0,
+  w REAL NOT NULL DEFAULT 46,
+  h REAL NOT NULL DEFAULT 46,
+  sort INTEGER NOT NULL DEFAULT 0,
+  updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+)`);
+sqlite.exec(`CREATE TABLE IF NOT EXISTS home_devices (
+  id TEXT PRIMARY KEY,
+  room_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  entity TEXT,
+  entities TEXT NOT NULL DEFAULT '[]',
+  x REAL NOT NULL DEFAULT 50,
+  y REAL NOT NULL DEFAULT 50,
+  ambilight TEXT,
+  white_only INTEGER NOT NULL DEFAULT 0,
+  via TEXT NOT NULL DEFAULT '',
+  notes TEXT,
+  ha_device TEXT,
+  sort INTEGER NOT NULL DEFAULT 0,
+  updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+)`);
+sqlite.exec(`CREATE INDEX IF NOT EXISTS idx_home_devices_room ON home_devices(room_id)`);
 sqlite.exec(`CREATE TABLE IF NOT EXISTS turzx_settings (
   id INTEGER PRIMARY KEY,
   json TEXT NOT NULL,

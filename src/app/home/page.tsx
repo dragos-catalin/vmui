@@ -1,5 +1,7 @@
 import type { FamilyCandidate, FamilyInviteView, FamilyMemberView } from "@/components/home/family-card";
 import { HomeDashboard } from "@/components/home/home-dashboard";
+import { RoomsProvider } from "@/components/home/rooms-context";
+import { houseRooms } from "@/lib/home/house";
 import { normalizeHomeTab, normalizeSettingsSection } from "@/components/home/tabs";
 import { Alert, Button, EmptyState, PageHeader, PageShell } from "@/components/ui";
 import { loadCopilotSignals } from "@/lib/copilot/signals";
@@ -106,7 +108,9 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         </Alert>
       )}
 
+      <RoomsProvider rooms={houseRooms()}>
       <HomeDashboard access={access} family={family} devices={devices} initialStates={states} haUrl={avail.url} initialTab={initialTab} initialSection={initialSection} wall={wall} turzx={turzx} display={display} pomodoro={pomodoro} copilot={copilot} rgbLights={rgbLights} nutrition={nutrition} nutritionProfile={nutritionProfile} intercom={intercomProps()} espToken={access.canManage ? credential("ESP_DISPLAY_TOKEN") ?? "" : ""} buttons={buttons} haScripts={haScripts} />
+      </RoomsProvider>
     </PageShell>
   );
 }

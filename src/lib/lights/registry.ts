@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { lightDevices, lightGroupMembers, lightGroups, lightProfiles, lightScenes, lightSegments, type LightDeviceRow, type LightSegmentRow } from "@/lib/db/schema";
-import { DEVICES } from "@/lib/home/catalog";
+import { houseDevices } from "@/lib/home/house";
 import { ha, type HaState } from "@/lib/home/ha-client";
 import { asc, eq, inArray } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
@@ -454,7 +454,7 @@ export async function seedFromHa(states?: HaState[]): Promise<{ added: string[] 
   }
   for (const s of all) {
     if (!s.entity_id.startsWith("light.") || SKIP_ENTITIES.has(s.entity_id) || taken.has(s.entity_id)) continue;
-    const cat = DEVICES.find((d) => d.entity === s.entity_id);
+    const cat = houseDevices().find((d) => d.entity === s.entity_id);
     const friendly = typeof s.attributes.friendly_name === "string" ? s.attributes.friendly_name : s.entity_id;
     const dev = upsertDevice({
       id: slug(s.entity_id.slice("light.".length)),

@@ -1,14 +1,17 @@
 /**
- * The smart-home inventory as it exists in Home Assistant on 2026-09-12.
- * Shared by server and client (no secrets here). Positions are defaults for
- * the floor plan; the user's own placements live in the `home_layout` table
- * and override these.
+ * SEED ONLY: the original owner's house (Home Assistant inventory of 2026-09-12).
+ * The live house is data in `home_rooms` / `home_devices` (lib/home/house.ts);
+ * this file seeds those tables once on that install and keeps the client-safe
+ * types and the non-house constants (ambilight modes, stream scenes, palettes).
  *
  * Coordinates are percentages of the room box (0..100) so the plan scales
  * with the viewport.
  */
 
-export type RoomId = "bedroom" | "living_room" | "kitchen" | "office";
+/** Room ids are data now (any slug), not a fixed union. */
+export type RoomId = string;
+
+export type HomeRoom = { id: RoomId; name: string; x: number; y: number; w: number; h: number };
 
 export type DeviceKind =
   | "light"
@@ -45,7 +48,7 @@ export type CatalogDevice = {
   notes?: string;
 };
 
-export const ROOMS: Array<{ id: RoomId; name: string; x: number; y: number; w: number; h: number }> = [
+export const ROOMS: HomeRoom[] = [
   { id: "bedroom", name: "Bedroom", x: 2, y: 2, w: 46, h: 56 },
   { id: "living_room", name: "Living Room", x: 52, y: 2, w: 46, h: 56 },
   { id: "kitchen", name: "Kitchen", x: 52, y: 62, w: 46, h: 36 },

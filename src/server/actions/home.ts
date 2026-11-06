@@ -6,7 +6,8 @@ import { auditLog, homeLayout } from "@/lib/db/schema";
 import { displaySettingsSchema, saveDisplaySettings, type DisplaySettings } from "@/lib/display/settings";
 import { canControlAny, HomeAccessError, requireEntityControl, requireHomeActor, requireOwner, type HomeActor } from "@/lib/home/access";
 import { setAmbilightSettings } from "@/lib/home/ambilight-settings";
-import { AMBILIGHT_MODES, DEVICES, ROOMS } from "@/lib/home/catalog";
+import { AMBILIGHT_MODES } from "@/lib/home/catalog";
+import { houseDevices, houseEntities, houseRooms } from "@/lib/home/house";
 import { credential } from "@/lib/home/credentials";
 import { ha } from "@/lib/home/ha-client";
 import { loadPomodoro, loadTurzxSettings, POMODORO_IDLE, savePomodoro, saveTurzxSettings, turzxSettingsSchema, type TurzxSettings } from "@/lib/turzx/settings";
@@ -52,18 +53,13 @@ async function run(action: string, target: string, message: string, fn: () => Pr
 const entityId = z.string().regex(/^[a-z_]+\.[a-z0-9_]+$/);
 const rgb = z.tuple([z.number().int().min(0).max(255), z.number().int().min(0).max(255), z.number().int().min(0).max(255)]);
 
-const knownEntities = new Set<string>();
-for (const d of DEVICES) {
-  if (d.entity) knownEntities.add(d.entity);
-  for (const e of d.entities ?? []) knownEntities.add(e);
-}
-knownEntities.add("light.hyperhdr");
-const whiteOnlyEntities = new Set(DEVICES.filter((d) => d.whiteOnly && d.entity).map((d) => d.entity as string));
+const isKnownEntity = (e: string) => e === "light.hyperhdr" || houseEntities().has(e);
+const isWhiteOnly = (e: string) => houseDevices().some((d) => d.whiteOnly && d.entity === e);
 
 function assertKnown(entity: string) {
   // Only the entities this UI renders may be driven from here. Anything else
   // is a typo or a probe, and HA's own UI is the right place for it.
-  if (!knownEntities.has(entity)) throw new Error(`Unknown entity ${entity}`);
+  if (!isKnownEntity(entity)) throw new Error(`Unknown entity ${entity}`);
 }
 
 export async function toggleEntityAction(input: { entity: string; on: boolean }): Promise<Result> {
@@ -108,7 +104,7 @@ export async function setLightAction(input: {
     JSON.stringify({ color, brightnessPct, kelvin }),
     async () => {
       assertKnown(entity);
-      if (color && whiteOnlyEntities.has(entity)) throw new Error("This light only supports white — use Warmth instead");
+      if (color && isWhiteOnly(entity)) throw new Error("This light only supports white — use Warmth instead");
       const data: Record<string, unknown> = { entity_id: entity };
       if (color) data.rgb_color = color;
       if (brightnessPct !== undefined) data.brightness_pct = brightnessPct;
@@ -333,8 +329,8 @@ export async function pomodoroAction(cmd: "start" | "break" | "stop"): Promise<R
 export async function placeDeviceAction(input: { deviceId: string; room: string; x: number; y: number }): Promise<Result> {
   const p = z
     .object({
-      deviceId: z.string().refine((id) => DEVICES.some((d) => d.id === id), "Unknown device"),
-      room: z.string().refine((r) => ROOMS.some((x) => x.id === r), "Unknown room"),
+      deviceId: z.string().refine((id) => houseDevices().some((d) => d.id === id), "Unknown device"),
+      room: z.string().refine((r) => houseRooms().some((x) => x.id === r), "Unknown room"),
       x: z.number().min(0).max(100),
       y: z.number().min(0).max(100),
     })

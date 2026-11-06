@@ -6,7 +6,8 @@ import { provisionCodaiEnvironment, refreshCodaiStatus } from "@/lib/codai/provi
 import { db } from "@/lib/db";
 import { auditLog, instances } from "@/lib/db/schema";
 import { showMessage } from "@/lib/esp/gallery";
-import { AMBILIGHT_MODES, DEVICES, STREAM_SCENES } from "@/lib/home/catalog";
+import { AMBILIGHT_MODES, STREAM_SCENES } from "@/lib/home/catalog";
+import { houseDevices } from "@/lib/home/house";
 import { ha } from "@/lib/home/ha-client";
 import { armAutoOpen, ignoreCall, intercomState, openDoor } from "@/lib/home/intercom";
 import { FLASH_COLORS, flashColorSchema, resolveFlashColor, resolveScene, sceneScopeId, sceneSetSchema } from "@/lib/home/stream";
@@ -52,13 +53,15 @@ export type McpTool = {
 const entityId = z.string().regex(/^[a-z_]+\.[a-z0-9_]+$/);
 const rgb = z.tuple([z.number().int().min(0).max(255), z.number().int().min(0).max(255), z.number().int().min(0).max(255)]);
 
-const known = new Map<string, { name: string; room: string; kind: string; whiteOnly?: boolean }>();
-for (const d of DEVICES) {
-  for (const e of [d.entity, ...(d.entities ?? [])]) {
-    if (e) known.set(e, { name: d.name, room: d.room, kind: d.kind, whiteOnly: d.whiteOnly });
-  }
+type Known = { name: string; room: string; kind: string; whiteOnly?: boolean };
+/** Entity -> device facts, rebuilt from the house per call (rooms/devices are data now). */
+function knownMap(): Map<string, Known> {
+  const m = new Map<string, Known>();
+  for (const d of houseDevices()) for (const e of [d.entity, ...(d.entities ?? [])]) if (e) m.set(e, { name: d.name, room: d.room, kind: d.kind, whiteOnly: d.whiteOnly });
+  m.set("light.hyperhdr", { name: "Ambilight (HyperHDR)", room: "", kind: "strip" });
+  return m;
 }
-known.set("light.hyperhdr", { name: "Ambilight (HyperHDR)", room: "bedroom", kind: "strip" });
+const known = { get: (e: string) => knownMap().get(e), has: (e: string) => knownMap().has(e), entries: () => knownMap().entries(), keys: () => knownMap().keys() };
 
 function assertKnown(entity: string) {
   if (!known.has(entity)) throw new Error(`Unknown entity ${entity}; call home_devices for the list`);

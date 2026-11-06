@@ -1,5 +1,7 @@
 import { AcceptInviteForm } from "@/components/auth/accept-invite-form";
 import { AuthCard } from "@/components/auth/auth-card";
+import { RoomsProvider } from "@/components/home/rooms-context";
+import { houseRooms } from "@/lib/home/house";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
@@ -28,6 +30,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   return (
     <AuthCard title={inv ? t("title") : t("invalidTitle")} description={inv ? t("description") : undefined}>
       {inv ? (
+        <RoomsProvider rooms={houseRooms()}>
         <AcceptInviteForm
           token={token}
           name={inv.name}
@@ -36,6 +39,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
           inviter={inviter}
           accessExpiresAt={inv.accessExpiresAt?.toISOString() ?? null}
         />
+        </RoomsProvider>
       ) : (
         <div className="space-y-4">
           <Alert tone="danger">{t("invalidBody")}</Alert>

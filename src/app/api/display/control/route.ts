@@ -1,7 +1,8 @@
 import { db } from "@/lib/db";
 import { auditLog } from "@/lib/db/schema";
 import { espAuthorized } from "@/lib/esp/auth";
-import { AMBILIGHT_MODES, DEVICES } from "@/lib/home/catalog";
+import { AMBILIGHT_MODES } from "@/lib/home/catalog";
+import { houseDevices, houseEntities } from "@/lib/home/house";
 import { canControlAny, canControlEntity, tokenActor } from "@/lib/home/access";
 import { ha } from "@/lib/home/ha-client";
 import { drinkGlass, undoGlass } from "@/lib/nutrition/water-actions";
@@ -16,13 +17,8 @@ export const dynamic = "force-dynamic";
 // Server Actions in src/server/actions/home.ts behind the shared display
 // token, with the same entity whitelist (only what the UI renders).
 
-const known = new Set<string>(["light.hyperhdr"]);
-for (const d of DEVICES) {
-  if (d.entity) known.add(d.entity);
-  for (const e of d.entities ?? []) known.add(e);
-}
-const whiteOnly = new Set(DEVICES.filter((d) => d.whiteOnly && d.entity).map((d) => d.entity as string));
-const entityId = z.string().regex(/^[a-z_]+\.[a-z0-9_]+$/).refine((e) => known.has(e), "unknown entity");
+const entityId = z.string().regex(/^[a-z_]+\.[a-z0-9_]+$/).refine((e) => e === "light.hyperhdr" || houseEntities().has(e), "unknown entity");
+const whiteOnly = { has: (e: string) => houseDevices().some((d) => d.whiteOnly && d.entity === e) };
 
 const cmd = z.discriminatedUnion("type", [
   z.object({ type: z.literal("toggle"), entity: entityId, on: z.boolean() }),

@@ -1,4 +1,4 @@
-import { DEVICES } from "@/lib/home/catalog";
+import { houseDevices } from "@/lib/home/house";
 import { haConfig } from "@/lib/home/credentials";
 import "server-only";
 
@@ -13,11 +13,7 @@ export type Activity = {
 };
 
 const MAX = 40;
-const NAME = new Map<string, string>();
-for (const d of DEVICES) {
-  if (d.entity) NAME.set(d.entity, d.name);
-  for (const e of d.entities ?? []) NAME.set(e, d.name);
-}
+const NAME = { get(e: string): string | undefined { return houseDevices().find((d) => d.entity === e || d.entities?.includes(e))?.name; } };
 
 declare global {
   // eslint-disable-next-line no-var

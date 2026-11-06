@@ -1,7 +1,8 @@
 "use client";
 
 import type { RoomGrants, RoomLevel } from "@/lib/home/access-model";
-import { ROOMS, type RoomId } from "@/lib/home/catalog";
+import type { RoomId } from "@/lib/home/catalog";
+import { useRoomLabel, useRooms } from "@/components/home/rooms-context";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
 
@@ -10,7 +11,8 @@ const LEVELS: Level[] = ["none", "view", "control"];
 
 /** One row per room, three-state segmented control (none / view / control). */
 export function RoomGrantsEditor({ value, onChange, disabled = false }: { value: RoomGrants; onChange: (next: RoomGrants) => void; disabled?: boolean }) {
-  const rooms = useTranslations("home.rooms");
+  const ROOMS = useRooms();
+  const rooms = useRoomLabel();
   const t = useTranslations("family.level");
 
   const set = (room: RoomId, level: Level) => {

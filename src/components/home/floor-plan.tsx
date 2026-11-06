@@ -1,7 +1,8 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { ROOMS, type CatalogDevice, type RoomId } from "@/lib/home/catalog";
+import type { CatalogDevice, HomeRoom, RoomId } from "@/lib/home/catalog";
+import { useRoomLabel, useRooms } from "@/components/home/rooms-context";
 import { cn } from "@/lib/utils";
 import { placeDeviceAction, resetLayoutAction } from "@/server/actions/home";
 import type { PlacedDevice } from "@/server/queries/home";
@@ -29,8 +30,9 @@ type Props = {
  * move it in arrange mode; the move is persisted through placeDeviceAction.
  */
 export function FloorPlan({ devices, selected, onSelect, canArrange = true }: Props & { canArrange?: boolean }) {
+  const ROOMS = useRooms();
   const t = useTranslations("homeCards.floorPlan");
-  const roomName = useTranslations("homeCards.floorPlan.rooms");
+  const roomName = useRoomLabel("homeCards.floorPlan.rooms");
   const [arrange, setArrange] = React.useState(false);
   const [local, setLocal] = React.useState(devices);
   const [announce, setAnnounce] = React.useState("");
@@ -60,7 +62,7 @@ export function FloorPlan({ devices, selected, onSelect, canArrange = true }: Pr
       window.removeEventListener("resize", measure);
     };
   }, []);
-  const offsets = React.useMemo(() => collisionOffsets(local, planSize), [local, planSize]);
+  const offsets = React.useMemo(() => collisionOffsets(local, planSize, ROOMS), [local, planSize, ROOMS]);
 
   /** Move to a point in plan percent; the room is whichever box contains it. */
   const moveTo = (d: CatalogDevice, px: number, py: number, delayMs = 0) => {
@@ -87,7 +89,7 @@ export function FloorPlan({ devices, selected, onSelect, canArrange = true }: Pr
   };
   // Keyboard alternative to dragging (WCAG 2.1.1 / 2.5.7): 1 % of the plan per arrow, 5 % with Shift.
   const nudge = (d: PlacedDevice, dx: number, dy: number) => {
-    const c = dotCenter(d);
+    const c = dotCenter(d, ROOMS);
     moveTo(d, Math.min(99, Math.max(1, c.left + dx)), Math.min(99, Math.max(1, c.top + dy)), 500);
   };
 
@@ -158,8 +160,8 @@ const SLOTS: ReadonlyArray<{ dx: number; dy: number }> = [
   { dx: 0, dy: 3 }, { dx: 0, dy: -3 }, { dx: 2, dy: 2 }, { dx: -2, dy: 2 },
 ];
 
-function dotCenter(d: PlacedDevice) {
-  const room = ROOMS.find((r) => r.id === (d.room as RoomId)) ?? ROOMS[0]!;
+function dotCenter(d: PlacedDevice, ROOMS: HomeRoom[]) {
+  const room = ROOMS.find((r) => r.id === (d.room as RoomId)) ?? ROOMS[0] ?? { id: "", name: "", x: 0, y: 0, w: 100, h: 100 };
   return { left: room.x + (d.x / 100) * room.w, top: room.y + (d.y / 100) * room.h };
 }
 
@@ -175,12 +177,12 @@ const edgeClamp = (pct: number, deltaPx: number, edgePx: number) =>
 // its true position that stays inside the plan, or the least-crowded one when
 // the room is denser than the plan can show. Deterministic, so a re-render
 // never moves a dot that did not need moving.
-function collisionOffsets(devices: PlacedDevice[], plan: { w: number; h: number }): Map<string, { dx: number; dy: number }> {
+function collisionOffsets(devices: PlacedDevice[], plan: { w: number; h: number }, rooms: HomeRoom[]): Map<string, { dx: number; dy: number }> {
   const out = new Map<string, { dx: number; dy: number }>();
   if (plan.w === 0 || plan.h === 0) return out;
   const placed: Array<{ x: number; y: number }> = [];
   const sorted = devices
-    .map((d) => ({ id: d.id, ...dotCenter(d) }))
+    .map((d) => ({ id: d.id, ...dotCenter(d, rooms) }))
     .sort((a, b) => a.top - b.top || a.left - b.left || a.id.localeCompare(b.id));
   const crowding = (x: number, y: number) =>
     placed.reduce((acc, p) => {
@@ -209,8 +211,8 @@ function collisionOffsets(devices: PlacedDevice[], plan: { w: number; h: number 
   return out;
 }
 
-function Room({ room, devices }: { room: (typeof ROOMS)[number]; devices: PlacedDevice[] }) {
-  const t = useTranslations("homeCards.floorPlan.rooms");
+function Room({ room, devices }: { room: HomeRoom; devices: PlacedDevice[] }) {
+  const t = useRoomLabel("homeCards.floorPlan.rooms");
   // Room tint = blend of the lights that are on inside it; that is what a
   // room actually looks like from the doorway.
   const lit = devices.filter((d) => d.kind === "light" || d.kind === "strip" || d.kind === "projector");
@@ -262,8 +264,9 @@ function LightGlow({ device }: { device: PlacedDevice }) {
 
 /** Below sm the plan is too small for room labels: list each room with how many of its devices are on. */
 function RoomLegend({ devices }: { devices: PlacedDevice[] }) {
+  const ROOMS = useRooms();
   const t = useTranslations("homeCards.floorPlan");
-  const roomName = useTranslations("homeCards.floorPlan.rooms");
+  const roomName = useRoomLabel("homeCards.floorPlan.rooms");
   const { states } = useHomeStates();
   const deviceOn = (d: PlacedDevice) => (d.entity ? isOn(states[d.entity]) : d.id === "dxlight" || d.id === "pc");
   return (
@@ -302,7 +305,7 @@ function DeviceDot({
   onNudge: (dx: number, dy: number) => void;
 }) {
   const t = useTranslations("homeCards.floorPlan");
-  const { left, top } = dotCenter(device);
+  const { left, top } = dotCenter(device, useRooms());
   const [hover, setHover] = React.useState(false);
   const [focus, setFocus] = React.useState(false);
   // Drag offset is reset on drop: the new left/top already carries the move.

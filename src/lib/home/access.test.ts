@@ -2,6 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/db", () => ({ db: {} }));
 vi.mock("@/lib/auth", () => ({ authEnabled: async () => true, getCurrentUser: async () => null }));
+vi.mock("@/lib/household", () => ({ ownerPhoneSensor: (s: string) => `sensor.dragos_s_s25_ultra_${s}` }));
+// the owner install's house = the catalog seed
+vi.mock("@/lib/home/house", async () => {
+  const c = await import("./catalog");
+  return { houseRooms: () => c.ROOMS, houseDevices: () => c.DEVICES };
+});
 
 import { accessView, canControl, canControlAny, canOpenDoor, canView, parseGrants, roomOfEntity, visibleEntities, visibleRooms, type HomeActor } from "./access";
 

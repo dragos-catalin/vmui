@@ -2,7 +2,8 @@ import { db } from "@/lib/db";
 import { homeLayout } from "@/lib/db/schema";
 import { canView, visibleEntities, type HomeActor } from "@/lib/home/access";
 import { ambilightSettings } from "@/lib/home/ambilight-settings";
-import { DEVICES, type CatalogDevice } from "@/lib/home/catalog";
+import type { CatalogDevice } from "@/lib/home/catalog";
+import { houseDevices } from "@/lib/home/house";
 import { ha, type HaState } from "@/lib/home/ha-client";
 import "server-only";
 
@@ -19,7 +20,7 @@ export async function wallSetting(): Promise<WallSetting> {
 export async function listPlacedDevices(actor: HomeActor): Promise<PlacedDevice[]> {
   const rows = await db.select().from(homeLayout);
   const byId = new Map(rows.map((r) => [r.deviceId, r]));
-  return DEVICES.map((d): PlacedDevice => {
+  return houseDevices().map((d): PlacedDevice => {
     const r = byId.get(d.id);
     return r ? { ...d, room: r.room as CatalogDevice["room"], x: r.x, y: r.y, placed: true } : { ...d, placed: false };
   }).filter((d) => canView(actor, d.room));

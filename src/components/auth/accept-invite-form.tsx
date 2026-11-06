@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { useAction } from "@/hooks/use-action";
 import type { ActionResult } from "@/lib/action-result";
 import type { FamilyRole, RoomGrants } from "@/lib/home/access-model";
-import { ROOMS } from "@/lib/home/catalog";
+import { useRoomLabel, useRooms } from "@/components/home/rooms-context";
 import { acceptInviteAction } from "@/server/actions/family";
 import { useFormatter, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
@@ -33,7 +33,8 @@ export function AcceptInviteForm({
 }) {
   const t = useTranslations("auth");
   const family = useTranslations("family");
-  const roomNames = useTranslations("home.rooms");
+  const ROOMS = useRooms();
+  const roomNames = useRoomLabel();
   const format = useFormatter();
   const router = useRouter();
   const [displayName, setDisplayName] = React.useState(name);

@@ -1223,6 +1223,40 @@ export const homeLayout = sqliteTable("home_layout", {
 });
 export type HomeLayoutRow = typeof homeLayout.$inferSelect;
 
+/** Rooms of the house (P1 house-as-data). Seeded from lib/home/catalog.ts or HA areas. */
+export const homeRooms = sqliteTable("home_rooms", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  haArea: text("ha_area"),
+  x: real("x").notNull().default(0),
+  y: real("y").notNull().default(0),
+  w: real("w").notNull().default(46),
+  h: real("h").notNull().default(46),
+  sort: integer("sort").notNull().default(0),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+});
+export type HomeRoomRow = typeof homeRooms.$inferSelect;
+
+/** Devices placed in rooms; `entity` + `entities` (JSON string[]) are the HA entities they own. */
+export const homeDevices = sqliteTable("home_devices", {
+  id: text("id").primaryKey(),
+  roomId: text("room_id").notNull(),
+  name: text("name").notNull(),
+  kind: text("kind").notNull(),
+  entity: text("entity"),
+  entities: text("entities").notNull().default("[]"),
+  x: real("x").notNull().default(50),
+  y: real("y").notNull().default(50),
+  ambilight: text("ambilight"),
+  whiteOnly: integer("white_only", { mode: "boolean" }).notNull().default(false),
+  via: text("via").notNull().default(""),
+  notes: text("notes"),
+  haDevice: text("ha_device"),
+  sort: integer("sort").notNull().default(0),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+});
+export type HomeDeviceRow = typeof homeDevices.$inferSelect;
+
 /** Food log. One row per meal; `items` is the JSON component breakdown from the
  *  analysis. Source of truth for the nutrition view, HA sensors and the coach;
  *  Health Connect only mirrors it so Samsung Health shows the meal. */

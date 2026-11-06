@@ -1,7 +1,7 @@
 import { loadDisplaySettings } from "@/lib/display/settings";
 import { espAuthorized } from "@/lib/esp/auth";
 import { tokenActor, visibleEntities, visibleRooms } from "@/lib/home/access";
-import { DEVICES, ROOMS } from "@/lib/home/catalog";
+import { houseDevices, houseRooms } from "@/lib/home/house";
 import { haConfig } from "@/lib/home/credentials";
 import { ha } from "@/lib/home/ha-client";
 import { photoPool } from "@/lib/turzx/feeds";
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
     // the Hub's own sources (the Turzx aggregate carries the desk screen's), cached 6 h per source in photoPool
     photoPool(settings.photoSources).catch(() => []),
   ]);
-  const roomPlayers = new Set(DEVICES.filter((d) => d.room === HUB_ROOM).flatMap((d) => [d.entity, ...(d.entities ?? [])]).filter((e): e is string => !!e && e.startsWith("media_player.")));
+  const roomPlayers = new Set(houseDevices().filter((d) => d.room === HUB_ROOM).flatMap((d) => [d.entity, ...(d.entities ?? [])]).filter((e): e is string => !!e && e.startsWith("media_player.")));
   const media = Array.isArray(turzx?.media) ? (turzx.media as Array<{ id: string }>).filter((m) => roomPlayers.has(m.id)) : [];
   const byId = new Map(states.map((s) => [s.entity_id, s]));
   const want = seen;
@@ -58,8 +58,8 @@ export async function GET(req: NextRequest) {
       photos,
       media,
       display: settings,
-      rooms: ROOMS.filter((r) => rooms.has(r.id)),
-      devices: DEVICES.filter((d) => rooms.has(d.room)),
+      rooms: houseRooms().filter((r) => rooms.has(r.id)),
+      devices: houseDevices().filter((d) => rooms.has(d.room)),
       entities,
       hubIdle: byId.get("input_boolean.nest_hub_idle")?.state === "on" ? true : byId.has("input_boolean.nest_hub_idle") ? false : null,
       haUrl: haConfig()?.url ?? null,

@@ -4,7 +4,7 @@ import { parseApiKeyScopes } from "@/lib/api-key-scopes";
 import { authEnabled, getCurrentUser, ROLE_RANK } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { apiKeys, instances } from "@/lib/db/schema";
-import { DEVICES } from "@/lib/home/catalog";
+import { houseDevices } from "@/lib/home/house";
 import { PC_ACTIONS, TOOLS } from "@/lib/mcp/tools";
 import { desc } from "drizzle-orm";
 import { Key } from "lucide-react";
@@ -34,7 +34,7 @@ export default async function ApiKeysPage() {
   ]);
 
   const entities = new Map<string, string>();
-  for (const d of DEVICES) {
+  for (const d of houseDevices()) {
     for (const e of [d.entity, ...(d.entities ?? [])]) {
       if (e && !entities.has(e)) entities.set(e, d.name);
     }

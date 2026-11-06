@@ -14,7 +14,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAction } from "@/hooks/use-action";
 import { err, ok, type ActionResult } from "@/lib/action-result";
 import { FAMILY_ROLES, type FamilyRole, type RoomGrants } from "@/lib/home/access-model";
-import { ROOMS } from "@/lib/home/catalog";
+import { useRoomLabel, useRooms } from "@/components/home/rooms-context";
+import type { HomeRoom } from "@/lib/home/catalog";
 import { bindDeviceAction, createInviteAction, createMemberAccountAction, removeMemberAction, revokeInviteAction, upsertMemberAction } from "@/server/actions/family";
 import { Check, Copy, Laptop, Link2, Pencil, Smartphone, Trash2, Users, X } from "lucide-react";
 import * as m from "motion/react-m";
@@ -78,7 +79,8 @@ function toIso(local: string): string | null {
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 function sameGrants(a: RoomGrants, b: RoomGrants): boolean {
-  return ROOMS.every((r) => (a[r.id] ?? "none") === (b[r.id] ?? "none"));
+  const ids = new Set([...Object.keys(a), ...Object.keys(b)]);
+  return [...ids].every((id) => (a[id] ?? "none") === (b[id] ?? "none"));
 }
 function errorText(t: T, error: string): string {
   if (error === "email_taken") return t("errors.emailTaken");
@@ -177,7 +179,8 @@ function RoleBadge({ role }: { role: FamilyRole }) {
 
 function RoomChips({ role, rooms }: { role: FamilyRole; rooms: RoomGrants }) {
   const t = useTranslations("family");
-  const roomNames = useTranslations("home.rooms");
+  const ROOMS = useRooms();
+  const roomNames = useRoomLabel();
   if (role === "owner") return <span className="text-xs text-muted">{t("members.allRooms")}</span>;
   const ids = ROOMS.filter((r) => rooms[r.id]).map((r) => r.id);
   if (ids.length === 0) return <span className="text-xs text-muted">{t("members.roomsCount", { count: 0 })}</span>;
@@ -406,8 +409,8 @@ function ago(t: T, iso: string): string {
   return t("ago.days", { n: Math.round(s / 86400) });
 }
 
-function roomsSummary(t: T, rooms: ReturnType<typeof useTranslations<"home.rooms">>, grants: RoomGrants): string {
-  const ids = ROOMS.filter((r) => grants[r.id]).map((r) => r.id);
+function roomsSummary(t: T, rooms: (id: string) => string, all: HomeRoom[], grants: RoomGrants): string {
+  const ids = all.filter((r) => grants[r.id]).map((r) => r.id);
   if (ids.length === 0) return t("members.roomsCount", { count: 0 });
   return ids.map((id) => `${rooms(id)} (${t(`level.${grants[id] ?? "view"}`)})`).join(", ");
 }
@@ -416,7 +419,8 @@ function roomsSummary(t: T, rooms: ReturnType<typeof useTranslations<"home.rooms
 
 function InviteSection({ invites, origin }: { invites: FamilyInviteView[]; origin: string }) {
   const t = useTranslations("family");
-  const rooms = useTranslations("home.rooms");
+  const allRooms = useRooms();
+  const rooms = useRoomLabel();
   const fmt = useFormatter();
   const confirmDestructive = useConfirmDestructive();
   const createAction = useFamilyAction(createInviteAction);
@@ -536,7 +540,7 @@ function InviteSection({ invites, origin }: { invites: FamilyInviteView[]; origi
                     <span className="min-w-0 truncate text-sm font-medium">{inv.name}</span>
                     <Badge variant="muted">{t(`roles.${inv.role}`)}</Badge>
                   </div>
-                  <div className="min-w-0 break-words text-xs text-muted">{roomsSummary(t, rooms, inv.rooms)}</div>
+                  <div className="min-w-0 break-words text-xs text-muted">{roomsSummary(t, rooms, allRooms, inv.rooms)}</div>
                   <div className="min-w-0 break-words text-xs text-muted">
                     {[t("invite.expiresIn", { days: daysLeft(inv.expiresAt) }), inv.accessExpiresAt ? t("invite.accessUntil", { date: fmtDate(inv.accessExpiresAt) }) : null].filter(Boolean).join(" · ")}
                   </div>

@@ -3,7 +3,8 @@ import "server-only";
 import { authEnabled, getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { homeMembers, pairedDevices, users, type HomeMemberRow, type UserRow } from "@/lib/db/schema";
-import { DEVICES, ROOMS, type RoomId } from "@/lib/home/catalog";
+import type { RoomId } from "@/lib/home/catalog";
+import { houseDevices, houseRooms } from "@/lib/home/house";
 import { and, eq } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
@@ -25,8 +26,9 @@ import { FAMILY_ROLES, ROOM_LEVELS, type FamilyRole, type HomeAccessView, type R
 import { ownerPhoneSensor } from "@/lib/household";
 export { FAMILY_ROLES, ROOM_LEVELS, type FamilyRole, type HomeAccessView, type RoomGrants, type RoomLevel };
 
-export const roomIdSchema = z.enum(ROOMS.map((r) => r.id) as [RoomId, ...RoomId[]]);
-export const roomGrantsSchema = z.partialRecord(roomIdSchema, z.enum(ROOM_LEVELS)) as z.ZodType<RoomGrants>;
+/** Room ids are data: validated by shape here; unknown rooms simply grant nothing. */
+export const roomIdSchema = z.string().regex(/^[a-z0-9_-]{1,40}$/);
+export const roomGrantsSchema = z.record(roomIdSchema, z.enum(ROOM_LEVELS)) as z.ZodType<RoomGrants>;
 export const inviteRoleSchema = z.enum(["adult", "child", "guest"]);
 
 export type HomeActor = {
@@ -40,12 +42,16 @@ export type HomeActor = {
   deviceId: string | null;
 };
 
-const ALL_CONTROL: RoomGrants = Object.fromEntries(ROOMS.map((r) => [r.id, "control"])) as RoomGrants;
+/** Owner grants are computed per call: rooms can be added at runtime. */
+const allControl = (): RoomGrants => Object.fromEntries(houseRooms().map((r) => [r.id, "control"])) as RoomGrants;
 
 export function parseGrants(json: string): RoomGrants {
   try {
     const p = roomGrantsSchema.safeParse(JSON.parse(json));
-    return p.success ? p.data : {};
+    if (!p.success) return {};
+    // a grant for a room that was deleted (or never existed) grants nothing
+    const rooms = new Set(houseRooms().map((r) => r.id));
+    return Object.fromEntries(Object.entries(p.data).filter(([id]) => rooms.has(id))) as RoomGrants;
   } catch {
     return {};
   }
@@ -53,7 +59,7 @@ export function parseGrants(json: string): RoomGrants {
 
 function toActor(user: Pick<UserRow, "id" | "email" | "displayName" | "role">, m: HomeMemberRow | null, deviceId: string | null): HomeActor | null {
   if (!m) {
-    if (user.role === "admin") return { userId: user.id, email: user.email, displayName: user.displayName, role: "owner", rooms: ALL_CONTROL, expiresAt: null, deviceId };
+    if (user.role === "admin") return { userId: user.id, email: user.email, displayName: user.displayName, role: "owner", rooms: allControl(), expiresAt: null, deviceId };
     return null;
   }
   if (m.expiresAt && m.expiresAt.getTime() < Date.now()) return null;
@@ -62,14 +68,14 @@ function toActor(user: Pick<UserRow, "id" | "email" | "displayName" | "role">, m
     email: user.email,
     displayName: user.displayName,
     role: m.role,
-    rooms: m.role === "owner" ? ALL_CONTROL : parseGrants(m.rooms),
+    rooms: m.role === "owner" ? allControl() : parseGrants(m.rooms),
     expiresAt: m.expiresAt,
     deviceId,
   };
 }
 
 /** Single-user installs (no accounts yet) get a synthetic owner so nothing is gated. */
-const SOLO_OWNER: HomeActor = { userId: "solo", email: "", displayName: "", role: "owner", rooms: ALL_CONTROL, expiresAt: null, deviceId: null };
+const soloOwner = (): HomeActor => ({ userId: "solo", email: "", displayName: "", role: "owner", rooms: allControl(), expiresAt: null, deviceId: null });
 
 async function memberRow(userId: string): Promise<HomeMemberRow | null> {
   return (await db.select().from(homeMembers).where(eq(homeMembers.userId, userId)).get()) ?? null;
@@ -77,7 +83,7 @@ async function memberRow(userId: string): Promise<HomeMemberRow | null> {
 
 /** The signed-in browser user as a household actor, or null when they have no access. */
 export async function currentHomeActor(): Promise<HomeActor | null> {
-  if (!(await authEnabled())) return SOLO_OWNER;
+  if (!(await authEnabled())) return soloOwner();
   const u = await getCurrentUser();
   if (!u) return null;
   return toActor(u, await memberRow(u.id), null);
@@ -105,7 +111,7 @@ export async function homeActorFromRequest(req: Request): Promise<HomeActor | nu
  *  identity — ESP32 desk button, Nest Hub, HA rest_command, the codai phone
  *  assistant — act on the owner's behalf: those devices are physically theirs. */
 export async function ownerActor(): Promise<HomeActor | null> {
-  if (!(await authEnabled())) return SOLO_OWNER;
+  if (!(await authEnabled())) return soloOwner();
   const m = await db.select().from(homeMembers).where(eq(homeMembers.role, "owner")).orderBy(homeMembers.createdAt).get();
   if (m) {
     const u = await db.select().from(users).where(eq(users.id, m.userId)).get();
@@ -154,15 +160,13 @@ export async function ownerTokenAuthorized(req: Request): Promise<boolean> {
 /** Journal owner for nutrition writes: `"solo"` installs map to null (single household, no user rows). */
 export const journalUserId = (a: HomeActor): string | null => (a.userId === "solo" ? null : a.userId);
 
-export const roomOf = (deviceId: string): RoomId | null => DEVICES.find((d) => d.id === deviceId)?.room ?? null;
+export const roomOf = (deviceId: string): RoomId | null => houseDevices().find((d) => d.id === deviceId)?.room ?? null;
 
-const entityRoom = new Map<string, RoomId>();
-for (const d of DEVICES) {
-  if (d.entity) entityRoom.set(d.entity, d.room);
-  for (const e of d.entities ?? []) entityRoom.set(e, d.room);
+/** Room an HA entity belongs to per the house; `light.hyperhdr` and other house-wide entities return null. */
+export function roomOfEntity(entity: string): RoomId | null {
+  for (const d of houseDevices()) if (d.entity === entity || d.entities?.includes(entity)) return d.room;
+  return null;
 }
-/** Room an HA entity belongs to per the catalog; `light.hyperhdr` and other house-wide entities return null. */
-export const roomOfEntity = (entity: string): RoomId | null => entityRoom.get(entity) ?? null;
 
 export function roomLevel(a: HomeActor, room: RoomId): RoomLevel | null {
   return a.rooms[room] ?? null;
@@ -170,9 +174,9 @@ export function roomLevel(a: HomeActor, room: RoomId): RoomLevel | null {
 export const canView = (a: HomeActor, room: RoomId) => roomLevel(a, room) !== null;
 export const canControl = (a: HomeActor, room: RoomId) => roomLevel(a, room) === "control";
 /** Rooms the actor may see, in floor-plan order. */
-export const visibleRooms = (a: HomeActor): RoomId[] => ROOMS.map((r) => r.id).filter((r) => canView(a, r));
+export const visibleRooms = (a: HomeActor): RoomId[] => houseRooms().map((r) => r.id).filter((r) => canView(a, r));
 /** House-wide features (ambilight scenes, wall colour) need control in at least one room. */
-export const canControlAny = (a: HomeActor) => ROOMS.some((r) => canControl(a, r.id));
+export const canControlAny = (a: HomeActor) => houseRooms().some((r) => canControl(a, r.id));
 export const isOwner = (a: HomeActor) => a.role === "owner";
 /** Owner and adults may open the door; children and guests only watch it. */
 export const canOpenDoor = (a: HomeActor) => a.role === "owner" || a.role === "adult";
@@ -219,7 +223,7 @@ export async function requireDoorAccess(): Promise<HomeActor> {
 /** Entities the actor is allowed to see; drives both the initial state load and the SSE stream. */
 export function visibleEntities(a: HomeActor): Set<string> {
   const out = new Set<string>();
-  for (const d of DEVICES) {
+  for (const d of houseDevices()) {
     if (!canView(a, d.room)) continue;
     if (d.entity) out.add(d.entity);
     for (const e of d.entities ?? []) out.add(e);
