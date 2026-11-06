@@ -7,6 +7,9 @@ export default defineConfig({
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
     exclude: ["node_modules", ".next", "dist"],
     globals: false,
+    // DB-backed tests (house, setup, integrations) re-import the sqlite bootstrap per
+    // test; under a loaded machine one cold import exceeds the 5 s default.
+    testTimeout: 20_000,
     server: {
       deps: {
         // Stub the Next.js "server-only" sentinel module so we can unit-test

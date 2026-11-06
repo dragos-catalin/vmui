@@ -39,7 +39,22 @@ function load(): Record<string, string> {
 }
 
 export function credential(key: string): string | undefined {
-  return process.env[key] ?? load()[key];
+  return process.env[key] ?? fromStore(key) ?? load()[key];
+}
+
+/** Encrypted settings written from the UI. lib/integrations.ts registers itself here
+ *  (credentials.ts must not import the db: scripts and the env loader use it). */
+type StoreReader = (key: string) => string | undefined;
+const reg = globalThis as { __vatraCredStore__?: StoreReader };
+export function registerCredentialStore(r: StoreReader): void {
+  reg.__vatraCredStore__ = r;
+}
+function fromStore(key: string): string | undefined {
+  try {
+    return reg.__vatraCredStore__?.(key);
+  } catch {
+    return undefined;
+  }
 }
 
 export function haConfig(): { url: string; token: string; publicDomain?: string } | null {
