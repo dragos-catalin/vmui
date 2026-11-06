@@ -29,6 +29,11 @@ export default async function SignUpPage() {
       <Link href="/sign-in" className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
         {t("signInLink")}
       </Link>
+      <span className="mt-2 block">
+        <Link href="/setup/restore" className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+          {t("restoreLink")}
+        </Link>
+      </span>
     </>
   ) : (
     <Link href="/settings/users" className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">

@@ -7,15 +7,30 @@
       "title": "General",
       "hint": "Environment, appearance, providers"
     },
-    "security": { "title": "Security", "hint": "Passkeys, 2FA, sessions" },
-    "users": { "title": "Users", "hint": "Accounts and roles" },
-    "access": { "title": "Access", "hint": "API keys, SSH keys, host pins" },
+    "security": {
+      "title": "Security",
+      "hint": "Passkeys, 2FA, sessions"
+    },
+    "users": {
+      "title": "Users",
+      "hint": "Accounts and roles"
+    },
+    "access": {
+      "title": "Access",
+      "hint": "API keys, SSH keys, host pins"
+    },
     "automation": {
       "title": "Automation",
       "hint": "Webhooks, boot scripts, quiet hours"
     },
-    "integrations": { "title": "Integrations", "hint": "codai environments" },
-    "data": { "title": "Data", "hint": "Backup and restore" }
+    "integrations": {
+      "title": "Integrations",
+      "hint": "codai environments"
+    },
+    "data": {
+      "title": "Data",
+      "hint": "Backup and restore"
+    }
   },
   "integrations": {
     "codai": {
@@ -503,6 +518,22 @@
       "restoreHint": "Pick a vmui-backup-*.json file.",
       "notBackup": "Not a Vatra backup file",
       "restored": "Restored {accounts, plural, =1 {# account} other {# accounts}}, {keys, plural, =1 {# key} other {# keys}}"
+    },
+    "hubBackup": {
+      "title": "Whole-hub backup",
+      "description": "One encrypted file with the household, rooms, devices, integrations and the encryption key. Restore it here or on a new hub.",
+      "createTitle": "Create a backup",
+      "passphrase": "Passphrase",
+      "passphraseHint": "At least 12 characters. It is not stored anywhere: without it the backup cannot be opened.",
+      "create": "Download backup",
+      "created": "Backup downloaded. Keep it and the passphrase in separate places.",
+      "restoreTitle": "Restore",
+      "pick": "Choose file",
+      "fileHint": "A .vatrabk file",
+      "restore": "Restore and restart",
+      "confirm": "Replace everything on this hub with the backup? The current data is kept on disk as *.pre-restore files.",
+      "restarting": "Restored. The hub is restarting…",
+      "failed": "Something went wrong"
     }
   },
   "rail": {

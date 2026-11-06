@@ -7,7 +7,8 @@
     "signIn": "Sign in",
     "signUp": "Create account",
     "invite": "Join the household",
-    "onboarding": "Getting started"
+    "onboarding": "Getting started",
+    "restore": "Restore a backup"
   },
   "or": "or",
   "theme": {
@@ -57,7 +58,8 @@
     "submitAdd": "Create user",
     "backToUsers": "Back to users",
     "haveAccount": "Already have an account?",
-    "signInLink": "Sign in"
+    "signInLink": "Sign in",
+    "restoreLink": "Moving from another hub? Restore a backup"
   },
   "invite": {
     "title": "Join the household",
@@ -169,5 +171,16 @@
       "title": "What runs in the background",
       "body": "A sync loop refreshes instances every minute. Schedules tick every 30 seconds. Audit logs older than 30 days are gzipped to disk and removed from the live table."
     }
+  },
+  "restore": {
+    "title": "Restore a Vatra backup",
+    "description": "Bring the household, devices and settings over from another hub. The backup replaces everything on this hub.",
+    "file": "Backup file",
+    "fileHint": "A .vatrabk file made in Settings → Data on the old hub.",
+    "passphrase": "Backup passphrase",
+    "submit": "Restore and restart",
+    "restarting": "Restored. The hub is restarting; you will be sent to sign-in with your old account.",
+    "failed": "Restore failed",
+    "claimInstead": "Start fresh instead"
   }
 }

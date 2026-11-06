@@ -19,6 +19,7 @@ import Link from "next/link";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
 import * as React from "react";
 import { BackupCard } from "./backup-card";
+import { HubBackupCard } from "./hub-backup-card";
 import { BootScriptsCard } from "./boot-scripts-card";
 import { ChangePasswordCard } from "./change-password-card";
 import { CodaiCard } from "./codai-card";
@@ -71,7 +72,12 @@ export function SettingsHub(props: SettingsHubProps) {
             <AutomationSection webhooks={props.webhooks} bootScripts={props.bootScripts} quietHours={props.quietHours} />
           )}
           {section === "integrations" && <CodaiCard initial={props.codai} />}
-          {section === "data" && <BackupCard />}
+          {section === "data" && (
+            <>
+              <HubBackupCard />
+              <BackupCard />
+            </>
+          )}
           <div className="2xl:hidden">
             <RelatedLinks />
           </div>

@@ -3,16 +3,34 @@
   "description": "Mediu local, securitate, acces și automatizări pentru acest host Vatra.",
   "nav": {
     "label": "Secțiuni de setări",
-    "general": { "title": "General", "hint": "Mediu, aspect, furnizori" },
-    "security": { "title": "Securitate", "hint": "Passkey-uri, 2FA, sesiuni" },
-    "users": { "title": "Utilizatori", "hint": "Conturi și roluri" },
-    "access": { "title": "Acces", "hint": "Chei API, chei SSH, amprente host" },
+    "general": {
+      "title": "General",
+      "hint": "Mediu, aspect, furnizori"
+    },
+    "security": {
+      "title": "Securitate",
+      "hint": "Passkey-uri, 2FA, sesiuni"
+    },
+    "users": {
+      "title": "Utilizatori",
+      "hint": "Conturi și roluri"
+    },
+    "access": {
+      "title": "Acces",
+      "hint": "Chei API, chei SSH, amprente host"
+    },
     "automation": {
       "title": "Automatizări",
       "hint": "Webhook-uri, scripturi de boot, ore de liniște"
     },
-    "integrations": { "title": "Integrări", "hint": "Medii codai" },
-    "data": { "title": "Date", "hint": "Backup și restaurare" }
+    "integrations": {
+      "title": "Integrări",
+      "hint": "Medii codai"
+    },
+    "data": {
+      "title": "Date",
+      "hint": "Backup și restaurare"
+    }
   },
   "integrations": {
     "codai": {
@@ -500,6 +518,22 @@
       "restoreHint": "Alege un fișier vmui-backup-*.json.",
       "notBackup": "Nu este un fișier de backup Vatra",
       "restored": "Restaurate {accounts, plural, =1 {# cont} other {# conturi}}, {keys, plural, =1 {# cheie} other {# chei}}"
+    },
+    "hubBackup": {
+      "title": "Copie completă a hubului",
+      "description": "Un singur fișier criptat cu gospodăria, camerele, dispozitivele, integrările și cheia de criptare. Restaurează-l aici sau pe un hub nou.",
+      "createTitle": "Creează o copie",
+      "passphrase": "Fraza de acces",
+      "passphraseHint": "Cel puțin 12 caractere. Nu se salvează nicăieri: fără ea copia nu poate fi deschisă.",
+      "create": "Descarcă copia",
+      "created": "Copie descărcată. Păstreaz-o separat de fraza de acces.",
+      "restoreTitle": "Restaurare",
+      "pick": "Alege fișierul",
+      "fileHint": "Un fișier .vatrabk",
+      "restore": "Restaurează și repornește",
+      "confirm": "Înlocuiești tot ce e pe acest hub cu copia? Datele actuale rămân pe disc ca fișiere *.pre-restore.",
+      "restarting": "Restaurat. Hubul repornește…",
+      "failed": "Ceva n-a mers"
     }
   },
   "rail": {

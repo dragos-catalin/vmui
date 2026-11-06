@@ -19,6 +19,8 @@ const PUBLIC_PREFIXES = [
   "/api/devices", // pairing: /pair is open (rate-limited); the rest checks session OR device token itself
   "/api/notify", // notification centre: session OR device token OR shared token, checked per route
   "/api/hooks", // inbound webhooks (Tailscale Funnel): HMAC-signed, checked per route
+  "/api/backup/restore", // unclaimed hub: setup code; claimed: owner session, checked in the route
+  "/setup/restore", // fresh hub: restore instead of claim; the page redirects once claimed
   "/_next",
   "/icons",
   "/favicon",

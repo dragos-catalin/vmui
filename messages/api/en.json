@@ -10,6 +10,10 @@
     "sent_to_pc": "Sent to the PC",
     "invite_invalid": "This pairing code is invalid or expired. Show a new QR on the hub.",
     "upstream_failed": "Home Assistant did not carry out the command",
-    "not_found": "Not found"
+    "not_found": "Not found",
+    "backup_weak_passphrase": "The passphrase needs at least 12 characters",
+    "backup_passphrase": "Wrong passphrase, or the file was changed",
+    "backup_format": "This is not a Vatra backup, or it is damaged",
+    "setup_code_wrong": "Wrong setup code"
   }
 }

@@ -7,7 +7,8 @@
     "signIn": "Autentificare",
     "signUp": "Creare cont",
     "invite": "Alătură-te gospodăriei",
-    "onboarding": "Primii pași"
+    "onboarding": "Primii pași",
+    "restore": "Restaurează o copie"
   },
   "or": "sau",
   "theme": {
@@ -57,7 +58,8 @@
     "submitAdd": "Creează utilizatorul",
     "backToUsers": "Înapoi la utilizatori",
     "haveAccount": "Ai deja un cont?",
-    "signInLink": "Autentifică-te"
+    "signInLink": "Autentifică-te",
+    "restoreLink": "Te muți de pe alt hub? Restaurează o copie de siguranță"
   },
   "invite": {
     "title": "Alătură-te gospodăriei",
@@ -169,5 +171,16 @@
       "title": "Ce rulează în fundal",
       "body": "O buclă de sincronizare reîmprospătează instanțele în fiecare minut. Programările se verifică la fiecare 30 de secunde. Jurnalele de audit mai vechi de 30 de zile sunt arhivate gzip pe disc și șterse din tabelul activ."
     }
+  },
+  "restore": {
+    "title": "Restaurează o copie Vatra",
+    "description": "Adu gospodăria, dispozitivele și setările de pe alt hub. Copia înlocuiește tot ce e pe acest hub.",
+    "file": "Fișierul copiei",
+    "fileHint": "Un fișier .vatrabk creat din Setări → Date pe hubul vechi.",
+    "passphrase": "Fraza de acces a copiei",
+    "submit": "Restaurează și repornește",
+    "restarting": "Restaurat. Hubul repornește; vei fi trimis la autentificare cu contul vechi.",
+    "failed": "Restaurarea a eșuat",
+    "claimInstead": "Începe de la zero"
   }
 }

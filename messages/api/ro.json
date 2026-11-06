@@ -10,6 +10,10 @@
     "sent_to_pc": "Trimis către PC",
     "invite_invalid": "Codul de asociere e invalid sau a expirat. Afișează un QR nou pe hub.",
     "upstream_failed": "Home Assistant nu a executat comanda",
-    "not_found": "Nu există"
+    "not_found": "Nu există",
+    "backup_weak_passphrase": "Fraza de acces trebuie să aibă cel puțin 12 caractere",
+    "backup_passphrase": "Frază de acces greșită sau fișier modificat",
+    "backup_format": "Nu e o copie de siguranță Vatra sau e deteriorată",
+    "setup_code_wrong": "Cod de configurare greșit"
   }
 }
