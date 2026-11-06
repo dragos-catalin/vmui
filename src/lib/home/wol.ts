@@ -6,6 +6,7 @@ import { pushActivity } from "@/lib/esp/activity";
 import { credential } from "@/lib/home/credentials";
 import { createSocket } from "node:dgram";
 import { Socket } from "node:net";
+import { household } from "@/lib/household";
 
 /** Wake the Windows PC from homepi with a magic packet (UDP 9 broadcast +
  *  directed). NIC has "Shutdown Wake-On-Lan" on and Fast Startup is off, so
@@ -13,7 +14,7 @@ import { Socket } from "node:net";
 
 export function pcTarget(): { mac: string; ip: string } | null {
   const mac = credential("PC_WOL_MAC");
-  const ip = credential("PC_WOL_IP") ?? "192.168.100.61";
+  const ip = household().pcWolIp || credential("PC_WOL_IP") || "255.255.255.255";
   return mac ? { mac, ip } : null;
 }
 

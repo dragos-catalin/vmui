@@ -43,8 +43,8 @@ export const copilotSignalsSchema = z.object({
   quietTo: z.string().regex(/^\d{2}:\d{2}$/),
   /** Which HA light entities carry the pattern. */
   lights: z.array(z.string()),
-  /** HA notify service for the phone, e.g. `mobile_app_dragos_s_s25_ultra`. Empty = no phone. */
-  phoneNotify: z.string().max(80).default("mobile_app_dragos_s_s25_ultra"),
+  /** HA notify service for the phone, e.g. `mobile_app_pixel_9`. Empty = the household owner phone. */
+  phoneNotify: z.string().max(80).default(""),
   patterns: z.object({
     ask: patternSchema,
     done: patternSchema,
@@ -61,7 +61,7 @@ export const COPILOT_SIGNALS_DEFAULTS: CopilotSignals = {
   quietFrom: "23:30",
   quietTo: "07:30",
   lights: [],
-  phoneNotify: "mobile_app_dragos_s_s25_ultra",
+  phoneNotify: "",
   patterns: {
     ask: { enabled: true, light: true, strip: true, turzx: true, esp: true, phone: true, color: "#ff5a1f" },
     done: { enabled: true, light: true, strip: true, turzx: true, esp: true, phone: true, color: "#2ecc71" },

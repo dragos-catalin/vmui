@@ -5,9 +5,10 @@ import { hydration, type HydrationRow } from "@/lib/db/schema";
 import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { dayOf } from "./store";
+import { householdTimeZone } from "@/lib/household";
 
 export const GLASS_ML = 250;
-const TZ = "Europe/Bucharest";
+const tz = () => householdTimeZone();
 /** Waking hours during which "no water for 2 h" counts as falling behind. */
 const PACE_FROM_H = 8;
 const PACE_TO_H = 22;
@@ -67,7 +68,7 @@ export async function waterSummary(weightKg: number, activeKcal: number | null, 
   const ml = entries.reduce((a, e) => a + e.ml, 0);
   const targetMl = waterTargetMl(weightKg, activeKcal);
   const lastAt = entries[0]?.at.getTime() ?? null;
-  const h = hourIn(TZ, now);
+  const h = hourIn(tz(), now);
   const awake = h >= PACE_FROM_H && h < PACE_TO_H;
   // Before the first glass, "last" is the start of the waking window so a dry
   // morning starts pulsing at 10:00, not never.

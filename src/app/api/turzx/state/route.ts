@@ -19,6 +19,7 @@ import { allPcMetrics, pcMetrics, piMetrics } from "@/lib/turzx/pc-metrics";
 import { loadPomodoro, loadTurzxSettings } from "@/lib/turzx/settings";
 import { desc } from "drizzle-orm";
 import { NextResponse, type NextRequest } from "next/server";
+import { household, ownerPhoneSensor } from "@/lib/household";
 
 export const dynamic = "force-dynamic";
 
@@ -89,7 +90,7 @@ export async function GET(req: NextRequest) {
     enabled.has("copilot") ? agentSessions(num(opt("copilot").activeMin, 30)) : null,
     enabled.has("media") && opt("media").lyrics !== false && lead ? syncedLyrics(String(lead.attributes.media_title), String(lead.attributes.media_artist), typeof lead.attributes.media_duration === "number" ? lead.attributes.media_duration : null) : null,
     enabled.has("health")
-      ? healthReadings(states, str(opt("health").device, "dragos_s_s25_ultra"), {
+      ? healthReadings(states, str(opt("health").device, household().ownerPhone), {
           heightCm: num(opt("health").heightCm, 173),
           birthDate: str(opt("health").birthDate, "1993-12-12"),
           sex: str(opt("health").sex, "m") === "f" ? "f" : "m",
@@ -169,7 +170,7 @@ export async function GET(req: NextRequest) {
         })(),
         acBedroom: pick(states, "climate.bedroom_ac"),
         acLiving: pick(states, "climate.living_room_ac_mami"),
-        person: pick(states, "person.dragos"),
+        person: household().ownerPerson ? pick(states, household().ownerPerson) : null,
         lightsOn: lights.filter((l) => l.state === "on").length,
         lightsTotal: lights.length,
       },
@@ -199,7 +200,7 @@ export async function GET(req: NextRequest) {
       energy: enabled.has("energy") ? { readings: energyReadings(states, list(opt("energy").entities, [])), pricePerKwh: num(opt("energy").pricePerKwh, 1.3) } : null,
       batteries: batteryReadings(states),
       health: health ? { ...health, stepsGoal: num(opt("health").stepsGoal, 8000), sleepGoalMin: num(opt("health").sleepGoalH, 8) * 60 } : null,
-      notification: phoneNotification(states.get("sensor.dragos_s_s25_ultra_last_notification")),
+      notification: phoneNotification(states.get(ownerPhoneSensor("last_notification") ?? "")),
       copilot,
       pc: pcMetrics(),
       pcs: allPcMetrics(),

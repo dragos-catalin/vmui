@@ -8,6 +8,7 @@ import { IS_LINUX } from "@/lib/runtime-os";
 import { msg } from "./i18n";
 import { dismissByTag, notify } from "./index";
 import { loadNotifySettings } from "./settings";
+import { household } from "@/lib/household";
 
 // Periodic sources that have no event of their own. Idempotent; started from
 // the turzx state route (hot every second) and the display state route.
@@ -218,7 +219,8 @@ async function onSensor(eid: string, state: string, was: string | undefined) {
     } else await dismissByTag(`window-${eid}`, "window");
   } else if (eid.includes("presence") || eid.includes("occupancy")) {
     // only worth a card when nobody should be home
-    const away = await ha.state("person.dragos").then((p) => p.state !== "home").catch(() => false);
+    const person = household().ownerPerson;
+    const away = person ? await ha.state(person).then((p) => p.state !== "home").catch(() => false) : false;
     if (state === "on" && away) {
       await notify({ kind: "presence", tag: "presence-away", title: msg("cards.presence.title"), body: msg("cards.presence.body", { sensor }), priority: "urgent", ttlSec: 3600, force: true, actions: [{ id: "lights_off", label: msg("cards.presence.lightsOff"), style: "danger" }], data: { entity: eid } });
     }

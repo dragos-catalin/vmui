@@ -11,6 +11,7 @@ import { z } from "zod";
 import { sendFcm } from "./fcm";
 import { deviceLocale, isMsg, packText, render, unpackText, type Text } from "./i18n";
 import { loadNotifySettings } from "./settings";
+import { household } from "@/lib/household";
 
 // Notification centre. Every source (copilot, intercom, pairing, water, PC/Pi
 // health, HA sensors) calls notify() once; the card is stored, streamed to
@@ -241,12 +242,12 @@ function cancelFallback(id: string) {
   if (t) { clearTimeout(t); bus.pendingFallback.delete(id); }
 }
 
-const phoneService = () => credential("PHONE_NOTIFY_SERVICE") ?? "mobile_app_dragos_s_s25_ultra";
+const phoneService = () => household().ownerNotifyService || (household().ownerPhone ? `mobile_app_${household().ownerPhone}` : "");
 const MDI: Partial<Record<NotifyKind, string>> = { copilot: "mdi:robot", agents: "mdi:robot", intercom: "mdi:doorbell", pairing: "mdi:cellphone-link", water: "mdi:cup-water", pc: "mdi:desktop-tower", pi: "mdi:raspberry-pi", door: "mdi:door", window: "mdi:window-open", presence: "mdi:motion-sensor", battery: "mdi:battery-alert", contact: "mdi:email-alert", system: "mdi:information" };
 
 /** Same content through the HA Companion app; actions become NOTIFY_<id>_<actionId>. */
 async function haFallback(card: LocalizedCard): Promise<void> {
-  if (!credential("HA_TOKEN")) return;
+  if (!credential("HA_TOKEN") || !phoneService()) return;
   try {
     await ha.callService("notify", phoneService(), {
       title: card.title,
@@ -274,6 +275,6 @@ async function haFallback(card: LocalizedCard): Promise<void> {
 }
 
 async function haClear(tag: string): Promise<void> {
-  if (!credential("HA_TOKEN")) return;
+  if (!credential("HA_TOKEN") || !phoneService()) return;
   await ha.callService("notify", phoneService(), { message: "clear_notification", data: { tag: `vmui-${tag}` } }).catch(() => undefined);
 }

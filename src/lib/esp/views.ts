@@ -7,6 +7,7 @@ import "server-only";
 import { recentActivity } from "./activity";
 import { text, textCentered, textRight, textScroll, textWidth, wrap } from "./font";
 import { Framebuffer, H, W, YELLOW_ROWS } from "./framebuffer";
+import { household, householdTimeZone, ownerPhoneSensor } from "@/lib/household";
 
 // Each view paints a 128x64 frame. The top 16 rows are the yellow band on the
 // ideaspark panel, so every view puts its title there and body below.
@@ -31,7 +32,7 @@ function band(fb: Framebuffer, title: string, right?: string, t = 0): void {
 }
 
 function hhmm(d: Date): string {
-  return d.toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Bucharest" });
+  return d.toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit", timeZone: householdTimeZone() });
 }
 
 const DAYS = ["Duminica", "Luni", "Marti", "Miercuri", "Joi", "Vineri", "Sambata"];
@@ -76,7 +77,7 @@ function num(s: HaState | undefined, digits = 0): string {
 
 function viewClock(fb: Framebuffer, ctx: ViewContext): void {
   const d = ctx.now;
-  const local = new Date(d.toLocaleString("en-US", { timeZone: "Europe/Bucharest" }));
+  const local = new Date(d.toLocaleString("en-US", { timeZone: householdTimeZone() }));
   band(fb, DAYS[local.getDay()]!, `${local.getDate()} ${MONTHS[local.getMonth()]}`);
   textCentered(fb, 22, hhmm(d), 3);
   const temp = st(ctx, "sensor.temperature_and_humidity_sensor_temperature");
@@ -135,12 +136,13 @@ function viewHome(fb: Framebuffer, ctx: ViewContext): void {
   const door = st(ctx, "binary_sensor.main_door_door");
   const ac = st(ctx, "climate.bedroom_ac");
   const ac2 = st(ctx, "climate.living_room_ac_mami");
-  const person = st(ctx, "person.dragos");
+  const owner = household();
+  const person = owner.ownerPerson ? st(ctx, owner.ownerPerson) : undefined;
   const acText = (c: HaState | undefined) => (c ? (c.state === "off" ? "oprit" : `${c.state} ${fmtC(celsius(c.attributes.temperature, c.attributes.temperature_unit))} (acum ${fmtC(celsius(c.attributes.current_temperature, c.attributes.temperature_unit))})`) : "--");
   line(fb, 18, "usa:", door ? (door.state === "on" ? "DESCHISA" : "inchisa") : "--", ctx);
   line(fb, 27, "AC dorm:", acText(ac), ctx);
   line(fb, 36, "AC living:", acText(ac2), ctx);
-  line(fb, 45, "Dragos:", person ? (person.state === "home" ? "acasa" : person.state === "not_home" ? "plecat" : person.state) : "--", ctx);
+  line(fb, 45, `${(person?.attributes.friendly_name as string | undefined) ?? "acasa"}:`, person ? (person.state === "home" ? "acasa" : person.state === "not_home" ? "plecat" : person.state) : "--", ctx);
 }
 
 function viewAmbilight(fb: Framebuffer, ctx: ViewContext): void {
@@ -198,12 +200,13 @@ function viewSystem(fb: Framebuffer, ctx: ViewContext): void {
   const upd = [...ctx.states.values()].filter((s) => s.entity_id.startsWith("update.") && s.state === "on").length;
   const unavailable = [...ctx.states.values()].filter((s) => s.state === "unavailable").length;
   const rssi = st(ctx, `sensor.${ctx.node.replace(/-/g, "_")}_wifi_signal`);
-  const bat = st(ctx, "sensor.dragos_s_s25_ultra_battery_level");
+  const batId = ownerPhoneSensor("battery_level");
+  const bat = batId ? st(ctx, batId) : undefined;
   line(fb, 18, "HA:", `${ctx.states.size} entitati, ${unavailable} indisponibile`, ctx);
   line(fb, 27, "update-uri:", `${upd}`, ctx);
   line(fb, 36, "wifi esp:", rssi ? `${rssi.state} dBm` : "--", ctx);
   line(fb, 45, "telefon:", bat ? `${bat.state}%` : "--", ctx);
-  text(fb, 0, 54, "mui.dragoscatalin.ro");
+  text(fb, 0, 54, (household().publicUrl || "vatra.local").replace(/^https?:\/\//, ""));
 }
 
 export async function renderView(id: ViewId, ctx: ViewContext): Promise<Framebuffer> {

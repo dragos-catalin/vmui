@@ -5,16 +5,17 @@ import { coachMessages, meals, nutritionProfiles, turzxSettings, type MealRow } 
 import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { NUTRITION_PROFILE_DEFAULTS, nutritionProfileSchema, type MealInput, type NutritionProfile } from "./schema";
+import { householdTimeZone } from "@/lib/household";
 
 // turzx_settings is the app's small key/value table; rows 1-3 are turzx,
 // pomodoro, copilot signals. Row 4 = nutrition profile.
 // turzx_settings rows: 1 turzx, 2 (free), 3 copilot signals, 4 display, 5 nutrition, 6 notify, 7 button bindings
 const ROW_ID = 5;
-const TZ = "Europe/Bucharest";
+const tz = () => householdTimeZone();
 
 export function dayOf(at: number | Date = Date.now()): string {
   // en-CA gives YYYY-MM-DD; keep the day boundary in the user's timezone, not UTC.
-  return new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(at));
+  return new Intl.DateTimeFormat("en-CA", { timeZone: tz(), year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(at));
 }
 
 /** `userId === null` = single-user install (legacy row 5). Members get their own row; a

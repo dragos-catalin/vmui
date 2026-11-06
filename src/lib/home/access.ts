@@ -22,6 +22,7 @@ import { z } from "zod";
 // is treated as owner so the first user is never locked out of their own home.
 
 import { FAMILY_ROLES, ROOM_LEVELS, type FamilyRole, type HomeAccessView, type RoomGrants, type RoomLevel } from "./access-model";
+import { ownerPhoneSensor } from "@/lib/household";
 export { FAMILY_ROLES, ROOM_LEVELS, type FamilyRole, type HomeAccessView, type RoomGrants, type RoomLevel };
 
 export const roomIdSchema = z.enum(ROOMS.map((r) => r.id) as [RoomId, ...RoomId[]]);
@@ -224,7 +225,8 @@ export function visibleEntities(a: HomeActor): Set<string> {
     for (const e of d.entities ?? []) out.add(e);
   }
   if (canControlAny(a)) out.add("light.hyperhdr");
-  if (isOwner(a)) out.add("sensor.dragos_s_s25_ultra_last_notification");
+  const notif = ownerPhoneSensor("last_notification");
+  if (isOwner(a) && notif) out.add(notif);
   return out;
 }
 

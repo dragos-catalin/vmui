@@ -5,6 +5,7 @@ import { credential } from "@/lib/home/credentials";
 import { ha } from "@/lib/home/ha-client";
 import { computeTargets, dailyTotals, dayOf, lastCoachMessage, loadProfile, mealsForDay, streakDays, type DayTotals, type Targets } from "./store";
 import { waterSummary, type WaterSummary } from "./water";
+import { ownerPhoneSensor } from "@/lib/household";
 
 export interface NutritionSummary {
   day: string;
@@ -51,7 +52,9 @@ export async function scaleWeightKg(): Promise<number | null> {
 
 export async function activeKcalToday(): Promise<number | null> {
   try {
-    const s = await ha.state("sensor.dragos_s_s25_ultra_active_calories_burned");
+    const id = ownerPhoneSensor("active_calories_burned");
+    if (!id) throw new Error("no owner phone configured");
+    const s = await ha.state(id);
     const v = Number(s.state);
     return Number.isFinite(v) ? v : null;
   } catch {

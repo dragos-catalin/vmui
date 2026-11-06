@@ -4,6 +4,7 @@ import { ha, type HaState } from "@/lib/home/ha-client";
 import { nutritionSummary, type NutritionSummary } from "@/lib/nutrition/summary";
 import { healthReadings, type HealthReadings } from "@/lib/turzx/feeds";
 import { loadTurzxSettings } from "@/lib/turzx/settings";
+import { household } from "@/lib/household";
 
 /**
  * What `GET /api/v1/me/health` returns to a paired Vitals app.
@@ -55,7 +56,7 @@ export async function meHealth(req: Request, deps: { actorOf?: (r: Request) => P
 
   const [health, summary] = await Promise.all([
     states.size
-      ? healthReadings(states, str(opt.device, "dragos_s_s25_ultra"), {
+      ? healthReadings(states, str(opt.device, household().ownerPhone), {
           heightCm: num(opt.heightCm, 173),
           birthDate: str(opt.birthDate, "1993-12-12"),
           sex: str(opt.sex, "m") === "f" ? "f" : "m",
