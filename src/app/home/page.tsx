@@ -12,7 +12,6 @@ import { loadDisplaySettings } from "@/lib/display/settings";
 import { accessView, currentHomeActor, journalUserId } from "@/lib/home/access";
 import { loadButtonBindings } from "@/lib/home/button-bindings";
 import { credential } from "@/lib/home/credentials";
-import { applianceEnvKey } from "@/lib/devices/appliance-scopes";
 import { listInvites, listMembers, nonMembers } from "@/lib/home/family";
 import { ha } from "@/lib/home/ha-client";
 import { intercomState } from "@/lib/home/intercom";
@@ -115,7 +114,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       )}
 
       <RoomsProvider rooms={houseRooms()}>
-      <HomeDashboard access={access} family={family} devices={devices} initialStates={states} haUrl={avail.url} initialTab={initialTab} initialSection={initialSection} wall={wall} turzx={turzx} display={display} pomodoro={pomodoro} copilot={copilot} rgbLights={rgbLights} nutrition={nutrition} nutritionProfile={nutritionProfile} intercom={intercomProps()} espToken={access.canManage ? credential(applianceEnvKey("nestHub")) ?? credential("ESP_DISPLAY_TOKEN") ?? "" : ""} buttons={buttons} haScripts={haScripts} setup={access.canManage ? { devices: houseDevices(), haConnected: ha.configured(), integrations: integrationsView((k) => credential(k)), household: household(), masterKeyPinned: masterKeyFromEnv() } : null} />
+      <HomeDashboard access={access} family={family} devices={devices} initialStates={states} haUrl={avail.url} initialTab={initialTab} initialSection={initialSection} wall={wall} turzx={turzx} display={display} pomodoro={pomodoro} copilot={copilot} rgbLights={rgbLights} nutrition={nutrition} nutritionProfile={nutritionProfile} intercom={intercomProps()} buttons={buttons} haScripts={haScripts} setup={access.canManage ? { devices: houseDevices(), haConnected: ha.configured(), integrations: integrationsView((k) => credential(k)), household: household(), masterKeyPinned: masterKeyFromEnv() } : null} />
       </RoomsProvider>
     </PageShell>
   );

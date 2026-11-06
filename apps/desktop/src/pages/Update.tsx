@@ -22,10 +22,9 @@ export function UpdateBanner() {
   if (!mobile || !meta || !mine || meta.versionCode <= mine) return null;
   const get = async () => {
     try {
-      const c = await invoke<{ url: string; token: string } | null>("conn_get");
-      if (!c) return;
+      // a one-time link (5 min): the token never sits in the browser's URL or history;
       // the browser downloads it and Android's package installer verifies the signature
-      await openUrl(`${c.url}/api/desktop/apk?d=${encodeURIComponent(c.token)}`);
+      await openUrl(await invoke<string>("apk_link"));
     } catch (e) {
       toast("error", String(e));
     }

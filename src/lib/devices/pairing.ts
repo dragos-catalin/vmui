@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { auditLog, pairedDevices, type PairedDeviceRow } from "@/lib/db/schema";
 import { APPLIANCE_PROFILES, type ApplianceProfile } from "@/lib/devices/appliance-scopes";
+import { requestCredential } from "@/lib/esp/auth";
 import { msg } from "@/lib/notify/i18n";
 import { and, desc, eq } from "drizzle-orm";
 import { createHash, randomBytes, randomInt } from "node:crypto";
@@ -194,8 +195,7 @@ export async function pendingDevices(): Promise<Array<DeviceInfo & { code: strin
 
 /** The device behind a request, if its token is approved (for "approved device approves another"). */
 export async function deviceFromRequest(req: Request): Promise<DeviceInfo | null> {
-  const auth = req.headers.get("authorization") ?? "";
-  const tok = auth.startsWith("Bearer ") ? auth.slice(7) : new URL(req.url).searchParams.get("d") ?? "";
+  const tok = requestCredential(req);
   if (!tok.startsWith("vmd_")) return null;
   const r = await db.select().from(pairedDevices).where(eq(pairedDevices.tokenHash, hash(tok))).get();
   if (!r || r.status !== "approved") return null;

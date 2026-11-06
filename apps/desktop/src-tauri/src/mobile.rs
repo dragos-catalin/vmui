@@ -127,10 +127,18 @@ pub fn app_info(c: Option<&Conn>) -> Value {
         "root": "",
         "vmui": c.map(|c| c.url.clone()).unwrap_or_default(),
         "haUrl": "",
-        "displayUrl": c.map(|c| format!("{}/display?d={}", c.url, c.token)).unwrap_or_default(),
+        "displayUrl": c.and_then(|c| link_url(c, "/display").ok()).unwrap_or_default(),
         "version": env!("CARGO_PKG_VERSION"),
         "versionCode": code,
         "mobile": true,
         "device": crate::pairing::device_name(),
     })
+}
+
+/// One-time URL (5 min, this path only) for things that cannot send headers: the system browser
+/// downloading the APK, a kiosk tab. The token never appears in a URL (P0-06).
+pub fn link_url(c: &Conn, path: &str) -> Result<String> {
+    let r = agent().post(&url(c, "/api/devices/link")).header("authorization", &format!("Bearer {}", c.token)).send_json(json!({"path": path}))?;
+    let v: Value = r.into_body().read_json()?;
+    v["url"].as_str().map(|u| format!("{}{u}", c.url)).ok_or_else(|| anyhow!("no link"))
 }

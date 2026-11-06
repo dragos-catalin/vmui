@@ -4,6 +4,7 @@ import { authEnabled, getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { homeMembers, pairedDevices, users, type HomeMemberRow, type UserRow } from "@/lib/db/schema";
 import { parseScopes, pathInScopes } from "@/lib/devices/appliance-scopes";
+import { requestCredential } from "@/lib/esp/auth";
 import type { RoomId } from "@/lib/home/catalog";
 import { houseDevices, houseRooms } from "@/lib/home/house";
 import { and, eq } from "drizzle-orm";
@@ -98,8 +99,7 @@ export async function currentHomeActor(): Promise<HomeActor | null> {
 
 /** A paired phone/desktop acts as the member it was bound to at approval. */
 export async function deviceHomeActor(req: Request): Promise<HomeActor | null> {
-  const auth = req.headers.get("authorization") ?? "";
-  const tok = auth.startsWith("Bearer ") ? auth.slice(7) : new URL(req.url).searchParams.get("d") ?? "";
+  const tok = requestCredential(req);
   if (!tok.startsWith("vmd_")) return null;
   const hash = createHash("sha256").update(tok).digest("hex");
   const d = await db.select().from(pairedDevices).where(and(eq(pairedDevices.tokenHash, hash), eq(pairedDevices.status, "approved"))).get();
@@ -136,11 +136,7 @@ export async function homeActorOrOwner(req: Request, sharedTokenOk: boolean): Pr
   return (await homeActorFromRequest(req)) ?? (sharedTokenOk ? await ownerActor() : null);
 }
 
-const hasDeviceToken = (req: Request): boolean => {
-  const auth = req.headers.get("authorization") ?? "";
-  const tok = auth.startsWith("Bearer ") ? auth.slice(7) : new URL(req.url).searchParams.get("d") ?? "";
-  return tok.startsWith("vmd_");
-};
+const hasDeviceToken = (req: Request): boolean => requestCredential(req).startsWith("vmd_");
 
 /**
  * Actor for the token-authenticated routes (/api/display/*, /api/lights, /api/desktop/*).

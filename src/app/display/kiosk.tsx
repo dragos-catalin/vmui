@@ -127,7 +127,8 @@ export function Kiosk({ token, deviceToken = "" }: { token: string; deviceToken?
   useInterval(() => (lastTouch.current = Date.now()), holdHome ? 500 : null);
 
   const api = React.useCallback<Api>(
-    (path, init) => fetch(`/api/display/${path}?${token ? `k=${encodeURIComponent(token)}` : `d=${encodeURIComponent(deviceToken)}`}`, { cache: "no-store", ...init }),
+    // the session cookie authenticates same-origin fetches; a legacy ?k=/?d= page still forwards its token
+    (path, init) => fetch(`/api/display/${path}${token ? `?k=${encodeURIComponent(token)}` : deviceToken ? `?d=${encodeURIComponent(deviceToken)}` : ""}`, { cache: "no-store", credentials: "same-origin", ...init }),
     [token, deviceToken],
   );
 
@@ -165,7 +166,7 @@ export function Kiosk({ token, deviceToken = "" }: { token: string; deviceToken?
       void api("probe", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ perf: true, hub: navigator.userAgent.includes("CrKey"), q: location.search, mode: document.querySelector(".dk")?.className ?? "", secs: 60, frames: frames.length, fps: Math.round(1000 / avg), p50ms: Math.round(p(0.5)), p95ms: Math.round(p(0.95)), maxMs: Math.round(sorted.at(-1) ?? 0), dropped: frames.filter((f) => f > 34).length, longTasks: long, longAt, perSec, heapMB: mem ? Math.round(mem.usedJSHeapSize / 1048576) : null }),
+        body: JSON.stringify({ perf: true, hub: navigator.userAgent.includes("CrKey"), q: location.search.replace(/([?&])(k|d)=[^&]*/g, "$1$2=***"), mode: document.querySelector(".dk")?.className ?? "", secs: 60, frames: frames.length, fps: Math.round(1000 / avg), p50ms: Math.round(p(0.5)), p95ms: Math.round(p(0.95)), maxMs: Math.round(sorted.at(-1) ?? 0), dropped: frames.filter((f) => f > 34).length, longTasks: long, longAt, perSec, heapMB: mem ? Math.round(mem.usedJSHeapSize / 1048576) : null }),
       });
     }, 60000);
     return () => {

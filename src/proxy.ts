@@ -7,10 +7,10 @@ const PUBLIC_PREFIXES = [
   "/api/v1",
   "/api/esp",   // ESP32 display: token-authenticated, no session cookie
   "/api/turzx", // Turzx desk screen renderer: same shared token
-  "/api/display", // Nest Hub kiosk API: token-authenticated (?k=), the Hub cannot log in
+  "/api/display", // Nest Hub kiosk API: kiosk cookie from a one-time code (/api/display/session) or a header token
   "/api/desktop", // Tauri desktop app: same shared token
   "/api/lights", // light registry for desktop / PC bridge / phone: shared token or vmd_ device token (espAuthorized)
-  "/display", // Nest Hub kiosk page: gated by ?k= inside the page
+  "/display", // Nest Hub kiosk page: gated by the kiosk cookie inside the page
   "/api/copilot", // agent-harness hooks -> physical signals: same shared token
   "/api/nutrition", // codai phone assistant posts meals: same shared token (espAuthorized)
   "/api/pc/wake",   // Wake-on-LAN from HA / phone / desk button: same shared token

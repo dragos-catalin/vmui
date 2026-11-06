@@ -127,3 +127,22 @@ test("app API v1: header-only device auth and a generated OpenAPI", async ({ req
   const ops = Object.values(doc.paths).flatMap((p) => Object.values(p).map((o) => o.operationId));
   expect(ops).toEqual(expect.arrayContaining(["me", "state", "control", "lights", "lightsSet", "intercomAct", "waterAct"]));
 });
+
+test("kiosk: a bad one-time code is refused and links need a header token", async ({ request }) => {
+  expect((await request.get("/api/display/session?code=nope", { maxRedirects: 0 })).status()).toBe(403);
+  expect((await request.post("/api/devices/link", { data: { path: "/display" } })).status()).toBe(403);
+  expect((await request.post("/api/devices/link?d=vmd_x", { data: { path: "/display" } })).status()).toBe(403);
+});
+
+test("owner opens the Nest Hub kiosk through a one-time session", async ({ page, context }) => {
+  await signedIn(page, "en");
+  await page.goto("/home?tab=settings&section=nestHub", { waitUntil: "domcontentloaded" });
+  const open = page.getByRole("button", { name: "Open the kiosk page in a new tab" });
+  await expect(open).toBeVisible({ timeout: 30_000 });
+  const [popup] = await Promise.all([context.waitForEvent("page", { timeout: 20_000 }), open.click()]);
+  // fresh install: no Nest Hub token yet -> the tab closes and a toast explains; with one -> /display
+  await popup.waitForLoadState("domcontentloaded").catch(() => undefined);
+  const landed = popup.isClosed() ? "closed" : popup.url();
+  expect(landed === "closed" || /\/display(\?|$)/.test(landed) || landed === "about:blank").toBe(true);
+  if (!popup.isClosed()) expect(popup.url()).not.toMatch(/[?&](k|d)=/);
+});

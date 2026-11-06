@@ -369,7 +369,14 @@ pub fn ha_get(path: &str) -> Result<Value> {
 }
 
 pub fn vmui_token() -> String {
+    // the owner's control window reaches every owner route; it moves to a paired-device token in P9
     cred("ESP_DISPLAY_TOKEN")
+}
+
+/// Auth header for the house vmui; never put the token in a URL (P0-06).
+pub fn vmui_auth() -> (&'static str, String) {
+    let t = vmui_token();
+    if t.starts_with("vmd_") { ("Authorization", format!("Bearer {t}")) } else { ("x-esp-token", t) }
 }
 
 /// Start an HA script without waiting for it: `script.turn_on` returns at once,
@@ -395,9 +402,9 @@ pub fn vmui_send(method: &str, path: &str, body: Value) -> Result<Value> {
 
 /// GET against the Pi with an explicit timeout (long-poll endpoints use 40 s).
 pub fn pi_get(path: &str, timeout_secs: u64) -> Result<Value> {
-    let sep = if path.contains('?') { '&' } else { '?' };
     let a: ureq::Agent = ureq::Agent::config_builder().timeout_global(Some(Duration::from_secs(timeout_secs))).build().into();
-    match a.get(&format!("{VMUI_PI}{path}{sep}k={}", vmui_token())).call() {
+    let (h, v) = vmui_auth();
+    match a.get(&format!("{VMUI_PI}{path}")).header(h, &v).call() {
         Ok(r) => Ok(r.into_body().read_json()?),
         Err(ureq::Error::StatusCode(c)) => Err(anyhow!("HTTP {c}")),
         Err(e) => Err(e.into()),
@@ -409,11 +416,11 @@ pub fn pi_post(path: &str, body: Value) -> Result<Value> {
 }
 
 pub fn pi_send(method: &str, path: &str, body: Value) -> Result<Value> {
-    let sep = if path.contains('?') { '&' } else { '?' };
-    let u = format!("{VMUI_PI}{path}{sep}k={}", vmui_token());
+    let u = format!("{VMUI_PI}{path}");
+    let (h, v) = vmui_auth();
     let r = match method {
-        "PUT" => agent().put(&u).send_json(body),
-        _ => agent().post(&u).send_json(body),
+        "PUT" => agent().put(&u).header(h, &v).send_json(body),
+        _ => agent().post(&u).header(h, &v).send_json(body),
     };
     match r {
         Ok(r) => Ok(r.into_body().read_json::<Value>().unwrap_or(json!({"ok":true}))),

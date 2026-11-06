@@ -224,5 +224,6 @@
     },
     "turnOff": "Off",
     "turnOn": "On"
-  }
+  },
+  "openFailed": "Could not open the display: create a Nest Hub token in Devices first"
 }

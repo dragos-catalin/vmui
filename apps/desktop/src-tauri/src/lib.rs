@@ -74,6 +74,12 @@ mod mobile_cmds {
     pub async fn conn_get() -> Option<mobile::Conn> {
         mobile::conn().ok()
     }
+    /// One-time APK download URL for the system browser (the token stays in headers).
+    #[tauri::command]
+    pub async fn apk_link() -> Result<String, String> {
+        let c = err(mobile::conn())?;
+        err(tauri::async_runtime::spawn_blocking(move || mobile::link_url(&c, "/api/desktop/apk")).await.map_err(|e| anyhow::anyhow!(e.to_string())).and_then(|r| r))
+    }
     #[tauri::command]
     pub async fn conn_set(url: String, token: String) -> Result<mobile::Health, String> {
         err(mobile::set_conn(mobile::Conn { url, token }))?;
@@ -149,7 +155,7 @@ pub fn run() {
             mobile_cmds::init(app);
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![health, vmui_get, vmui_send, ambilight_mode, pc_action, hyper_send, hyper_instances, app_info, conn_get, conn_set, conn_clear, discover, pair_request, pair_login, pair_wait, tasks, pending_link])
+        .invoke_handler(tauri::generate_handler![health, vmui_get, vmui_send, ambilight_mode, pc_action, hyper_send, hyper_instances, app_info, conn_get, apk_link, conn_set, conn_clear, discover, pair_request, pair_login, pair_wait, tasks, pending_link])
         .run(tauri::generate_context!())
         .expect("vmui mobile");
 }

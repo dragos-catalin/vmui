@@ -208,6 +208,8 @@ script:
             - output.turn_off: intercom_open_relay
             - http_request.post:
                 url: "${intercom_url}&event=opened"
+                request_headers:
+                  Authorization: "${auth_header}"
                 max_response_buffer_size: 128
   # n short blinks: 1 = glass added, 2 = glass undone, 3 = nothing to undo.
   - id: water_blink
@@ -261,6 +263,8 @@ interval:
           then:
             - http_request.get:
                 url: "${watchdog_url}"
+                request_headers:
+                  Authorization: "${auth_header}"
                 capture_response: true
                 max_response_buffer_size: 32
                 on_response:
@@ -280,6 +284,8 @@ interval:
           then:
             - http_request.get:
                 url: "${water_url}"
+                request_headers:
+                  Authorization: "${auth_header}"
                 capture_response: true
                 max_response_buffer_size: 160
                 on_response:
@@ -355,6 +361,8 @@ image:
   - platform: online_image
     id: frame
     url: "${frame_url}"
+    request_headers:
+      Authorization: "${auth_header}"
     format: BMP
     type: BINARY
     update_interval: ${refresh}
@@ -445,6 +453,8 @@ binary_sensor:
         - logger.log: { level: WARN, tag: intercom, format: "ring" }
         - http_request.post:
             url: "${intercom_url}&event=ring"
+            request_headers:
+              Authorization: "${auth_header}"
             capture_response: true
             max_response_buffer_size: 200
             on_response:
@@ -459,6 +469,8 @@ binary_sensor:
       then:
         - http_request.post:
             url: "${intercom_url}&event=end"
+            request_headers:
+              Authorization: "${auth_header}"
             max_response_buffer_size: 128
         - component.update: frame
   - platform: gpio
@@ -482,6 +494,8 @@ binary_sensor:
         then:
           - http_request.post:
               url: "${button_url}&node=${node}&click=single"
+              request_headers:
+                Authorization: "${auth_header}"
               max_response_buffer_size: 128
           - component.update: frame
       - timing:
@@ -492,6 +506,8 @@ binary_sensor:
         then:
           - http_request.post:
               url: "${button_url}&node=${node}&click=double"
+              request_headers:
+                Authorization: "${auth_header}"
               max_response_buffer_size: 128
           - component.update: frame
       - timing:
@@ -499,6 +515,8 @@ binary_sensor:
         then:
           - http_request.post:
               url: "${button_url}&node=${node}&click=long"
+              request_headers:
+                Authorization: "${auth_header}"
               max_response_buffer_size: 128
           - component.update: frame
   - platform: status
@@ -526,6 +544,8 @@ binary_sensor:
           - output.turn_on: water_led   # immediate ack; the reply sets the final pattern
           - http_request.post:
               url: "${button_url}&node=${node}&click=single&btn=water"
+              request_headers:
+                Authorization: "${auth_header}"
               capture_response: true
               max_response_buffer_size: 200
               on_response:
@@ -550,6 +570,8 @@ binary_sensor:
           - output.turn_on: water_led
           - http_request.post:
               url: "${button_url}&node=${node}&click=double&btn=water"
+              request_headers:
+                Authorization: "${auth_header}"
               capture_response: true
               max_response_buffer_size: 200
               on_response:
@@ -570,6 +592,8 @@ binary_sensor:
         then:
           - http_request.post:
               url: "${button_url}&node=${node}&click=long&btn=water"
+              request_headers:
+                Authorization: "${auth_header}"
               capture_response: true
               max_response_buffer_size: 200
               on_response:

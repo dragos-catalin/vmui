@@ -50,8 +50,9 @@ pub fn run(app: AppHandle) {
 
 fn follow(app: &AppHandle, gen: u64, seen: &Mutex<Instant>) -> anyhow::Result<()> {
     let a: ureq::Agent = ureq::Agent::config_builder().timeout_connect(Some(Duration::from_secs(10))).timeout_recv_response(Some(Duration::from_secs(20))).build().into();
-    let url = format!("{}/api/notify/stream?k={}", stack::VMUI_PI, stack::vmui_token());
-    let r = a.get(&url).call()?;
+    let url = format!("{}/api/notify/stream", stack::VMUI_PI);
+    let (h, v) = stack::vmui_auth();
+    let r = a.get(&url).header(h, &v).call()?;
     *seen.lock().unwrap() = Instant::now();
     let mut rd = BufReader::new(r.into_body().into_reader());
     let mut event = String::new();

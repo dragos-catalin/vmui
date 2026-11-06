@@ -9,6 +9,7 @@ import { setAmbilightSettings } from "@/lib/home/ambilight-settings";
 import { AMBILIGHT_MODES } from "@/lib/home/catalog";
 import { houseDevices, houseEntities, houseRooms } from "@/lib/home/house";
 import { applianceAuthHeaders } from "@/lib/esp/auth";
+import { mintKioskCode } from "@/lib/display/kiosk-session";
 import { ha } from "@/lib/home/ha-client";
 import { loadPomodoro, loadTurzxSettings, POMODORO_IDLE, savePomodoro, saveTurzxSettings, turzxSettingsSchema, type TurzxSettings } from "@/lib/turzx/settings";
 import { revalidatePath } from "next/cache";
@@ -262,6 +263,19 @@ export async function saveDisplaySettingsAction(input: DisplaySettings): Promise
     },
     requireOwner,
   );
+}
+
+/** Owner previews the kiosk: a one-time session URL (5 min) instead of handing the Hub's token to the browser. */
+export async function kioskPreviewUrlAction(): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  try {
+    await requireOwner();
+  } catch {
+    return { ok: false, error: "forbidden" };
+  }
+  const h = applianceAuthHeaders("nestHub");
+  const cred = h.authorization?.slice(7) ?? h["x-esp-token"];
+  if (!cred) return { ok: false, error: "no_token" };
+  return { ok: true, url: `/api/display/session?code=${mintKioskCode(cred)}` };
 }
 
 /** Pomodoro on the desk screen: start work, skip to break, or stop. */

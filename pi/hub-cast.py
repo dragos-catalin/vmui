@@ -53,6 +53,14 @@ def get(url: str, headers: dict | None = None, timeout: float = 6) -> dict | Non
         return None
 
 
+def post(url: str, headers: dict, timeout: float = 6) -> dict | None:
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, data=b"{}", method="POST", headers={"content-type": "application/json", **headers}), timeout=timeout) as r:
+            return json.loads(r.read())
+    except Exception:
+        return None
+
+
 def cast(device: str, url: str) -> bool:
     try:
         r = subprocess.run([CATT, "-d", device, "cast_site", url], capture_output=True, text=True, timeout=40)
@@ -71,10 +79,7 @@ def main() -> int:
     if not tok:
         log("VATRA_TOKEN_NEST_HUB missing")
         return 1
-    own = tok.startswith("vmd_")
-    # DashCast loads a URL, it cannot set headers: the page takes ?d= (P0-06 swaps it for a one-time code)
-    url = f"{LAN_VMUI}/display?{'d' if own else 'k'}={tok}"
-    auth = {"Authorization": f"Bearer {tok}"} if own else {"x-esp-token": tok}
+    auth = {"Authorization": f"Bearer {tok}"} if tok.startswith("vmd_") else {"x-esp-token": tok}
     last_cast = 0.0
     fails = 0
     ha_down_logged = False
@@ -107,8 +112,16 @@ def main() -> int:
         if time.time() - last_cast < wait:
             time.sleep(5)
             continue
-        log(f"hub state={state} app={app!r}; casting {url.split('?')[0]}")
-        ok = cast(device, url)
+        # DashCast loads a URL and cannot send headers: cast a one-time code (5 min, single use) that
+        # vmui swaps for an httpOnly cookie, so no token ever sits in the Hub's URL or history
+        sess = post(f"{VMUI}/api/display/session", auth)
+        if not sess or not sess.get("url"):
+            log("could not mint a kiosk code (vmui down or token refused); retrying")
+            fails += 1
+            last_cast = time.time()
+            continue
+        log(f"hub state={state} app={app!r}; casting /display")
+        ok = cast(device, f"{LAN_VMUI}{sess['url']}")
         last_cast = time.time()
         fails = 0 if ok else fails + 1
         time.sleep(15)

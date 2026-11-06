@@ -224,5 +224,6 @@
     },
     "turnOff": "Oprit",
     "turnOn": "Aprins"
-  }
+  },
+  "openFailed": "Ecranul nu s-a putut deschide: creează întâi un token pentru Nest Hub în Dispozitive"
 }

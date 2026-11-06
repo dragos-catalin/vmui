@@ -9,7 +9,8 @@ import { Switch } from "@/components/ui/switch";
 import { type DisplaySettings, type DisplayView } from "@/lib/display/settings-meta";
 import { TURZX_BG_SOURCES, type TurzxBgSource } from "@/lib/turzx/catalog";
 import { cn } from "@/lib/utils";
-import { saveDisplaySettingsAction } from "@/server/actions/home";
+import { kioskPreviewUrlAction, saveDisplaySettingsAction } from "@/server/actions/home";
+import { toast } from "sonner";
 import { ArrowDown, ArrowUp, ExternalLink, Tablet } from "lucide-react";
 import { useTranslations } from "next-intl";
 import * as React from "react";
@@ -19,7 +20,7 @@ import { useHomeAction } from "./use-home-action";
 const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
 /** Settings for the Nest Hub kiosk (/display). Saved to the same table as Turzx, row 4. */
-export function DisplayCard({ initial, espToken, defaultOpen = false }: { initial: DisplaySettings; espToken: string; defaultOpen?: boolean }) {
+export function DisplayCard({ initial, defaultOpen = false }: { initial: DisplaySettings; defaultOpen?: boolean }) {
   const t = useTranslations("nestHub");
   // photo sources are shared with the Turzx screen, so their text lives in that namespace
   const sources = useTranslations("turzx.sources");
@@ -45,7 +46,16 @@ export function DisplayCard({ initial, espToken, defaultOpen = false }: { initia
 
   const on = s.views.filter((v) => v.enabled);
   const cycle = on.reduce((a, v) => a + v.dwellSec, 0);
-  const url = typeof window === "undefined" || !espToken ? "" : `${window.location.origin}/display?${espToken.startsWith("vmd_") ? "d" : "k"}=${encodeURIComponent(espToken)}`;
+  const openKiosk = async () => {
+    // open the tab synchronously (popup blockers), then point it at a one-time session URL
+    const w = window.open("about:blank", "_blank");
+    const r = await kioskPreviewUrlAction();
+    if (r.ok && w) w.location.href = r.url;
+    else {
+      w?.close();
+      toast.error(t("openFailed"));
+    }
+  };
   const pct = (x: number) => Math.round(x * 100);
 
   return (
@@ -57,11 +67,9 @@ export function DisplayCard({ initial, espToken, defaultOpen = false }: { initia
       defaultOpen={defaultOpen}
       action={
         <div className="flex items-center gap-2">
-          {url ? (
-            <Button size="sm" variant="ghost" asChild>
-              <a href={url} target="_blank" rel="noreferrer" aria-label={t("openAria")}><ExternalLink className="size-4" aria-hidden /> <span className="hidden sm:inline">{t("open")}</span></a>
-            </Button>
-          ) : null}
+          <Button size="sm" variant="ghost" onClick={() => void openKiosk()} aria-label={t("openAria")}>
+            <ExternalLink className="size-4" aria-hidden /> <span className="hidden sm:inline">{t("open")}</span>
+          </Button>
           <Button size="sm" onClick={save} disabled={!dirty || busy} loading={busy}>{busy ? t("saving") : t("save")}</Button>
         </div>
       }

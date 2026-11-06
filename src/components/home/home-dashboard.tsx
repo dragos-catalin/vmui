@@ -76,7 +76,6 @@ export function HomeDashboard({
   nutrition,
   nutritionProfile,
   intercom,
-  espToken,
   buttons,
   haScripts,
   setup,
@@ -97,7 +96,6 @@ export function HomeDashboard({
   nutrition: NutritionSummary;
   nutritionProfile: NutritionProfile;
   intercom: IntercomCardState;
-  espToken: string;
   buttons: ButtonBindings;
   haScripts: string[];
   /** Owner-only settings data (house editor, integrations); null for other members. */
@@ -162,7 +160,7 @@ export function HomeDashboard({
                   {section === "house" && setup && <HouseCard devices={setup.devices} haConnected={setup.haConnected} defaultOpen />}
                   {section === "integrations" && setup && <IntegrationsCard integrations={setup.integrations} household={setup.household} masterKeyPinned={setup.masterKeyPinned} defaultOpen />}
                   {section === "turzx" && <TurzxCard initial={turzx} pomodoro={pomodoro} defaultOpen />}
-                  {section === "nestHub" && <DisplayCard initial={display} espToken={espToken} defaultOpen />}
+                  {section === "nestHub" && <DisplayCard initial={display} defaultOpen />}
                   {section === "deskButton" && <ButtonBindingsCard initial={buttons} scripts={haScripts} defaultOpen />}
                   {section === "copilot" && <CopilotSignalsCard initial={copilot} lights={rgbLights} defaultOpen />}
                 </m.div>

@@ -320,11 +320,13 @@ async fn devices_op(op: String, id: String, code: Option<String>, name: Option<S
 
 #[tauri::command]
 async fn app_info() -> Value {
+    // a one-time kiosk link (5 min) instead of a URL that carries the token
+    let display = blocking(|| stack::pi_post("/api/devices/link", json!({"path": "/display"}))).await.ok().and_then(|v| v["url"].as_str().map(|u| format!("{}{u}", stack::VMUI_PI))).unwrap_or_default();
     json!({
         "root": stack::root().to_string_lossy(),
         "vmui": stack::VMUI,
         "haUrl": stack::creds().get("HA_URL").cloned().unwrap_or_default(),
-        "displayUrl": format!("{}/display?k={}", stack::VMUI, stack::vmui_token()),
+        "displayUrl": display,
         "version": env!("CARGO_PKG_VERSION"),
     })
 }
