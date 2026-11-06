@@ -15,6 +15,8 @@ async function fresh(empty: boolean) {
   (globalThis as { __vmui_sqlite__?: unknown }).__vmui_sqlite__ = undefined;
   if (empty) process.env.VATRA_EMPTY_HOUSE = "1";
   else delete process.env.VATRA_EMPTY_HOUSE;
+  // an unclaimed hub grants nobody; these tests act as the dev solo owner
+  process.env.VMUI_SOLO_MODE = "1";
   const house = await import("./house");
   const access = await import("./access");
   return { house, access };

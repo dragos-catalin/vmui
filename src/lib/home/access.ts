@@ -74,8 +74,14 @@ function toActor(user: Pick<UserRow, "id" | "email" | "displayName" | "role">, m
   };
 }
 
-/** Single-user installs (no accounts yet) get a synthetic owner so nothing is gated. */
-const soloOwner = (): HomeActor => ({ userId: "solo", email: "", displayName: "", role: "owner", rooms: allControl(), expiresAt: null, deviceId: null });
+/**
+ * Before the first account exists the hub is UNCLAIMED (P0-04): nobody acts on the
+ * house, not even a "solo owner". It used to grant full control to anyone on the LAN.
+ * The owner claims it at /sign-up with the setup code (lib/setup-code.ts).
+ * VMUI_SOLO_MODE=1 keeps the old single-user behaviour for dev only.
+ */
+const soloOwner = (): HomeActor | null =>
+  process.env.VMUI_SOLO_MODE === "1" ? { userId: "solo", email: "", displayName: "", role: "owner", rooms: allControl(), expiresAt: null, deviceId: null } : null;
 
 async function memberRow(userId: string): Promise<HomeMemberRow | null> {
   return (await db.select().from(homeMembers).where(eq(homeMembers.userId, userId)).get()) ?? null;

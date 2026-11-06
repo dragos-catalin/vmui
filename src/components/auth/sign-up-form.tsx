@@ -22,6 +22,11 @@ export function SignUpForm({ firstUser }: { firstUser: boolean }) {
   const error = translateAuthError(t, state?.error);
   return (
     <form action={action} className="space-y-4">
+      {firstUser && (
+        <AuthField id="setupCode" label={t("fields.setupCode")} hint={t("fields.setupCodeHint")}>
+          {(a11y) => <Input {...a11y} name="setupCode" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]{6,7}" maxLength={7} required className="font-mono tracking-[0.3em]" />}
+        </AuthField>
+      )}
       <AuthField id="displayName" label={t("fields.displayName")}>
         {(a11y) => <Input {...a11y} name="displayName" autoComplete="name" maxLength={80} required />}
       </AuthField>

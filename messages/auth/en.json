@@ -22,7 +22,9 @@
     "displayName": "Display name",
     "role": "Role",
     "code": "Authenticator code or backup code",
-    "codePlaceholder": "123456"
+    "codePlaceholder": "123456",
+    "setupCode": "Setup code",
+    "setupCodeHint": "6 digits: printed in the hub's log, in vatra-setup-code.txt on the SD card and on any attached screen. It proves you are at the hub."
   },
   "password": {
     "show": "Show password",
@@ -103,7 +105,9 @@
     "challengeExpired": "The passkey challenge expired. Try again.",
     "unknownPasskey": "This passkey is not recognised.",
     "verificationFailed": "Passkey verification failed.",
-    "generic": "That did not work: {message}"
+    "generic": "That did not work: {message}",
+    "setupCodeWrong": "That setup code is wrong.",
+    "setupCodeLocked": "Too many wrong setup codes. Wait 10 minutes and try again."
   },
   "onboarding": {
     "title": "Welcome to Vatra",

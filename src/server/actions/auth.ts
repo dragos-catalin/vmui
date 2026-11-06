@@ -16,6 +16,7 @@ import { db } from "@/lib/db";
 import { auditLog, sessions, users } from "@/lib/db/schema";
 import { clearFailures, rateLimit, recordFailure } from "@/lib/rate-limit";
 import { redactSecrets } from "@/lib/redact";
+import { burnSetupCode, checkSetupCode } from "@/lib/setup-code";
 import {
     consumeBackupCode,
     decryptTotpSecret,
@@ -197,6 +198,7 @@ const signUpSchema = z.object({
   displayName: z.string().min(1).max(80),
   password: z.string().min(8).max(200),
   role: z.enum(["admin", "operator", "viewer"]).default("admin"),
+  setupCode: z.string().max(12).optional(),
 });
 
 export type SignUpState = { error?: string } | undefined;
@@ -207,11 +209,17 @@ export async function signUpAction(_prev: SignUpState, formData: FormData): Prom
     displayName: formData.get("displayName"),
     password: formData.get("password"),
     role: formData.get("role") ?? "admin",
+    setupCode: formData.get("setupCode") ?? undefined,
   });
   if (!parsed.success) return { error: parsed.error.issues.map((i) => i.message).join("; ") };
 
   const isFirst = (await userCount()) === 0;
-  if (!isFirst) {
+  if (isFirst) {
+    // Claiming the hub needs the code from the log / SD card / attached screen (physical access).
+    const check = checkSetupCode(parsed.data.setupCode ?? "");
+    if (check === "locked") return { error: "setup_code_locked" };
+    if (check === "wrong") return { error: "setup_code_wrong" };
+  } else {
     // After the first user is bootstrapped, only admins can create more.
     await requireRole("admin");
   }
@@ -234,6 +242,7 @@ export async function signUpAction(_prev: SignUpState, formData: FormData): Prom
   }
 
   if (isFirst) {
+    burnSetupCode();
     // bootstrap: sign the new admin straight in
     await signInWithPassword(parsed.data.email, parsed.data.password);
     redirect("/");

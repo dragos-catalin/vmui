@@ -21,6 +21,8 @@ const EXACT: Record<string, Parameters<AuthT>[0]> = {
   invalid: "errors.inviteInvalid",
   email_taken: "errors.emailTaken",
   "Invalid input": "errors.invalidInput",
+  setup_code_wrong: "errors.setupCodeWrong",
+  setup_code_locked: "errors.setupCodeLocked",
 };
 
 /** Server actions return English literals; translate the known ones, fall back to a generic wrapper. */

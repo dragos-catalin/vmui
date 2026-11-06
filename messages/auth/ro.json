@@ -22,7 +22,9 @@
     "displayName": "Nume afișat",
     "role": "Rol",
     "code": "Cod din aplicația de autentificare sau cod de rezervă",
-    "codePlaceholder": "123456"
+    "codePlaceholder": "123456",
+    "setupCode": "Cod de configurare",
+    "setupCodeHint": "6 cifre: afișat în logul hubului, în vatra-setup-code.txt pe cardul SD și pe orice ecran conectat. Dovedește că ești lângă hub."
   },
   "password": {
     "show": "Arată parola",
@@ -103,7 +105,9 @@
     "challengeExpired": "Provocarea passkey a expirat. Încearcă din nou.",
     "unknownPasskey": "Acest passkey nu este recunoscut.",
     "verificationFailed": "Verificarea passkey a eșuat.",
-    "generic": "Nu a funcționat: {message}"
+    "generic": "Nu a funcționat: {message}",
+    "setupCodeWrong": "Codul de configurare e greșit.",
+    "setupCodeLocked": "Prea multe coduri greșite. Așteaptă 10 minute și reîncearcă."
   },
   "onboarding": {
     "title": "Bine ai venit în Vatra",
