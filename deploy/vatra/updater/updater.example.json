@@ -1,0 +1,7 @@
+{
+  "channel": "stable",
+  "repo": "dragos-catalin/vmui",
+  "verify": "keyless",
+  "keep_snapshots": 3,
+  "health_timeout": { "default": 240, "HA_IMAGE": 900 }
+}

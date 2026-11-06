@@ -1,0 +1,10 @@
+[Unit]
+Description=Check for Vatra updates every night
+
+[Timer]
+OnCalendar=*-*-* 03:30
+RandomizedDelaySec=90min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

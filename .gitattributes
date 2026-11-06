@@ -23,3 +23,4 @@ Dockerfile text eol=lf
 pi/** text eol=lf
 *.sh text eol=lf
 *.service text eol=lf
+deploy/** text eol=lf

@@ -1,0 +1,18 @@
+[Unit]
+Description=Vatra updater: verify the signed channel manifest, update, roll back on failure
+Documentation=file:///opt/vatra/updater/vatra_updater.py
+After=docker.service network-online.target
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/vatra/updater/vatra_updater.py apply
+# 2 = rolled back (the hub is healthy on the previous version): not a unit failure
+SuccessExitStatus=2
+TimeoutStartSec=45min
+Nice=10
+IOSchedulingClass=idle
+ProtectHome=true
+PrivateTmp=true
+NoNewPrivileges=true
