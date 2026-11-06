@@ -4,7 +4,6 @@ const PUBLIC_PREFIXES = [
   "/sign-in",
   "/sign-up",
   "/invite", // family invitation links: the invitee has no account yet
-  "/api/events",
   "/api/v1",
   "/api/esp",   // ESP32 display: token-authenticated, no session cookie
   "/api/turzx", // Turzx desk screen renderer: same shared token

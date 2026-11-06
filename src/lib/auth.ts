@@ -2,7 +2,7 @@ import "server-only";
 
 import { randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { eq, gt, and } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { db } from "@/lib/db";
@@ -15,6 +15,16 @@ const scryptAsync = promisify(scrypt) as (
 ) => Promise<Buffer>;
 
 const COOKIE_NAME = "vmui_session";
+
+/** True when the browser reached us over HTTPS: directly or through Caddy / the relay
+ *  (x-forwarded-proto). Plain-HTTP LAN access (vatra.local:3737) keeps a non-Secure
+ *  cookie, otherwise the browser would drop it and sign-in would loop. */
+async function requestIsHttps(): Promise<boolean> {
+  const h = await headers();
+  const proto = h.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  if (proto) return proto === "https";
+  return (h.get("origin") ?? h.get("referer") ?? "").startsWith("https://");
+}
 const SESSION_DAYS = 30;
 
 export const ROLE_RANK: Record<UserRole, number> = {
@@ -105,7 +115,7 @@ export async function issueSessionForUser(userId: string): Promise<void> {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    secure: false,
+    secure: await requestIsHttps(),
     expires: expiresAt,
   });
 }

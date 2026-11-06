@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { auditLog } from "@/lib/db/schema";
 import { espAuthorized } from "@/lib/esp/auth";
 import { AMBILIGHT_MODES, DEVICES } from "@/lib/home/catalog";
+import { canControlAny, canControlEntity, tokenActor } from "@/lib/home/access";
 import { ha } from "@/lib/home/ha-client";
 import { drinkGlass, undoGlass } from "@/lib/nutrition/water-actions";
 import { NextResponse, type NextRequest } from "next/server";
@@ -53,6 +54,10 @@ export async function POST(req: NextRequest) {
   const p = cmd.safeParse(await req.json().catch(() => ({})));
   if (!p.success) return NextResponse.json({ ok: false, error: p.error.issues[0]?.message ?? "bad command" }, { status: 400 });
   const c = p.data;
+  const actor = await tokenActor(req);
+  if (!actor) return NextResponse.json({ ok: false, error: "device not bound to a household member" }, { status: 403 });
+  const allowed = "entity" in c ? canControlEntity(actor, c.entity) : c.type === "water" || c.type === "water_undo" || canControlAny(actor);
+  if (!allowed) return NextResponse.json({ ok: false, error: "no access to this room" }, { status: 403 });
   const target = "entity" in c ? c.entity : c.type;
   try {
     let extra: Record<string, unknown> = {};

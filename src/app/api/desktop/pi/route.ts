@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { auditLog } from "@/lib/db/schema";
 import { espAuthorized } from "@/lib/esp/auth";
+import { ownerTokenAuthorized } from "@/lib/home/access";
 import { IS_LINUX } from "@/lib/runtime-os";
 import { NextResponse, type NextRequest } from "next/server";
 import { execFile } from "node:child_process";
@@ -21,7 +22,7 @@ function run(cmd: string, args: string[], timeoutMs = 8000): Promise<string> {
 }
 
 export async function GET(req: NextRequest) {
-  if (!espAuthorized(req)) return new NextResponse("forbidden", { status: 403 });
+  if (!espAuthorized(req) || !(await ownerTokenAuthorized(req))) return new NextResponse("forbidden", { status: 403 });
   if (!IS_LINUX) return NextResponse.json({ units: [], containers: [], note: "not on the Pi" });
   const log = new URL(req.url).searchParams.get("log");
   if (log) {
@@ -64,7 +65,7 @@ export async function GET(req: NextRequest) {
 const body = z.object({ unit: z.enum(UNITS), action: z.enum(["restart", "start", "stop"]) });
 
 export async function POST(req: NextRequest) {
-  if (!espAuthorized(req)) return new NextResponse("forbidden", { status: 403 });
+  if (!espAuthorized(req) || !(await ownerTokenAuthorized(req))) return new NextResponse("forbidden", { status: 403 });
   const p = body.safeParse(await req.json().catch(() => null));
   if (!p.success) return NextResponse.json({ ok: false, error: "invalid" }, { status: 400 });
   if (p.data.unit === "vmui" && p.data.action !== "restart") return NextResponse.json({ ok: false, error: "vmui: only restart" }, { status: 400 });

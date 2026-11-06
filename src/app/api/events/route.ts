@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { requireRole } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { auditLog } from "@/lib/db/schema";
 import { desc, gt } from "drizzle-orm";
@@ -21,6 +22,12 @@ const POLL_MS = 1_000;
  * Frame format follows SSE: `event: <name>\ndata: <json>\n\n`.
  */
 export async function GET(req: NextRequest) {
+  // The audit log carries pairing codes, intercom events and VM actions: never stream it unauthenticated.
+  try {
+    await requireRole("viewer");
+  } catch {
+    return new Response("unauthorized", { status: 401 });
+  }
   const enc = new TextEncoder();
   let cancelled = false;
   let lastSeen = new Date(Date.now() - 60_000);

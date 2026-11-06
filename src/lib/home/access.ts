@@ -119,6 +119,37 @@ export async function homeActorOrOwner(req: Request, sharedTokenOk: boolean): Pr
   return (await homeActorFromRequest(req)) ?? (sharedTokenOk ? await ownerActor() : null);
 }
 
+const hasDeviceToken = (req: Request): boolean => {
+  const auth = req.headers.get("authorization") ?? "";
+  const tok = auth.startsWith("Bearer ") ? auth.slice(7) : new URL(req.url).searchParams.get("d") ?? "";
+  return tok.startsWith("vmd_");
+};
+
+/**
+ * Actor for the token-authenticated routes (/api/display/*, /api/lights, /api/desktop/*).
+ * Call only after `espAuthorized(req)` passed.
+ *   - paired device -> the member it is bound to; an approved but UNBOUND device gets
+ *     no actor (it used to inherit owner rights, so a guest's phone controlled every room);
+ *   - shared house token (ESP32, Nest Hub, HA, owner's PC) -> the owner;
+ *   - browser session -> that member.
+ */
+export async function tokenActor(req: Request): Promise<HomeActor | null> {
+  if (hasDeviceToken(req)) return deviceHomeActor(req);
+  return (await currentHomeActor()) ?? (await ownerActor());
+}
+
+/** Room-level check for an entity: house-wide entities need control somewhere. */
+export function canControlEntity(a: HomeActor, entity: string): boolean {
+  const room = roomOfEntity(entity);
+  return room === null ? canControlAny(a) : canControl(a, room);
+}
+
+/** PC agent, Pi services, desktop settings: the owner's machines. Call after espAuthorized. */
+export async function ownerTokenAuthorized(req: Request): Promise<boolean> {
+  const a = await tokenActor(req);
+  return a !== null && isOwner(a);
+}
+
 /** Journal owner for nutrition writes: `"solo"` installs map to null (single household, no user rows). */
 export const journalUserId = (a: HomeActor): string | null => (a.userId === "solo" ? null : a.userId);
 

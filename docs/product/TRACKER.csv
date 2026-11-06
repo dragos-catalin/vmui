@@ -1,0 +1,59 @@
+id,phase,item,status,evidence,notes
+P0-01,P0,/api/events (audit SSE) requires a session or api key and filters by role,todo,,public in proxy.ts and no auth check today
+P0-02,P0,Device tokens resolve to a family member; /api/display/* /api/lights /api/desktop/* enforce room grants,todo,,any approved vmd_ token = owner today
+P0-03,P0,Session cookie secure when served over HTTPS (x-forwarded-proto / VATRA_PUBLIC_URL),todo,,secure:false hardcoded
+P0-04,P0,Hub refuses home/API traffic until claimed (setup code) instead of SOLO_OWNER,todo,,needs P2 /setup
+P0-05,P0,Owner literals (person.dragos / *_s25_ultra / mobile_app_dragos_* / Europe/Bucharest / 192.168.100.*) become config or per-member settings,todo,,blocker inventory 2026-11-06 §1
+P0-06,P0,Remove ?k= / ?d= query-string tokens (header only) with a deprecation window,todo,,ESP firmware + desktop use ?k=
+P0-07,P0,Romanian strings outside i18n moved to messages/* (pairing errors / intercom / button labels / turzx / nutrition prompt),todo,,
+P0-08,P0,Owner-only features behind an owner profile flag (contact hook / copilot signals / egress proxy / host-exec / codai provisioning),todo,,
+P0-09,P0,Notifications filtered per member,todo,,listCards returns every household card
+P1-01,P1,DB tables rooms/devices/entity_map + HA area/device import,todo,,
+P1-02,P1,access.ts / display whitelist / floor plan read DB; catalog.ts becomes the owner seed,todo,,
+P1-03,P1,Rooms/devices editor UI (RO+EN),todo,,
+P2-01,P2,/setup wizard with setup code claim,todo,,
+P2-02,P2,Integration secrets encrypted in SQLite with settings UI; credentials.env import once,todo,,
+P2-03,P2,Bundled HA onboarding automation (onboarding API + long-lived token),todo,,
+P2-04,P2,Master key mandatory + generated at first boot; key id in ciphertext for rotation,todo,,
+P3-01,P3,defineRoute helper + /api/v1/app/* routes (state / control / lights / notify / intercom / nutrition / pc),todo,,
+P3-02,P3,Generated OpenAPI 3.1 + drift test + contract fixtures (packages/protocol),todo,,
+P3-03,P3,QR pairing (vatra://pair) + per-device scoped tokens replacing ESP_DISPLAY_TOKEN,todo,,
+P3-04,P3,/api/discover apiVersion + minClient; mDNS _vatra._tcp alongside _vmui._tcp,todo,,
+P4-01,P4,Next standalone Dockerfile arm64/amd64 + vatra-agent image,todo,,
+P4-02,P4,GHCR release workflow with cosign + SBOM + channel manifests,todo,,
+P4-03,P4,compose v2 /srv/vatra with pinned digests + healthchecks,todo,,
+P5-01,P5,rpi-image-gen layers Pi4/Pi5 + firstboot + Imager os_list,todo,,
+P5-02,P5,Hotspot captive portal + avahi,todo,,
+P5-03,P5,vatra-updater (signed manifest / snapshot / health / rollback),todo,,
+P5-04,P5,A/B OS updates (EROFS + tryboot / Rugix Ctrl),todo,,
+P5-05,P5,x86 qcow2/OVA (Packer) + HAOS add-on repo,todo,,
+P5-06,P5,Encrypted backup + restore on another hub,todo,,
+P6-01,P6,vatra.display firmware (SSD1306 + ESP32-S3 LVGL) with Improv + runtime keys + http OTA,todo,,
+P6-02,P6,vatra.button firmware (Atom / C3) + BT proxy reuse,todo,,
+P6-03,P6,Firmware CI matrix + manifests served by the hub,todo,,
+P6-04,P6,Devices -> Add page (ESP Web Tools) + adoption API + HA config flow,todo,,
+P7-01,P7,apps/android skeleton (core/ui/app/wear/tv) + brand tokens to Compose,todo,,
+P7-02,P7,Pairing (QR/NSD) + home/lights/pc/ambilight/notify/settings/multi-hub,todo,,
+P7-03,P7,FCM + UnifiedPush; CallStyle intercom; widgets; QS tile; Device Controls,todo,,
+P7-04,P7,Wear OS tiles/complications + Google TV dashboard,todo,,
+P7-05,P7,Geofence presence + NFC tags,todo,,
+P7-06,P7,Play listing / Data safety / closed test 12x14d / production,todo,,owner: 12 testers
+P8-01,P8,apps/ios VatraCore SPM + SwiftUI app parity,todo,,
+P8-02,P8,APNs via relay + NSE + Live Activity intercom + WidgetKit + Controls + App Intents,todo,,
+P8-03,P8,watchOS app + complications,todo,,
+P8-04,P8,App Store listing / privacy manifest / review,todo,,owner: ASC record + DSA
+P9-01,P9,Desktop as product: no repo/disk reads / pairing / bundle id / store config,todo,,
+P9-02,P9,Signed NSIS + Partner Center submission,todo,,owner: code-signing cert
+P10-01,P10,ACME DNS-01 proxy for <id>.<domain>,todo,,
+P10-02,P10,SNI relay (2 regions) + opt-in UI,todo,,
+P10-03,P10,Push relay FCM+APNs E2E,todo,,
+P10-04,P10,Public demo hub for reviewers (resets nightly),todo,,
+P10-05,P10,Vatra Cloud subscription via brivio,todo,,
+P11-01,P11,Privacy policy / ToS / account deletion page / AI Act art. 50 disclosures,todo,,
+P11-02,P11,Trademark check EUIPO/OSIM classes 9/42,todo,,
+P11-03,P11,Licences AGPL/MIT + NOTICE + third-party,todo,,
+P11-04,P11,Git history secret scrub + public repo,todo,,irreversible: ask before
+P11-05,P11,Docs site + install guide,todo,,
+X-01,X,AI assistant on MCP tools in apps (consent + disclosure),todo,,
+X-02,X,Matter devices via HA in the UI,todo,,
+X-03,X,Community scene marketplace,todo,,

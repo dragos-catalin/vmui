@@ -1,5 +1,6 @@
 import type { Locale } from "@/i18n/config";
 import { espAuthorized } from "@/lib/esp/auth";
+import { canControlAny, isOwner, tokenActor } from "@/lib/home/access";
 import { ha, type HaState } from "@/lib/home/ha-client";
 import { applyScene, captureScene, identify, knownState, listDiscovered, pcStatus, setLedCount, setLight, storeDiscovered, testPattern, undo } from "@/lib/lights/control";
 import { refresh } from "@/lib/lights/health";
@@ -40,6 +41,9 @@ const body = z.discriminatedUnion("op", [
 ]);
 type Body = z.infer<typeof body>;
 
+/** Everyday use; everything else edits the registry and is owner-only. */
+const CONTROL_OPS = new Set<Body["op"]>(["set", "undo", "identify", "scene_apply"]);
+
 const actorOf = (req: NextRequest) => {
   const a = req.headers.get("x-vmui-actor");
   return a && /^[\w.:@-]{1,60}$/.test(a) ? a : req.headers.get("authorization")?.startsWith("Bearer vmd_") ? "device" : "token";
@@ -55,6 +59,7 @@ function present(d: LightDevice, states: HaState[] | null, locale: Locale): Ligh
 
 export async function GET(req: NextRequest) {
   if (!espAuthorized(req)) return new NextResponse("forbidden", { status: 403 });
+  if (!(await tokenActor(req))) return new NextResponse("device not bound to a household member", { status: 403 });
   const locale = lightsLocale(req);
   const url = new URL(req.url);
   if (url.searchParams.get("export") === "1") {
@@ -148,6 +153,9 @@ export async function POST(req: NextRequest) {
     const issue = p.error.issues[0];
     return NextResponse.json({ ok: false, error: `${errorText(new Error(issue?.message ?? "invalid"), locale)}${issue?.path.length ? ` (${issue.path.join(".")})` : ""}` }, { status: 400 });
   }
+  const member = await tokenActor(req);
+  const allowed = member !== null && (CONTROL_OPS.has(p.data.op) ? canControlAny(member) : isOwner(member));
+  if (!allowed) return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
   try {
     return NextResponse.json(await handle(p.data, actorOf(req)), { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
