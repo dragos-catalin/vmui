@@ -5,6 +5,7 @@ import { ownerTokenAuthorized } from "@/lib/home/access";
 import { ha } from "@/lib/home/ha-client";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
+import { apiText } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +40,7 @@ export async function POST(req: NextRequest) {
   try {
     await ha.callService("mqtt", "publish", { topic: "vmui/pc/cmd", payload, qos: 1 });
     await db.insert(auditLog).values({ accountId: "mobile", action: `pc.${p.data.action}`, target: "pc-agent", status: "ok", message: payload.slice(0, 300) });
-    return NextResponse.json({ ok: true, id, result: "trimis către PC" });
+    return NextResponse.json({ ok: true, id, result: apiText(req, "sent_to_pc") });
   } catch (e) {
     await db.insert(auditLog).values({ accountId: "mobile", action: `pc.${p.data.action}`, target: "pc-agent", status: "error", message: String(e).slice(0, 300) });
     return NextResponse.json({ ok: false, error: String(e) }, { status: 502 });

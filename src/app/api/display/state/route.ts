@@ -8,6 +8,7 @@ import { photoPool } from "@/lib/turzx/feeds";
 import { NextResponse, type NextRequest } from "next/server";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { apiError } from "@/lib/api-error";
 
 // The Hub sits in the bedroom: it only shows what plays in the bedroom
 // (its own Cast session, the bedroom TV), never the living-room TV.
@@ -30,7 +31,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   if (!espAuthorized(req)) return new NextResponse("forbidden", { status: 403 });
   const actor = await tokenActor(req);
-  if (!actor) return new NextResponse("device not bound to a household member", { status: 403 });
+  if (!actor) return apiError(req, "not_bound", 403);
   const seen = visibleEntities(actor);
   const rooms = new Set(visibleRooms(actor));
   const k = new URL(req.url).searchParams.get("k") ?? "";

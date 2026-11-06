@@ -3,6 +3,7 @@ import { verifyUserPassword } from "@/lib/auth";
 import { approveByLogin, pairingStatus, requestPairing } from "@/lib/devices/pairing";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
+import { apiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -29,12 +30,12 @@ const body = z.union([
 /** POST: start a pairing request, or sign in with the vmui account for instant approval. */
 export async function POST(req: NextRequest) {
   const ip = ipOf(req);
-  if (limited(ip ?? "?")) return NextResponse.json({ error: "prea multe încercări" }, { status: 429 });
+  if (limited(ip ?? "?")) return apiError(req, "rate_limited", 429);
   const p = body.safeParse(await req.json().catch(() => null));
-  if (!p.success) return NextResponse.json({ error: "invalid" }, { status: 400 });
+  if (!p.success) return apiError(req, "invalid_request", 400);
   if ("email" in p.data) {
     const r = await verifyUserPassword(p.data.email, p.data.password);
-    if (!r.ok) return NextResponse.json({ error: "email sau parolă greșită" }, { status: 401 });
+    if (!r.ok) return apiError(req, "bad_credentials", 401);
     const t = await approveByLogin(p.data.name, p.data.platform, ip, r.user.email, langOf(req), r.user.id);
     return NextResponse.json({ id: t.id, token: t.token, status: "approved" });
   }

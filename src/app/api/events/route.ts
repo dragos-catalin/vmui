@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { auditLog } from "@/lib/db/schema";
 import { desc, gt } from "drizzle-orm";
 import { subscribeEvents, type BusEvent } from "@/lib/event-bus";
+import { apiError } from "@/lib/api-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
   try {
     await requireRole("viewer");
   } catch {
-    return new Response("unauthorized", { status: 401 });
+    return apiError(req, "unauthorized", 401);
   }
   const enc = new TextEncoder();
   let cancelled = false;

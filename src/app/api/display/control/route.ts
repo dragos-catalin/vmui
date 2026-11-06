@@ -7,6 +7,7 @@ import { ha } from "@/lib/home/ha-client";
 import { drinkGlass, undoGlass } from "@/lib/nutrition/water-actions";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
+import { apiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -55,9 +56,9 @@ export async function POST(req: NextRequest) {
   if (!p.success) return NextResponse.json({ ok: false, error: p.error.issues[0]?.message ?? "bad command" }, { status: 400 });
   const c = p.data;
   const actor = await tokenActor(req);
-  if (!actor) return NextResponse.json({ ok: false, error: "device not bound to a household member" }, { status: 403 });
+  if (!actor) return apiError(req, "not_bound", 403);
   const allowed = "entity" in c ? canControlEntity(actor, c.entity) : c.type === "water" || c.type === "water_undo" || canControlAny(actor);
-  if (!allowed) return NextResponse.json({ ok: false, error: "no access to this room" }, { status: 403 });
+  if (!allowed) return apiError(req, "no_room_access", 403);
   const target = "entity" in c ? c.entity : c.type;
   try {
     let extra: Record<string, unknown> = {};

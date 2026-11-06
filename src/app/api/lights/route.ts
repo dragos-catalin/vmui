@@ -10,6 +10,7 @@ import * as registry from "@/lib/lights/registry";
 import { calibrationSchema, devicePatchSchema, deviceInputSchema, discoveredItemSchema, lightStateSchema, segmentPatchSchema, targetSchema } from "@/lib/lights/schema";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
+import { apiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -59,7 +60,7 @@ function present(d: LightDevice, states: HaState[] | null, locale: Locale): Ligh
 
 export async function GET(req: NextRequest) {
   if (!espAuthorized(req)) return new NextResponse("forbidden", { status: 403 });
-  if (!(await tokenActor(req))) return new NextResponse("device not bound to a household member", { status: 403 });
+  if (!(await tokenActor(req))) return apiError(req, "not_bound", 403);
   const locale = lightsLocale(req);
   const url = new URL(req.url);
   if (url.searchParams.get("export") === "1") {
@@ -155,7 +156,7 @@ export async function POST(req: NextRequest) {
   }
   const member = await tokenActor(req);
   const allowed = member !== null && (CONTROL_OPS.has(p.data.op) ? canControlAny(member) : isOwner(member));
-  if (!allowed) return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
+  if (!allowed) return apiError(req, member ? "forbidden" : "not_bound", 403);
   try {
     return NextResponse.json(await handle(p.data, actorOf(req)), { headers: { "Cache-Control": "no-store" } });
   } catch (e) {

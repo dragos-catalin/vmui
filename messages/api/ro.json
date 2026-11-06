@@ -1,0 +1,12 @@
+{
+  "errors": {
+    "rate_limited": "Prea multe încercări, reîncearcă peste un minut",
+    "invalid_request": "Cerere invalidă",
+    "bad_credentials": "Email sau parolă greșită",
+    "forbidden": "Nu ai voie",
+    "not_bound": "Dispozitivul nu e încă legat de un membru al casei",
+    "no_room_access": "Nu ai acces la această cameră",
+    "unauthorized": "Trebuie să te autentifici",
+    "sent_to_pc": "Trimis către PC"
+  }
+}

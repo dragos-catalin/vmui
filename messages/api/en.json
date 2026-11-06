@@ -1,0 +1,12 @@
+{
+  "errors": {
+    "rate_limited": "Too many attempts, try again in a minute",
+    "invalid_request": "Invalid request",
+    "bad_credentials": "Wrong email or password",
+    "forbidden": "Not allowed",
+    "not_bound": "This device is not linked to a household member yet",
+    "no_room_access": "You don't have access to this room",
+    "unauthorized": "Sign in required",
+    "sent_to_pc": "Sent to the PC"
+  }
+}
