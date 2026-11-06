@@ -106,7 +106,9 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         <Alert tone="warning" title={t("haDown")}>
           {haConfigured
             ? t("haDownHint", { error: avail.error ?? "" })
-            : t.rich("haNotConfigured", { code: (chunks) => <code className="rounded-sm bg-bg-muted px-1 font-mono text-xs">{chunks}</code> })}
+            : t.rich("haNotConfigured", {
+                link: (chunks) => (access.canManage ? <a href="/home?tab=settings&section=integrations" className="font-medium underline underline-offset-2">{chunks}</a> : <>{chunks}</>),
+              })}
         </Alert>
       )}
 

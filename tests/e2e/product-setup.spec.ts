@@ -31,10 +31,15 @@ for (const locale of ["en", "ro"] as const) {
       await page.goto("/home?tab=settings&section=integrations", { waitUntil: "domcontentloaded" });
       const url = page.getByPlaceholder("http://homeassistant.local:8123");
       await expect(url).toBeVisible({ timeout: 30_000 });
-      await url.fill("http://127.0.0.1:9");
-      await page.getByPlaceholder(locale === "en" ? "Paste a long-lived access token" : "Lipește un token de acces de lungă durată").fill("not-a-real-token");
-      await page.getByRole("button", { name: locale === "en" ? "Test connection" : "Testează conexiunea" }).click();
-      await expect(page.getByTestId("ha-probe")).toContainText(locale === "en" ? "did not answer" : "nu a răspuns", { timeout: 15_000 });
+      const token = page.getByPlaceholder(locale === "en" ? "Paste a long-lived access token" : "Lipește un token de acces de lungă durată");
+      const testBtn = page.getByRole("button", { name: locale === "en" ? "Test connection" : "Testează conexiunea" });
+      // a fill that lands before hydration is dropped by React: retry until the probe answers
+      await expect(async () => {
+        await url.fill("http://127.0.0.1:9");
+        await token.fill("not-a-real-token");
+        await testBtn.click();
+        await expect(page.getByTestId("ha-probe")).toContainText(locale === "en" ? "did not answer" : "nu a răspuns", { timeout: 5_000 });
+      }).toPass({ timeout: 30_000 });
       await page.screenshot({ path: `${shots}/integrations-${locale}-${width}.png`, fullPage: true });
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       expect(overflow).toBeLessThanOrEqual(1);
@@ -44,8 +49,12 @@ for (const locale of ["en", "ro"] as const) {
       await page.goto("/home?tab=settings&section=house", { waitUntil: "domcontentloaded" });
       const name = page.getByRole("textbox", { name: locale === "en" ? "Room name" : "Numele camerei" });
       await expect(name).toBeVisible({ timeout: 30_000 });
-      await name.fill("Atelier E2E");
-      await page.getByRole("button", { name: locale === "en" ? "Add room" : "Adaugă cameră" }).click();
+      const addBtn = page.getByRole("button", { name: locale === "en" ? "Add room" : "Adaugă cameră" });
+      await expect(async () => {
+        await name.fill("Atelier E2E");
+        await expect(addBtn).toBeEnabled({ timeout: 1_000 });
+      }).toPass({ timeout: 20_000 });
+      await addBtn.click();
       const row = page.getByRole("button", { name: new RegExp(`${locale === "en" ? "Delete room" : "Șterge camera"}: Atelier E2E`) });
       await expect(row).toBeVisible({ timeout: 15_000 });
       await page.screenshot({ path: `${shots}/house-${locale}-${width}.png`, fullPage: true });

@@ -70,7 +70,7 @@
     "openHa": "Home Assistant",
     "haDown": "Home Assistant is not reachable",
     "haDownHint": "{error}. Showing the last known layout; controls will fail until it is back.",
-    "haNotConfigured": "Home Assistant isn't set up yet: add <code>HA_URL</code> and <code>HA_TOKEN</code> to <code>.private/credentials.env</code>. Showing the last known layout until then.",
+    "haNotConfigured": "Home Assistant isn't connected yet: add its address and token in <link>Settings → Integrations</link>. Showing the last known layout until then.",
     "noAccess": {
       "title": "No access to this home",
       "hint": "Ask the home owner to add you to the family and grant you some rooms."
@@ -112,6 +112,11 @@
       "integrations": {
         "title": "Integrations",
         "hint": "Home Assistant, household, Wake-on-LAN"
+      },
+      "groups": {
+        "household": "Household",
+        "devices": "Devices & screens",
+        "extensions": "Extensions (advanced)"
       }
     },
     "quick": {

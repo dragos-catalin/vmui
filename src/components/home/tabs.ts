@@ -4,6 +4,13 @@ export type HomeTab = (typeof HOME_TABS)[number];
 export const SETTINGS_SECTIONS = ["family", "house", "integrations", "turzx", "nestHub", "deskButton", "copilot"] as const;
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
 
+/** Nav groups, in order. Extensions = optional, owner-specific integrations a fresh install can ignore. */
+export const SETTINGS_GROUPS = [
+  { id: "household", sections: ["family", "house", "integrations"] },
+  { id: "devices", sections: ["turzx", "nestHub", "deskButton"] },
+  { id: "extensions", sections: ["copilot"] },
+] as const satisfies ReadonlyArray<{ id: string; sections: readonly SettingsSection[] }>;
+
 /** Old `?tab=` values keep working: bookmarks, the desktop app and HA links use them.
  *  Non-owners have no settings tab; a settings link lands them on the overview. */
 export function normalizeHomeTab(v: string | undefined, canManage = true): HomeTab {

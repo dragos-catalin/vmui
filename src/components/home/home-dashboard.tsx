@@ -32,7 +32,7 @@ import type { FamilyCardProps } from "./family-card";
 import { FloorPlan } from "./floor-plan";
 import { deviceLayoutId, EASE_OUT, SPRING, SPRING_SOFT, TabSkeleton, withFade, type DeviceOrigin } from "./home-motion";
 import { IntercomCard, type IntercomCardState } from "./intercom-card";
-import { HOME_TABS, normalizeHomeTab, SETTINGS_SECTIONS, type HomeTab, type SettingsSection } from "./tabs";
+import { HOME_TABS, normalizeHomeTab, SETTINGS_GROUPS, SETTINGS_SECTIONS, type HomeTab, type SettingsSection } from "./tabs";
 import { useHomeAction } from "./use-home-action";
 import { countLightsOn, cssColor, HomeStatesProvider, isOn, useEntity, useHomeStates } from "./use-home-states";
 
@@ -258,8 +258,14 @@ function SettingsNav({ value, onChange }: { value: SettingsSection; onChange: (s
   return (
     <nav aria-label={t("label")} className="-mx-4 overflow-x-auto px-4 py-1 [scrollbar-width:none] sm:mx-0 sm:px-0 lg:overflow-visible [&::-webkit-scrollbar]:hidden">
       <LayoutGroup id="home-settings-nav">
-        <ul className="flex w-max gap-1 lg:w-auto lg:flex-col">
-          {SETTINGS_SECTIONS.map((id) => {
+        <ul className="flex w-max items-center gap-1 lg:w-auto lg:flex-col lg:items-stretch">
+          {SETTINGS_GROUPS.map((g, gi) => (
+            <React.Fragment key={g.id}>
+              <li role="presentation" aria-hidden={gi === 0 ? true : undefined} className={cn("shrink-0", gi === 0 ? "hidden lg:block" : "")}>
+                <span className="mx-1 block h-5 w-px bg-border lg:hidden" />
+                <span className={cn("hidden px-3 pb-1 text-[11px] font-medium uppercase tracking-wide text-muted lg:block", gi > 0 && "pt-3")}>{t(`groups.${g.id}`)}</span>
+              </li>
+          {g.sections.map((id) => {
             const Icon = SECTION_ICON[id];
             const active = id === value;
             const title = t(`${id}.title`);
@@ -287,6 +293,8 @@ function SettingsNav({ value, onChange }: { value: SettingsSection; onChange: (s
               </li>
             );
           })}
+            </React.Fragment>
+          ))}
         </ul>
       </LayoutGroup>
     </nav>

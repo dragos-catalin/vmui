@@ -70,7 +70,7 @@
     "openHa": "Home Assistant",
     "haDown": "Home Assistant nu răspunde",
     "haDownHint": "{error}. Se arată ultima configurație cunoscută; comenzile vor eșua până revine.",
-    "haNotConfigured": "Home Assistant nu e configurat încă: adaugă <code>HA_URL</code> și <code>HA_TOKEN</code> în <code>.private/credentials.env</code>. Până atunci se arată ultima configurație cunoscută.",
+    "haNotConfigured": "Home Assistant nu e conectat încă: adaugă adresa și tokenul în <link>Setări → Integrări</link>. Până atunci se arată ultima configurație cunoscută.",
     "noAccess": {
       "title": "Nu ai acces la această casă",
       "hint": "Roagă proprietarul să te adauge în familie și să îți acorde camere."
@@ -112,6 +112,11 @@
       "integrations": {
         "title": "Integrări",
         "hint": "Home Assistant, gospodărie, Wake-on-LAN"
+      },
+      "groups": {
+        "household": "Gospodărie",
+        "devices": "Dispozitive și ecrane",
+        "extensions": "Extensii (avansat)"
       }
     },
     "quick": {

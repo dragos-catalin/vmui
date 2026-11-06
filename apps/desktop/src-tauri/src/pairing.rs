@@ -45,11 +45,11 @@ pub fn discover() -> Vec<Found> {
             }
         });
     }
-    {
+    for service in ["_vatra._tcp.local.", "_vmui._tcp.local."] {
         let tx = tx.clone();
         std::thread::spawn(move || {
             let Ok(d) = mdns_sd::ServiceDaemon::new() else { return };
-            let Ok(rx) = d.browse("_vmui._tcp.local.") else { return };
+            let Ok(rx) = d.browse(service) else { return };
             let until = std::time::Instant::now() + Duration::from_secs(4);
             while let Ok(ev) = rx.recv_timeout(until.saturating_duration_since(std::time::Instant::now())) {
                 if let mdns_sd::ServiceEvent::ServiceResolved(info) = ev {

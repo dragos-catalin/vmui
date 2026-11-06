@@ -1,10 +1,16 @@
 <?xml version="1.0" standalone='no'?>
 <!DOCTYPE service-group SYSTEM "avahi-service.dtd">
 <!-- /etc/avahi/services/vmui.service — installed by scripts/pi-deploy.ps1.
-     Lets the phone/desktop apps find vmui on the LAN as homepi.local:3737
-     (_vmui._tcp) without typing an address. -->
+     Lets the phone/desktop apps find the hub on the LAN as homepi.local:3737
+     without typing an address: _vatra._tcp (product apps) + _vmui._tcp (legacy). -->
 <service-group>
-  <name replace-wildcards="yes">vmui on %h</name>
+  <name replace-wildcards="yes">Vatra on %h</name>
+  <service>
+    <type>_vatra._tcp</type>
+    <port>3737</port>
+    <txt-record>path=/api/discover</txt-record>
+    <txt-record>api=1</txt-record>
+  </service>
   <service>
     <type>_vmui._tcp</type>
     <port>3737</port>
