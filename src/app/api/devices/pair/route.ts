@@ -1,6 +1,6 @@
 import { localeFromAcceptLanguage } from "@/i18n/config";
 import { verifyUserPassword } from "@/lib/auth";
-import { approveByLogin, pairingStatus, requestPairing } from "@/lib/devices/pairing";
+import { approveByLogin, pairingStatus, redeemPairingInvite, requestPairing } from "@/lib/devices/pairing";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { apiError } from "@/lib/api-error";
@@ -23,6 +23,8 @@ const ipOf = (req: NextRequest) => req.headers.get("x-forwarded-for")?.split(","
 const langOf = (req: NextRequest) => localeFromAcceptLanguage(req.headers.get("accept-language"));
 
 const body = z.union([
+  // QR pairing: a one-time invite minted by a signed-in member (POST /api/devices/pair/invite)
+  z.object({ name: z.string().min(1).max(64), platform: z.string().min(1).max(32), invite: z.string().min(16).max(64) }),
   z.object({ name: z.string().min(1).max(64), platform: z.string().min(1).max(32) }),
   z.object({ name: z.string().min(1).max(64), platform: z.string().min(1).max(32), email: z.email(), password: z.string().min(1) }),
 ]);
@@ -33,6 +35,11 @@ export async function POST(req: NextRequest) {
   if (limited(ip ?? "?")) return apiError(req, "rate_limited", 429);
   const p = body.safeParse(await req.json().catch(() => null));
   if (!p.success) return apiError(req, "invalid_request", 400);
+  if ("invite" in p.data) {
+    const t = await redeemPairingInvite(p.data.invite, p.data.name, p.data.platform, ip, langOf(req));
+    if (!t) return apiError(req, "invite_invalid", 401);
+    return NextResponse.json({ id: t.id, token: t.token, status: "approved" });
+  }
   if ("email" in p.data) {
     const r = await verifyUserPassword(p.data.email, p.data.password);
     if (!r.ok) return apiError(req, "bad_credentials", 401);

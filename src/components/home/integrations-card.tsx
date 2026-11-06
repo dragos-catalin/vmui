@@ -74,7 +74,7 @@ export function IntegrationsCard({ integrations, household, defaultOpen = false 
             </Field>
           </div>
           {probe && (
-            <p role="status" className={probe.ok ? "mt-3 flex items-center gap-1.5 text-sm text-success" : "mt-3 text-sm text-danger"}>
+            <p role="status" data-testid="ha-probe" className={probe.ok ? "mt-3 flex items-center gap-1.5 text-sm text-success" : "mt-3 text-sm text-danger"}>
               {probe.ok && <CheckCircle2 className="size-4" aria-hidden />}
               {probe.text}
             </p>

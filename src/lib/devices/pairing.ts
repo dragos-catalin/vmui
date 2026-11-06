@@ -78,6 +78,38 @@ export async function pairingStatus(id: string): Promise<{ status: string; code:
   return r ? { status: r.status, code: r.status === "pending" ? r.code : null } : null;
 }
 
+// ---------------------------------------------------------------- QR pairing
+// A signed-in member taps "Add a device": the hub mints a one-time invite (5 min,
+// single use) and shows `vatra://pair?h=<hub>&c=<code>` as a QR. The app redeems it
+// at POST /api/devices/pair {invite} and is approved at once, bound to that member:
+// no 4-digit comparison, no "approved by whom" ambiguity. Kept in memory: a restart
+// simply invalidates open invites.
+
+const INVITE_TTL_MS = 5 * 60_000;
+type Invite = { userId: string; by: string; expires: number };
+const invites: Map<string, Invite> = ((globalThis as { __vatraPairInvites__?: Map<string, Invite> }).__vatraPairInvites__ ??= new Map());
+
+export function createPairingInvite(userId: string, by: string): { code: string; expiresAt: number } {
+  const now = Date.now();
+  for (const [c, i] of invites) if (i.expires < now) invites.delete(c);
+  // 128-bit, URL-safe; it travels only inside the QR / deep link
+  const code = randomBytes(16).toString("base64url");
+  const expires = now + INVITE_TTL_MS;
+  invites.set(hash(code), { userId, by, expires });
+  return { code, expiresAt: expires };
+}
+
+/** Single use. Returns the ticket for the new device, or null when unknown/expired/used. */
+export async function redeemPairingInvite(code: string, name: string, platform: string, ip: string | null, language: string | null): Promise<PairingTicket | null> {
+  const key = hash(code);
+  const inv = invites.get(key);
+  invites.delete(key);
+  if (!inv || inv.expires < Date.now()) return null;
+  const t = await approveByLogin(name, platform, ip, inv.by, language, inv.userId);
+  await db.insert(auditLog).values({ accountId: "devices", action: "device.pair.qr", target: t.id, status: "ok", message: `${name} (${platform}) via QR from ${inv.by}` });
+  return t;
+}
+
 /** Platforms of the Vitals apps; they read the owner's own health (`/api/v1/me/health`). */
 export const VITALS_PLATFORMS = new Set(["vitals-desktop", "vitals-ios", "vitals-android"]);
 

@@ -7,6 +7,7 @@
     "not_bound": "Dispozitivul nu e încă legat de un membru al casei",
     "no_room_access": "Nu ai acces la această cameră",
     "unauthorized": "Trebuie să te autentifici",
-    "sent_to_pc": "Trimis către PC"
+    "sent_to_pc": "Trimis către PC",
+    "invite_invalid": "Codul de asociere e invalid sau a expirat. Afișează un QR nou pe hub."
   }
 }

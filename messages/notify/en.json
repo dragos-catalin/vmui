@@ -165,6 +165,15 @@
       "minutes": "{n} min",
       "hours": "{n} h",
       "days": "{n} d"
+    },
+    "qr": {
+      "show": "Add a device with a QR code",
+      "renew": "New QR code",
+      "hint": "Scan with the Vatra app. The device joins as you, with your rooms.",
+      "expires": "Valid for {seconds} s",
+      "alt": "QR code to pair a device",
+      "failed": "Could not create a pairing code",
+      "section": "Add a device"
     }
   }
 }

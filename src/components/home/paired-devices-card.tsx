@@ -15,6 +15,7 @@ import { useTranslations } from "next-intl";
 import * as React from "react";
 import { toast } from "sonner";
 import { EASE_OUT } from "./home-motion";
+import { PairQr } from "./pair-qr";
 
 type T = ReturnType<typeof useTranslations<"notify.devices">>;
 
@@ -71,6 +72,9 @@ export function PairedDevicesCard() {
       description={t("description")}
       action={data && data.pending.length > 0 ? <Badge variant="warning">{t("pendingBadge", { count: data.pending.length })}</Badge> : undefined}
     >
+      <Subsection title={t("qr.section")} className="mb-4">
+        <PairQr />
+      </Subsection>
       {data && data.pending.length > 0 && (
         <Subsection
           title={t("pendingTitle")}
