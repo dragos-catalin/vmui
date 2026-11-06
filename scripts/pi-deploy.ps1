@@ -79,10 +79,15 @@ if (Test-Path 'pi\sudoers-vmui') { ((Get-Content -Raw 'pi\sudoers-vmui') -replac
 if (Test-Path 'pi\avahi-vmui.service') { ((Get-Content -Raw 'pi\avahi-vmui.service') -replace "`r`n", "`n") | ssh -o BatchMode=yes $Pi 'cat > /tmp/avahi-vmui.service && sudo install -m 644 /tmp/avahi-vmui.service /etc/avahi/services/vmui.service; rm -f /tmp/avahi-vmui.service' }
 # custom-component fixes that a HAOS restore would undo (see docs: HyperHDR async_timeout)
 if (Test-Path 'pi\ha-patches') { tar -cf - -C pi ha-patches | ssh -o BatchMode=yes $Pi 'tar -xf - -C /tmp; D=/srv/homepi/ha/custom_components/hyperhdr_integration; if [ -d "$D" ]; then sudo cp /tmp/ha-patches/hyperhdr_integration-coordinator.py "$D/coordinator.py"; sudo cp /tmp/ha-patches/hyperhdr_integration-config_flow.py "$D/config_flow.py"; fi; rm -rf /tmp/ha-patches' }
-$espTok = ((Get-Content (Join-Path $priv '.private\credentials.env') | Where-Object { $_ -match '^ESP_DISPLAY_TOKEN=' }) -replace '^ESP_DISPLAY_TOKEN=', '').Trim('"')
-if ($espTok) {
-  # keep the shared token in HA secrets.yaml (never in an entity state or the package file)
-  "http://127.0.0.1:3737/api/pc/wake?k=$espTok&by=ha" | ssh -o BatchMode=yes $Pi 'read -r U; F=/srv/homepi/ha/secrets.yaml; sudo touch $F; sudo sed -i "/^vmui_pc_wake_url:/d" $F; echo "vmui_pc_wake_url: \"$U\"" | sudo tee -a $F >/dev/null'
+# Per-appliance tokens (P3-03) live in the main clone's credentials.env and ship with it above.
+$credFile = Join-Path $priv '.private\credentials.env'
+node scripts/appliance-tokens.mjs generate --env $credFile
+if ($LASTEXITCODE -ne 0) { throw "appliance-tokens generate failed ($LASTEXITCODE)" }
+scp -q -o BatchMode=yes $credFile "${Pi}:$Dest/.private/credentials.env"
+$haTok = ((Get-Content $credFile | Where-Object { $_ -match '^VATRA_TOKEN_HOME_ASSISTANT=' }) -replace '^VATRA_TOKEN_HOME_ASSISTANT=', '').Trim('"')
+if ($haTok) {
+  # HA's own token as a header secret (never in an entity state, the package file or a URL)
+  "Bearer $haTok" | ssh -o BatchMode=yes $Pi 'read -r U; F=/srv/homepi/ha/secrets.yaml; sudo touch $F; sudo sed -i "/^vmui_pc_wake_url:/d; /^vmui_ha_auth:/d" $F; echo "vmui_ha_auth: \"$U\"" | sudo tee -a $F >/dev/null'
 }
 if ($SyncOnly) { return }
 
@@ -96,6 +101,8 @@ while read -r rel pkg; do [ -n "`$rel" ] || continue; mkdir -p ".next/node_modul
 for u in vmui turzx desk-button hub-cast; do sudo install -m 644 pi/`$u.service /etc/systemd/system/`$u.service; done
 sudo systemctl daemon-reload; sudo systemctl enable vmui turzx desk-button hub-cast >/dev/null 2>&1
 sudo systemctl restart vmui; sleep 4; sudo systemctl restart turzx desk-button hub-cast
+node scripts/appliance-tokens.mjs register --env .private/credentials.env --db vmui.db && sudo systemctl restart turzx desk-button hub-cast
+HT=`$(grep '^HA_TOKEN=' .private/credentials.env | cut -d= -f2- | tr -d '"'); curl -s -o /dev/null -w 'ha rest_command reload %{http_code}\n' -X POST -H "Authorization: Bearer `$HT" http://127.0.0.1/api/services/rest_command/reload || true
 for u in vmui turzx desk-button hub-cast; do printf '%s %s\n' `$u "`$(systemctl is-active `$u)"; done
 curl -s -o /dev/null -w 'http %{http_code}\n' http://127.0.0.1:3737/ || true
 "@ -replace "`r`n", "`n"

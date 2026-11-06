@@ -20,10 +20,10 @@ const isLogEvent = (e: string): e is LogEvent => (LOG_EVENTS as readonly string[
 /** Electra IA02 intercom on the office ESP32: live call state, one-tap open,
  *  and the courier/guest auto-open arm with an expiry. Polls the state every
  *  3 s while mounted so a ring shows up without a reload. */
-export function IntercomCard({ initial, token, canOpen = true }: { initial: IntercomCardState; token: string; canOpen?: boolean }) {
+export function IntercomCard({ initial, canOpen = true }: { initial: IntercomCardState; canOpen?: boolean }) {
   const t = useTranslations("devices.intercom");
   const fmt = useFormatter();
-  const { data: s } = useIntercomState(initial, { url: token ? `/api/esp/intercom?k=${encodeURIComponent(token)}` : undefined });
+  const { data: s } = useIntercomState(initial);
   const [now, setNow] = React.useState(() => Date.now());
   const action = useHomeAction(async (fn: () => Promise<{ ok: boolean; error?: string }>) => fn(), { error: t("toast.failed") });
   const busy = action.pending;

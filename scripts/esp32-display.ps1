@@ -69,6 +69,9 @@ function Get-LanIp {
 }
 
 function Get-Token {
+    # The board's own appliance token (scripts/appliance-tokens.mjs -> VATRA_TOKEN_ESP32, registered on
+    # the hub by pi-deploy). Revocable per board; the shared ESP_DISPLAY_TOKEN is the legacy fallback.
+    if ($env:VATRA_TOKEN_ESP32 -like 'vmd_*') { return $env:VATRA_TOKEN_ESP32 }
     $t = $env:ESP_DISPLAY_TOKEN
     if (-not $t) {
         $t = -join ((48..57) + (97..122) | Get-Random -Count 32 | ForEach-Object { [char]$_ })
@@ -77,6 +80,11 @@ function Get-Token {
         Write-Ok 'generated ESP_DISPLAY_TOKEN -> .private'
     }
     $t
+}
+
+function Get-TokenParam {
+    $t = Get-Token
+    if ($t -like 'vmd_*') { "d=$t" } else { "k=$t" }
 }
 
 function Render-Yaml {
@@ -88,7 +96,7 @@ function Render-Yaml {
     foreach ($v in 'HOME_WIFI_SSID', 'HOME_WIFI_PASS', $keyVar, $otaVar) {
         if (-not (Get-Item "env:$v" -ErrorAction SilentlyContinue).Value) { throw "$v missing from .private\credentials.env" }
     }
-    $tok = Get-Token
+    $tp = Get-TokenParam
     $vars = @{
         node       = $NodeName
         friendly   = (($NodeName -replace '-', ' ') -replace '\b(\w)', { $_.Value.ToUpper() })
@@ -100,11 +108,11 @@ function Render-Yaml {
         sda        = $Sda
         scl        = $Scl
         scale_mac  = $ScaleMac
-        frame_url  = "http://${ip}:$LanPort/api/esp/display/${NodeName}?k=$tok"
-        button_url = "http://${ip}:$LanPort/api/esp/button?k=$tok"
-        watchdog_url = "http://${ip}:$LanPort/api/esp/watchdog/${NodeName}?k=$tok"
-        water_url  = "http://${ip}:$LanPort/api/nutrition/water?k=$tok"
-        intercom_url = "http://${ip}:$LanPort/api/esp/intercom?k=$tok&node=${NodeName}"
+        frame_url  = "http://${ip}:$LanPort/api/esp/display/${NodeName}?$tp"
+        button_url = "http://${ip}:$LanPort/api/esp/button?$tp"
+        watchdog_url = "http://${ip}:$LanPort/api/esp/watchdog/${NodeName}?$tp"
+        water_url  = "http://${ip}:$LanPort/api/nutrition/water?$tp"
+        intercom_url = "http://${ip}:$LanPort/api/esp/intercom?$tp&node=${NodeName}"
     }
     $y = Get-Content (Join-Path $Root 'esp32\home-display.yaml.tmpl') -Raw
     foreach ($k in $vars.Keys) { $y = $y.Replace('${' + $k + '}', [string]$vars[$k]) }
@@ -192,10 +200,9 @@ function Flash-Board {
 
 function Show-Status {
     $ip = Get-LanIp
-    $tok = $env:ESP_DISPLAY_TOKEN
-    $url = "http://${ip}:$LanPort/api/esp/display/${NodeName}?k=$tok"
+    $url = "http://${ip}:$LanPort/api/esp/display/${NodeName}?$(Get-TokenParam)"
     $r = curl.exe -s -o NUL -w '%{http_code} %{size_download}B %{content_type}' $url --max-time 6
-    Write-Host "  frame url  $($url -replace '\?k=.*', '?k=***')"
+    Write-Host "  frame url  $($url -replace '\?[kd]=.*', '?token=***')"
     Write-Host "  frame      $r $(if ($r -match '^200 1086B') { '(OK: 128x64 1-bit BMP)' } else { '<- expected 200 1086B image/bmp' })"
     $p = Test-Connection "$NodeName.local" -Count 1 -Quiet -ErrorAction SilentlyContinue
     Write-Host "  board      $NodeName.local $(if ($p) { 'answers ping' } else { 'no ping (mDNS?)' })"

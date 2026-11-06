@@ -45,7 +45,7 @@ export function DisplayCard({ initial, espToken, defaultOpen = false }: { initia
 
   const on = s.views.filter((v) => v.enabled);
   const cycle = on.reduce((a, v) => a + v.dwellSec, 0);
-  const url = typeof window === "undefined" ? "" : `${window.location.origin}/display?k=${espToken}`;
+  const url = typeof window === "undefined" || !espToken ? "" : `${window.location.origin}/display?${espToken.startsWith("vmd_") ? "d" : "k"}=${encodeURIComponent(espToken)}`;
   const pct = (x: number) => Math.round(x * 100);
 
   return (

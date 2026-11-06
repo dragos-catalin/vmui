@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { pairedDevices } from "@/lib/db/schema";
-import { parseScopes, pathInScopes } from "@/lib/devices/appliance-scopes";
+import { applianceEnvKey, parseScopes, pathInScopes, type ApplianceProfile } from "@/lib/devices/appliance-scopes";
 import { credential } from "@/lib/home/credentials";
 import { eq } from "drizzle-orm";
 import { createHash, timingSafeEqual } from "node:crypto";
@@ -32,6 +32,26 @@ export function espAuthorized(req: Request): boolean {
   if (scopes && !pathInScopes(url.pathname, scopes)) return false;
   touch(row.id, req);
   return true;
+}
+
+/** Headers for a loopback call made on behalf of an appliance: its provisioned token
+ *  (scripts/appliance-tokens.mjs) as a Bearer, else the legacy shared token. Never in the URL. */
+export function applianceAuthHeaders(profile: ApplianceProfile): Record<string, string> {
+  const own = credential(applianceEnvKey(profile));
+  if (own?.startsWith("vmd_")) return { authorization: `Bearer ${own}` };
+  const shared = credential("ESP_DISPLAY_TOKEN");
+  return shared ? { "x-esp-token": shared } : {};
+}
+
+/** The caller's own credential, to forward on a loopback call (display/state -> turzx/state). */
+export function forwardedAuthHeaders(req: Request): Record<string, string> {
+  const url = new URL(req.url);
+  const auth = req.headers.get("authorization");
+  if (auth) return { authorization: auth };
+  const d = url.searchParams.get("d");
+  if (d) return { authorization: `Bearer ${d}` };
+  const k = url.searchParams.get("k") ?? req.headers.get("x-esp-token");
+  return k ? { "x-esp-token": k } : {};
 }
 
 /** Approved paired-device id behind `Bearer vmd_…` / `?d=`, or null when the caller

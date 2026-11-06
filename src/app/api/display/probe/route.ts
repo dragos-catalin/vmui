@@ -10,7 +10,6 @@ export const dynamic = "force-dynamic";
 // POST /api/display/probe?k=…  -> stores the report in audit_log (action display.probe)
 export async function GET(req: NextRequest) {
   if (!espAuthorized(req)) return apiForbidden(req);
-  const k = new URL(req.url).searchParams.get("k") ?? "";
   const html = `<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
 <body style="margin:0;background:#101318;color:#eee;font:20px system-ui;padding:24px">
 <h1 id=h style="margin:0 0 12px;font-size:28px">probe…</h1><pre id=o style="white-space:pre-wrap;font-size:16px"></pre>
@@ -40,7 +39,7 @@ export async function GET(req: NextRequest) {
   var t0=performance.now();var frames=0;function tick(){frames++;if(performance.now()-t0<1000)requestAnimationFrame(tick);else{r.fps=frames;send()}}
   var sent=false;function done(){requestAnimationFrame(tick)}
   function send(){if(sent)return;sent=true;document.getElementById('h').textContent='probe sent';document.getElementById('o').textContent=JSON.stringify(r,null,1);
-    fetch(location.pathname+'?k=${k}',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(r)}).catch(function(){})}
+    fetch(location.pathname+location.search,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(r)}).catch(function(){})}
   setTimeout(send,4000);
 })();
 </script>`;

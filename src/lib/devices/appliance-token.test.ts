@@ -1,8 +1,9 @@
-import { mkdtempSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { APPLIANCE_PROFILES, parseScopes, pathInScopes } from "./appliance-scopes";
+import { APPLIANCE_PROFILE_IDS, APPLIANCE_PROFILES, applianceEnvKey, parseScopes, pathInScopes } from "./appliance-scopes";
 
 // Appliance tokens (P3-03): a token minted for one piece of hardware only opens its own routes.
 
@@ -53,6 +54,48 @@ describe("appliance tokens", () => {
   });
 
   it("every profile route is a real token-gated API path", () => {
-    for (const scopes of Object.values(APPLIANCE_PROFILES)) for (const s of scopes) expect(s).toMatch(/^\/api\/[a-z]/);
+    for (const scopes of Object.values(APPLIANCE_PROFILES)) for (const s of scopes) expect(s).toMatch(/^\/(api\/[a-z]|display$)/);
+  });
+
+  it("let the Nest Hub load its kiosk but not press buttons", async () => {
+    const { token } = await P.mintApplianceToken("nestHub", "Hub", "owner@home", null);
+    expect(A.espAuthorized(req("/display", token))).toBe(true);
+    expect(A.espAuthorized(req("/api/display/state", token))).toBe(true);
+    expect(A.espAuthorized(req("/api/turzx/state", token))).toBe(true);
+    expect(A.espAuthorized(req("/api/esp/button", token))).toBe(false);
+    expect(A.espAuthorized(req("/displayx", token))).toBe(false);
+  });
+});
+
+describe("scripts/appliance-tokens.mjs", () => {
+  it("names env keys like the app", () => {
+    expect(APPLIANCE_PROFILE_IDS.map(applianceEnvKey)).toContain("VATRA_TOKEN_DESK_BUTTON");
+    expect(applianceEnvKey("homeAssistant")).toBe("VATRA_TOKEN_HOME_ASSISTANT");
+  });
+
+  it("generates once, registers scoped rows the hub accepts, and keeps a revocation", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "vatra-tok-"));
+    const env = join(dir, "credentials.env");
+    writeFileSync(env, "HA_TOKEN=x\n");
+    const run = (...a: string[]) => execFileSync(process.execPath, ["scripts/appliance-tokens.mjs", ...a, "--env", env, "--db", process.env.VMUI_DB_PATH ?? ""], { encoding: "utf8" });
+    expect(run("generate")).toMatch(/added VATRA_TOKEN_ESP32/);
+    const first = readFileSync(env, "utf8");
+    expect(run("generate")).toMatch(/all appliance tokens present/);
+    expect(readFileSync(env, "utf8")).toBe(first);
+    const out = run("register");
+    expect(out).toMatch(/deskButton: registered/);
+    expect(out).not.toMatch(/vmd_/);
+    const tok = (k: string) => /^.+=(.+)$/m.exec(first.split("\n").find((l) => l.startsWith(`${k}=`)) ?? "")?.[1] ?? "";
+    const desk = tok(applianceEnvKey("deskButton"));
+    expect(A.espAuthorized(req("/api/esp/button", desk))).toBe(true);
+    expect(A.espAuthorized(req("/api/pc/wake", desk))).toBe(false);
+    const ha = tok(applianceEnvKey("homeAssistant"));
+    expect(A.espAuthorized(req("/api/pc/wake", ha))).toBe(true);
+    const devices = await P.listDevices();
+    const row = devices.find((d) => d.platform === "appliance:homeAssistant");
+    expect(row).toBeDefined();
+    await P.revokeDevice(row?.id ?? "", "owner@home");
+    expect(run("register")).toMatch(/homeAssistant: revoked/);
+    expect(A.espAuthorized(req("/api/pc/wake", ha))).toBe(false);
   });
 });

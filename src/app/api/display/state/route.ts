@@ -1,5 +1,5 @@
 import { loadDisplaySettings } from "@/lib/display/settings";
-import { espAuthorized } from "@/lib/esp/auth";
+import { espAuthorized, forwardedAuthHeaders } from "@/lib/esp/auth";
 import { tokenActor, visibleEntities, visibleRooms } from "@/lib/home/access";
 import { houseDevices, houseRooms } from "@/lib/home/house";
 import { haConfig } from "@/lib/home/credentials";
@@ -34,11 +34,10 @@ export async function GET(req: NextRequest) {
   if (!actor) return apiError(req, "not_bound", 403);
   const seen = visibleEntities(actor);
   const rooms = new Set(visibleRooms(actor));
-  const k = new URL(req.url).searchParams.get("k") ?? "";
   const origin = `http://127.0.0.1:${process.env.PORT ?? 3737}`;
   const settings = await loadDisplaySettings();
   const [turzx, states, photos] = await Promise.all([
-    fetch(`${origin}/api/turzx/state?k=${encodeURIComponent(k)}`, { cache: "no-store" }).then((r) => (r.ok ? (r.json() as Promise<Record<string, unknown>>) : null)).catch(() => null),
+    fetch(`${origin}/api/turzx/state`, { cache: "no-store", headers: forwardedAuthHeaders(req) }).then((r) => (r.ok ? (r.json() as Promise<Record<string, unknown>>) : null)).catch(() => null),
     ha.states().catch(() => []),
     // the Hub's own sources (the Turzx aggregate carries the desk screen's), cached 6 h per source in photoPool
     photoPool(settings.photoSources).catch(() => []),

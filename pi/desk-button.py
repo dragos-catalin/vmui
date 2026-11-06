@@ -27,14 +27,19 @@ NODE = os.environ.get("BUTTON_NODE", "homepi")
 
 
 def token() -> str:
-    t = os.environ.get("ESP_DISPLAY_TOKEN")
-    if t:
-        return t
-    with open("/srv/homepi/vmui/.private/credentials.env", encoding="utf-8") as fh:
-        for line in fh:
-            if line.startswith("ESP_DISPLAY_TOKEN="):
-                return line.split("=", 1)[1].strip().strip('"')
-    raise SystemExit("ESP_DISPLAY_TOKEN missing")
+    # own appliance token first (scripts/appliance-tokens.mjs), the shared one only as a fallback
+    for key in ("VATRA_TOKEN_DESK_BUTTON", "ESP_DISPLAY_TOKEN"):
+        if t := os.environ.get(key):
+            return t
+        with open("/srv/homepi/vmui/.private/credentials.env", encoding="utf-8") as fh:
+            for line in fh:
+                if line.startswith(key + "="):
+                    return line.split("=", 1)[1].strip().strip('"')
+    raise SystemExit("VATRA_TOKEN_DESK_BUTTON missing")
+
+
+def auth_headers(tok: str) -> dict:
+    return {"Authorization": f"Bearer {tok}"} if tok.startswith("vmd_") else {"x-esp-token": tok}
 
 
 TOKEN = token()
@@ -49,8 +54,8 @@ def blink(n: int) -> None:
 
 
 def post(click: str) -> None:
-    q = urllib.parse.urlencode({"k": TOKEN, "node": NODE, "btn": "desk", "click": click})
-    req = urllib.request.Request(f"{VMUI}/api/esp/button?{q}", method="POST")
+    q = urllib.parse.urlencode({"node": NODE, "btn": "desk", "click": click})
+    req = urllib.request.Request(f"{VMUI}/api/esp/button?{q}", method="POST", headers=auth_headers(TOKEN))
     try:
         with urllib.request.urlopen(req, timeout=8) as r:
             body = json.loads(r.read() or b"{}")

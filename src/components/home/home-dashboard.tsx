@@ -137,7 +137,7 @@ export function HomeDashboard({
             <QuickActions water={nutrition.water} intercom={intercom} onSettings={(s) => navigate("settings", s)} />
             <FloorPlan devices={devices} selected={selected?.id ?? null} onSelect={select("dot")} canArrange={access.canManage} />
             <DeviceGrid devices={devices} onSelect={select("tile")} openId={selected?.origin === "tile" ? selected.id : null} />
-            <IntercomCard initial={intercom} token={espToken} canOpen={access.canOpenDoor} />
+            <IntercomCard initial={intercom} canOpen={access.canOpenDoor} />
           </div>
         );
       case "ambilight":

@@ -65,17 +65,21 @@ def cast(device: str, url: str) -> bool:
 
 
 def main() -> int:
-    tok = cred("ESP_DISPLAY_TOKEN")
+    # the Nest Hub's own appliance token (scripts/appliance-tokens.mjs); the shared one only as a fallback
+    tok = cred("VATRA_TOKEN_NEST_HUB") or cred("ESP_DISPLAY_TOKEN")
     ha_tok = cred("HA_TOKEN")
     if not tok:
-        log("ESP_DISPLAY_TOKEN missing")
+        log("VATRA_TOKEN_NEST_HUB missing")
         return 1
-    url = f"{LAN_VMUI}/display?k={tok}"
+    own = tok.startswith("vmd_")
+    # DashCast loads a URL, it cannot set headers: the page takes ?d= (P0-06 swaps it for a one-time code)
+    url = f"{LAN_VMUI}/display?{'d' if own else 'k'}={tok}"
+    auth = {"Authorization": f"Bearer {tok}"} if own else {"x-esp-token": tok}
     last_cast = 0.0
     fails = 0
     ha_down_logged = False
     while True:
-        st = get(f"{VMUI}/api/display/state?k={tok}")
+        st = get(f"{VMUI}/api/display/state", auth)
         cfg = ((st or {}).get("display") or {}).get("cast") or {}
         device = cfg.get("device") or "Bedroom Smart Display"
         if not cfg.get("keepAlive", True):

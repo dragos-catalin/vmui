@@ -8,7 +8,8 @@ import { SkeletonList } from "@/components/ui/skeleton";
 import { useAction } from "@/hooks/use-action";
 import { usePairedDevices } from "@/hooks/use-poll";
 import { err, ok, type ActionResult } from "@/lib/action-result";
-import { Check, Laptop, Smartphone, Trash2, X } from "lucide-react";
+import { APPLIANCE_PROFILE_IDS, type ApplianceProfile } from "@/lib/devices/appliance-scopes";
+import { Check, Cpu, Laptop, Smartphone, Trash2, X } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
@@ -153,10 +154,13 @@ export function PairedDevicesCard({ isOwner = false }: { isOwner?: boolean }) {
 }
 
 function Icon({ platform }: { platform: string }) {
+  if (platform.startsWith("appliance:")) return <Cpu className="size-5 text-fg-muted" aria-hidden />;
   return /android|ios|iphone/i.test(platform) ? <Smartphone className="size-5 text-fg-muted" aria-hidden /> : <Laptop className="size-5 text-fg-muted" aria-hidden />;
 }
 
 function platformLabel(t: T, platform: string): string {
+  const kind = platform.startsWith("appliance:") ? platform.slice(10) : null;
+  if (kind && (APPLIANCE_PROFILE_IDS as string[]).includes(kind)) return t(`appliance.profiles.${kind as ApplianceProfile}`);
   const p = platform.toLowerCase();
   const key = PLATFORM_KEYS.find((k) => p === k || (k === "ios" && /iphone|ipad/.test(p)) || (k === "macos" && /darwin|mac/.test(p)) || (k === "windows" && /win/.test(p)));
   return key ? t(`platform.${key}`) : platform;

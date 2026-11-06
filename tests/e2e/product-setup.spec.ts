@@ -75,6 +75,29 @@ for (const locale of ["en", "ro"] as const) {
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       expect(overflow).toBeLessThanOrEqual(1);
     });
+
+    test("devices card: owner mints a scoped appliance token", async ({ page, request }) => {
+      await page.goto("/home?tab=notifications", { waitUntil: "domcontentloaded" });
+      const section = page.locator("summary", { hasText: locale === "en" ? "Appliance tokens" : "Tokenuri pentru aparate" });
+      await expect(section).toBeVisible({ timeout: 30_000 });
+      await section.click();
+      await page.getByLabel(locale === "en" ? "Kind" : "Tip").selectOption("deskButton");
+      const mint = page.getByRole("button", { name: locale === "en" ? "Create token" : "Creează token" });
+      const code = page.locator("code", { hasText: /^vmd_/ });
+      // a click before hydration does nothing: retry until the one-time token shows
+      await expect(async () => {
+        await mint.click();
+        await expect(code).toBeVisible({ timeout: 4_000 });
+      }).toPass({ timeout: 30_000 });
+      const token = (await code.textContent())?.trim() ?? "";
+      expect(token).toMatch(/^vmd_[\w-]{20,}$/);
+      await page.screenshot({ path: `${shots}/appliance-${locale}-${width}.png`, fullPage: true });
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      expect(overflow).toBeLessThanOrEqual(1);
+      const auth = { authorization: `Bearer ${token}` };
+      expect((await request.get("/api/nutrition/water", { headers: auth })).status()).not.toBe(403);
+      expect((await request.get("/api/pc/wake", { headers: auth })).status()).toBe(403);
+    });
   });
  }
 }

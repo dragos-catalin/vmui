@@ -8,7 +8,7 @@ import { canControlAny, HomeAccessError, requireEntityControl, requireHomeActor,
 import { setAmbilightSettings } from "@/lib/home/ambilight-settings";
 import { AMBILIGHT_MODES } from "@/lib/home/catalog";
 import { houseDevices, houseEntities, houseRooms } from "@/lib/home/house";
-import { credential } from "@/lib/home/credentials";
+import { applianceAuthHeaders } from "@/lib/esp/auth";
 import { ha } from "@/lib/home/ha-client";
 import { loadPomodoro, loadTurzxSettings, POMODORO_IDLE, savePomodoro, saveTurzxSettings, turzxSettingsSchema, type TurzxSettings } from "@/lib/turzx/settings";
 import { revalidatePath } from "next/cache";
@@ -289,19 +289,19 @@ export async function testCopilotSignalAction(event: CopilotEvent): Promise<Resu
     "copilot",
     p.data,
     async () => {
-      const tok = credential("ESP_DISPLAY_TOKEN");
-      if (!tok) throw new Error("ESP_DISPLAY_TOKEN missing");
+      const auth = applianceAuthHeaders("pcAgent");
+      if (!Object.keys(auth).length) throw new Error("appliance token missing");
       const port = process.env.PORT ?? "3737";
-      const r = await fetch(`http://127.0.0.1:${port}/api/copilot/event?k=${encodeURIComponent(tok)}`, {
+      const r = await fetch(`http://127.0.0.1:${port}/api/copilot/event`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", ...auth },
         body: JSON.stringify({ event: p.data, text: "test din mui", source: "mui" }),
       });
       if (!r.ok) throw new Error(`event endpoint ${r.status}`);
       if (p.data === "ask") {
         // A test `ask` must not strobe forever: cancel it after 6 s.
         setTimeout(() => {
-          fetch(`http://127.0.0.1:${port}/api/copilot/event?k=${encodeURIComponent(tok)}`, { method: "DELETE" }).catch(() => undefined);
+          fetch(`http://127.0.0.1:${port}/api/copilot/event`, { method: "DELETE", headers: auth }).catch(() => undefined);
         }, 6000);
       }
     },

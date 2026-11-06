@@ -75,12 +75,19 @@ def log(msg: str) -> None:
 
 
 def token() -> str:
-    if t := os.environ.get("ESP_DISPLAY_TOKEN"):
-        return t
-    for line in (ROOT / ".private" / "credentials.env").read_text(encoding="utf-8").splitlines():
-        if line.startswith("ESP_DISPLAY_TOKEN="):
-            return line.split("=", 1)[1].strip().strip('"')
-    raise RuntimeError("ESP_DISPLAY_TOKEN missing")
+    # own appliance token first (scripts/appliance-tokens.mjs), the shared one only as a fallback
+    lines = (ROOT / ".private" / "credentials.env").read_text(encoding="utf-8").splitlines() if (ROOT / ".private" / "credentials.env").exists() else []
+    for key in ("VATRA_TOKEN_TURZX", "ESP_DISPLAY_TOKEN"):
+        if t := os.environ.get(key):
+            return t
+        for line in lines:
+            if line.startswith(key + "="):
+                return line.split("=", 1)[1].strip().strip('"')
+    raise RuntimeError("VATRA_TOKEN_TURZX missing")
+
+
+def auth_headers(tok: str) -> dict:
+    return {"Authorization": f"Bearer {tok}"} if tok.startswith("vmd_") else {"x-esp-token": tok}
 
 
 DEFAULT_BG = {"mode": "none", "sources": [], "folder": "", "dim": 0.45, "blur": 0}
@@ -354,7 +361,7 @@ def _pi_worker() -> None:
         # mirror the dict into the same store the PCs publish to.
         try:
             body = json.dumps(out).encode()
-            req = urllib.request.Request(f"{VMUI}/api/turzx/pc?k={_PI_TOKEN}&host=homepi&kind=pi", data=body, method="POST", headers={"content-type": "application/json"})
+            req = urllib.request.Request(f"{VMUI}/api/turzx/pc?host=homepi&kind=pi", data=body, method="POST", headers={"content-type": "application/json", **auth_headers(_PI_TOKEN)})
             urllib.request.urlopen(req, timeout=3).read()
         except Exception:
             pass
@@ -378,9 +385,9 @@ def publish_pc(tok: str, every: float = 2.0) -> None:
     import socket
     host = socket.gethostname().lower()
     while True:
-        url = f"{VMUI}/api/turzx/pc?k={tok}&host={host}"
+        url = f"{VMUI}/api/turzx/pc?host={host}"
         body = json.dumps(pc_metrics()).encode()
-        req = urllib.request.Request(url, data=body, method="POST", headers={"content-type": "application/json"})
+        req = urllib.request.Request(url, data=body, method="POST", headers={"content-type": "application/json", **auth_headers(tok)})
         try:
             urllib.request.urlopen(req, timeout=5).read()
         except urllib.error.HTTPError as e:
@@ -401,7 +408,7 @@ def poller(st: State, tok: str, stop: threading.Event, bgs: Backgrounds | None) 
     interval = 3.0
     while not stop.is_set():
         try:
-            with urllib.request.urlopen(f"{VMUI}/api/turzx/state?k={tok}", timeout=6) as r:
+            with urllib.request.urlopen(urllib.request.Request(f"{VMUI}/api/turzx/state", headers=auth_headers(tok)), timeout=6) as r:
                 data = json.loads(r.read())
             with st.lock:
                 st.data = data

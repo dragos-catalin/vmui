@@ -1,11 +1,13 @@
 # /srv/homepi/ha/packages/vmui_pc.yaml — installed by scripts/pi-deploy.ps1.
 # Wake the Windows PC through vmui on this Pi (magic packet from the LAN side).
-# The shared token is in /config/secrets.yaml as `vmui_pc_wake_url` (written
-# by pi-deploy), never an entity state.
+# HA's own appliance token is in /config/secrets.yaml as `vmui_ha_auth`
+# ("Bearer vmd_…", written by pi-deploy), never an entity state or a URL.
 rest_command:
   vmui_pc_wake:
-    url: !secret vmui_pc_wake_url
+    url: "http://127.0.0.1:3737/api/pc/wake?by=ha"
     method: POST
+    headers:
+      authorization: !secret vmui_ha_auth
     timeout: 10
 
 script:

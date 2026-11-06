@@ -1,0 +1,8 @@
+{
+  "esp32": ["/api/esp/display/", "/api/esp/watchdog/", "/api/esp/intercom", "/api/esp/button", "/api/nutrition/water"],
+  "deskButton": ["/api/esp/button", "/api/nutrition/water"],
+  "nestHub": ["/display", "/api/display/", "/api/turzx/state", "/api/home/events"],
+  "turzx": ["/api/turzx/", "/api/nutrition/today", "/api/copilot/event"],
+  "homeAssistant": ["/api/pc/wake", "/api/desktop/pc", "/api/esp/intercom"],
+  "pcAgent": ["/api/desktop/pc", "/api/turzx/pc", "/api/turzx/mirror", "/api/copilot/event"]
+}
