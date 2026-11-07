@@ -45,10 +45,11 @@ steps:
 - name: gcr.io/cloud-builders/docker
   args: ['build', '-f', '$dockerfile', '-t', '$img', '.']
 images: ['$img']
+tags: ['vatra-cloud', '$name']
 options:
   logging: CLOUD_LOGGING_ONLY
 "@ | Set-Content -Encoding ascii $cfg
-  gcloud builds submit $context --config $cfg --project $Project --region $Region '--labels=app=vatra-cloud' | Out-Host
+  gcloud builds submit $context --config $cfg --project $Project --region $Region | Out-Host
   if ($LASTEXITCODE) { throw "build $name failed" }
   Remove-Item $cfg
   return $img
