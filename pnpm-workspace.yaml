@@ -40,3 +40,5 @@ overrides:
   'browserslist@4': '>=4.28.7 <5'
   'fflate@0': '>=0.8.3 <1'
   'uuid@<11.1.1': '>=11.1.1'
+  # esp-web-tools 10.4.0 imports @material/web/*/internal/*-styles.js; 2.5.0 renamed them *-styles.cssresult.js
+  'esp-web-tools>@material/web': '2.4.1'

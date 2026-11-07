@@ -117,6 +117,10 @@
         "household": "Gospodărie",
         "devices": "Dispozitive și ecrane",
         "extensions": "Extensii (avansat)"
+      },
+      "addDevice": {
+        "title": "Adaugă dispozitiv",
+        "hint": "Instalează și preia ecrane și butoane Vatra"
       }
     },
     "quick": {

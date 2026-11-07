@@ -1,13 +1,13 @@
 export const HOME_TABS = ["home", "ambilight", "notifications", "nutrition", "settings"] as const;
 export type HomeTab = (typeof HOME_TABS)[number];
 
-export const SETTINGS_SECTIONS = ["family", "house", "integrations", "turzx", "nestHub", "deskButton", "copilot"] as const;
+export const SETTINGS_SECTIONS = ["family", "house", "integrations", "addDevice", "turzx", "nestHub", "deskButton", "copilot"] as const;
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
 
 /** Nav groups, in order. Extensions = optional, owner-specific integrations a fresh install can ignore. */
 export const SETTINGS_GROUPS = [
   { id: "household", sections: ["family", "house", "integrations"] },
-  { id: "devices", sections: ["turzx", "nestHub", "deskButton"] },
+  { id: "devices", sections: ["addDevice", "turzx", "nestHub", "deskButton"] },
   { id: "extensions", sections: ["copilot"] },
 ] as const satisfies ReadonlyArray<{ id: string; sections: readonly SettingsSection[] }>;
 
@@ -34,6 +34,7 @@ export function normalizeHomeTab(v: string | undefined, canManage = true): HomeT
 /** `?section=` inside the settings tab; legacy tabs land on the panel they used to hold. */
 export function normalizeSettingsSection(tab: string | undefined, section: string | undefined): SettingsSection {
   if ((SETTINGS_SECTIONS as readonly string[]).includes(section ?? "")) return section as SettingsSection;
+  if (section === "add") return "addDevice";
   if (tab === "devices") return "deskButton";
   if (tab === "displays" || tab === "screens") return "turzx";
   return "family";

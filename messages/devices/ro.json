@@ -155,5 +155,55 @@
       }
     },
     "phoneNotifyPlaceholder": "mobile_app_'<'telefonul_tău>"
+  },
+  "add": {
+    "title": "Adaugă un dispozitiv Vatra",
+    "intro": "Instalează un ecran sau un buton din acest browser, apoi lasă hubul să îl preia. Hubul îl ține la zi.",
+    "board": {
+      "vatra-display-oled": "Ecran OLED 0,96\" (ESP32)",
+      "vatra-display-s3": "Ecran tactil 4\" (ESP32-S3)",
+      "vatra-button-atom": "Buton M5Stack Atom Lite",
+      "vatra-button-c3": "Buton ESP32-C3"
+    },
+    "flash": {
+      "title": "1. Instalează firmware-ul",
+      "hint": "Conectează placa la acest calculator cu un cablu USB de date, alege-o mai jos și instalează. Apoi conecteaz-o la WiFi din aceeași fereastră.",
+      "board": "Placă",
+      "install": "Instalează pe {name}",
+      "manifest": "Manifestul firmware-ului",
+      "noFirmware": "Hubul nu are încă firmware. Vine cu următoarea actualizare a hubului.",
+      "insecure": "Instalarea prin USB cere o pagină securizată: deschide hubul la https://… sau pe acest calculator la localhost. Poți totuși prelua mai jos plăcile deja instalate.",
+      "unsupported": "Acest browser nu poate comunica cu dispozitive USB. Folosește Chrome sau Edge pe un calculator.",
+      "openSecure": "Deschide adresa securizată"
+    },
+    "adopt": {
+      "title": "2. Preia-l",
+      "hint": "Plăcile din rețea apar aici după ce intră pe WiFi. Preluarea îi dă plăcii propria cheie și o adaugă în Home Assistant.",
+      "scan": "Caută din nou",
+      "none": "Nicio placă găsită încă. Lasă o placă abia instalată un minut să intre pe WiFi.",
+      "found": "Plăci din rețea",
+      "vatra": "Vatra",
+      "esphome": "ESPHome",
+      "action": "Preia",
+      "manual": "Sau scrie adresa plăcii",
+      "forget": "Ca să muți o placă la alt hub, ține apăsat butonul ei 10 secunde; uită acest hub și poate fi preluată din nou."
+    },
+    "adopted": "{image} preluat",
+    "ha": {
+      "added": "Adăugat în Home Assistant.",
+      "already": "Home Assistant îl are deja.",
+      "needs_key": "Termină în Home Assistant: Setări > Dispozitive > ESPHome și acceptă placa acolo.",
+      "unavailable": "Home Assistant nu este conectat, așa că a fost adăugat doar în Vatra.",
+      "failed": "Home Assistant nu l-a acceptat; adaugă-l acolo manual."
+    },
+    "error": {
+      "unreachable": "Placa nu a răspuns. Verifică dacă e alimentată și în aceeași rețea.",
+      "not_vatra": "Nu este o placă Vatra. Instalează întâi firmware-ul Vatra.",
+      "already_adopted": "Placa aparține deja unui hub. Ține apăsat butonul ei 10 secunde ca s-o resetezi.",
+      "refused": "Placa nu a acceptat cheia. Încearcă din nou.",
+      "bad_host": "Folosește adresa locală a plăcii, de exemplu 192.168.1.50 sau nume.local.",
+      "forbidden": "Doar proprietarul casei poate adăuga dispozitive.",
+      "failed": "Ceva n-a mers. Încearcă din nou."
+    }
   }
 }

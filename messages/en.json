@@ -117,6 +117,10 @@
         "household": "Household",
         "devices": "Devices & screens",
         "extensions": "Extensions (advanced)"
+      },
+      "addDevice": {
+        "title": "Add device",
+        "hint": "Flash and adopt Vatra displays and buttons"
       }
     },
     "quick": {

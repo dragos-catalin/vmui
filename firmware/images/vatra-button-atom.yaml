@@ -1,0 +1,136 @@
+# vatra-button-atom: M5Stack Atom Lite (ESP32-PICO-D4, 4 MB flash).
+#   Button  GPIO39 (input only, external pull-up, active low).
+#   LED     one SK6812 on GPIO27: blue pulse = not adopted, green blink = the
+#           hub took the click, red blinks = it did not.
+# Single / double / long click -> POST /api/esp/button?...&btn=desk.
+# Hold 10 s -> forget adoption. Doubles as a Bluetooth proxy for Home Assistant.
+
+substitutions:
+  image_id: vatra-button-atom
+  project_kind: button
+  name_prefix: vatra-button
+  friendly: Vatra Button
+
+packages:
+  vatra: !include ../common/vatra-base.yaml
+
+esp32:
+  board: m5stack-atom
+  framework:
+    type: esp-idf
+
+esp32_ble_tracker:
+  scan_parameters:
+    active: true
+
+bluetooth_proxy:
+  active: true
+
+# BLE Improv: the stack is there anyway for the proxy. A button press
+# authorises provisioning, so a neighbour cannot push WiFi credentials.
+improv_ble:
+  authorizer: vatra_btn
+  next_url: "http://{{ip_address}}/"
+
+light:
+  - platform: esp32_rmt_led_strip
+    id: led
+    name: Status LED
+    internal: true
+    pin: GPIO27
+    num_leds: 1
+    chipset: SK6812
+    channel_colors: GRB
+    restore_mode: ALWAYS_OFF
+    default_transition_length: 0s
+    effects:
+      - pulse:
+          name: Pulse
+          transition_length: 1s
+          update_interval: 1s
+          min_brightness: 5%
+          max_brightness: 60%
+
+script:
+  - id: vatra_led_idle
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: return id(vatra_token).empty();
+          then:
+            - light.turn_on:
+                id: led
+                red: 0%
+                green: 0%
+                blue: 100%
+                brightness: 60%
+                effect: Pulse
+          else:
+            - light.turn_off:
+                id: led
+                transition_length: 0s
+
+  - id: vatra_on_hub
+    mode: queued
+    max_runs: 2
+    then:
+      - script.execute: vatra_led_idle
+
+  - id: vatra_on_post_result
+    mode: restart
+    parameters:
+      ok: bool
+    then:
+      - script.stop: vatra_led_idle
+      - if:
+          condition:
+            lambda: return ok;
+          then:
+            - light.turn_on: { id: led, red: 0%, green: 100%, blue: 0%, brightness: 80%, effect: None }
+            - delay: 400ms
+            - light.turn_off: { id: led, transition_length: 0s }
+          else:
+            - repeat:
+                count: 3
+                then:
+                  - light.turn_on: { id: led, red: 100%, green: 0%, blue: 0%, brightness: 80%, effect: None }
+                  - delay: 150ms
+                  - light.turn_off: { id: led, transition_length: 0s }
+                  - delay: 150ms
+      - script.execute: vatra_led_idle
+
+binary_sensor:
+  - platform: gpio
+    id: vatra_btn
+    name: Button
+    pin:
+      number: GPIO39
+      inverted: true
+      mode:
+        input: true
+    filters:
+      - delayed_on: 15ms
+    on_press:
+      - script.execute: vatra_forget_hold
+    on_release:
+      - script.stop: vatra_forget_hold
+    on_multi_click:
+      - timing:
+          - ON for at most 350ms
+          - OFF for at least 200ms
+        then:
+          - script.execute: { id: vatra_post_click, click: single, btn: desk }
+      - timing:
+          - ON for at most 350ms
+          - OFF for at most 200ms
+          - ON for at most 350ms
+          - OFF for at least 100ms
+        then:
+          - script.execute: { id: vatra_post_click, click: double, btn: desk }
+      # Fires on release, so a 10 s forget hold does not also send "long".
+      - timing:
+          - ON for 1s to 5s
+          - OFF for at least 50ms
+        then:
+          - script.execute: { id: vatra_post_click, click: long, btn: desk }

@@ -6,6 +6,7 @@ const PUBLIC_PREFIXES = [
   "/invite", // family invitation links: the invitee has no account yet
   "/api/v1",
   "/api/esp",   // ESP32 display: token-authenticated, no session cookie
+  "/api/firmware", // ESP32 product firmware + manifests (MIT, published): boards OTA from here, ESP Web Tools installs from here
   "/api/turzx", // Turzx desk screen renderer: same shared token
   "/api/display", // Nest Hub kiosk API: kiosk cookie from a one-time code (/api/display/session) or a header token
   "/api/desktop", // Tauri desktop app: same shared token

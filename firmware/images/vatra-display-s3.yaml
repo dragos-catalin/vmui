@@ -1,0 +1,347 @@
+# vatra-display-s3: Guition ESP32-S3-4848S040 (480x480 ST7701S RGB panel,
+# GT911 touch, 16 MB flash, 8 MB octal PSRAM).
+#   Panel     mipi_rgb model GUITION-4848S040 (all RGB pins pre-filled); its
+#             ST7701S is initialised over SPI clk GPIO48 / mosi GPIO47 / cs 39.
+#   Backlight GPIO38 (LEDC PWM).
+#   Touch     GT911 on I2C SDA GPIO19, SCL GPIO45.
+# UI is LVGL, fed by GET /api/esp/display/<node>/summary every 10 s.
+# No physical button on this board: forgetting adoption = hold the screen
+# anywhere for 10 s (the only "button" it has).
+
+substitutions:
+  image_id: vatra-display-s3
+  project_kind: display
+  name_prefix: vatra-display
+  friendly: Vatra Display
+
+packages:
+  vatra: !include ../common/vatra-base.yaml
+
+esp32:
+  board: esp32-s3-devkitc-1
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+globals:
+  - id: s_time
+    type: std::string
+    initial_value: '"--:--"'
+  - id: s_lights
+    type: std::string
+    initial_value: '"--"'
+  - id: s_water
+    type: std::string
+    initial_value: '"-- / -- ml"'
+  - id: s_ambilight
+    type: std::string
+    initial_value: '"--"'
+  - id: s_status
+    type: std::string
+    initial_value: '""'
+
+output:
+  - platform: ledc
+    id: backlight_output
+    pin: GPIO38
+    frequency: 150Hz
+    min_power: 0.01
+    zero_means_zero: true
+
+light:
+  - platform: monochromatic
+    id: backlight
+    name: Backlight
+    output: backlight_output
+    restore_mode: ALWAYS_ON
+    default_transition_length: 0s
+
+spi:
+  - id: lcd_spi
+    clk_pin: GPIO48
+    mosi_pin: GPIO47
+
+i2c:
+  - id: touch_bus
+    sda: GPIO19
+    scl:
+      number: GPIO45
+      ignore_strapping_warning: true
+
+display:
+  - platform: mipi_rgb
+    model: GUITION-4848S040
+    id: panel
+    spi_id: lcd_spi
+    update_interval: never
+    auto_clear_enabled: false
+
+touchscreen:
+  - platform: gt911
+    id: touch
+    display: panel
+    i2c_id: touch_bus
+    on_touch:
+      - script.execute: vatra_forget_hold
+    on_release:
+      - script.stop: vatra_forget_hold
+
+font:
+  - file: "gfonts://Roboto@300"
+    id: f_clock
+    size: 140
+    glyphs: "0123456789:-"
+  - file: "gfonts://Roboto@500"
+    id: f_title
+    size: 64
+    glyphs: " Vatr"
+
+lvgl:
+  displays: [panel]
+  touchscreens: [touch]
+  buffer_size: 25%
+  style_definitions:
+    - id: card
+      bg_color: 0x1B2128
+      bg_opa: COVER
+      radius: 18
+      border_width: 0
+      pad_all: 12
+  pages:
+    - id: page_main
+      bg_color: 0x0E1114
+      widgets:
+        - label:
+            id: lbl_clock
+            align: TOP_MID
+            y: 18
+            text: "--:--"
+            text_font: f_clock
+            text_color: 0xF4F1EA
+        - obj:
+            styles: card
+            x: 20
+            y: 196
+            width: 210
+            height: 120
+            widgets:
+              - label:
+                  align: TOP_LEFT
+                  text: "Lights on"
+                  text_font: montserrat_20
+                  text_color: 0x9AA4AE
+              - label:
+                  id: lbl_lights
+                  align: BOTTOM_LEFT
+                  text: "--"
+                  text_font: montserrat_48
+                  text_color: 0xFFC857
+        - obj:
+            styles: card
+            x: 250
+            y: 196
+            width: 210
+            height: 120
+            widgets:
+              - label:
+                  align: TOP_LEFT
+                  text: "Ambilight"
+                  text_font: montserrat_20
+                  text_color: 0x9AA4AE
+              - label:
+                  id: lbl_ambilight
+                  align: BOTTOM_LEFT
+                  text: "--"
+                  text_font: montserrat_36
+                  text_color: 0x7FD1FF
+        - obj:
+            styles: card
+            x: 20
+            y: 330
+            width: 440
+            height: 96
+            widgets:
+              - label:
+                  align: TOP_LEFT
+                  text: "Water"
+                  text_font: montserrat_20
+                  text_color: 0x9AA4AE
+              - label:
+                  id: lbl_water
+                  align: BOTTOM_LEFT
+                  text: "-- / -- ml"
+                  text_font: montserrat_32
+                  text_color: 0x6FE3C1
+              - button:
+                  id: btn_water
+                  align: RIGHT_MID
+                  width: 150
+                  height: 64
+                  radius: 32
+                  bg_color: 0x2B7A66
+                  widgets:
+                    - label:
+                        align: CENTER
+                        text: "+250 ml"
+                        text_font: montserrat_24
+                        text_color: 0xFFFFFF
+                  on_click:
+                    - script.execute: { id: vatra_post_click, click: single, btn: water }
+        - label:
+            id: lbl_status
+            align: BOTTOM_MID
+            y: -12
+            width: 440
+            long_mode: DOT
+            text_align: CENTER
+            text: ""
+            text_font: montserrat_18
+            text_color: 0x9AA4AE
+
+    - id: page_adopt
+      bg_color: 0x0E1114
+      widgets:
+        - label:
+            align: TOP_MID
+            y: 70
+            text: "Vatra"
+            text_font: f_title
+            text_color: 0xF4F1EA
+        - label:
+            align: CENTER
+            y: -10
+            width: 420
+            long_mode: WRAP
+            text_align: CENTER
+            text: "Open the Vatra hub and go to\nDevices > Add"
+            text_font: montserrat_26
+            text_color: 0xD8DDE2
+        - label:
+            id: lbl_adopt_ip
+            align: CENTER
+            y: 80
+            width: 420
+            text_align: CENTER
+            text: "Waiting for WiFi"
+            text_font: montserrat_32
+            text_color: 0xFFC857
+        - label:
+            align: BOTTOM_MID
+            y: -30
+            width: 420
+            long_mode: WRAP
+            text_align: CENTER
+            text: "No WiFi? Connect over USB (Devices > Add)\nor join the hotspot vatra-display-..."
+            text_font: montserrat_16
+            text_color: 0x9AA4AE
+
+script:
+  - id: vatra_on_hub
+    mode: queued
+    max_runs: 2
+    then:
+      - if:
+          condition:
+            lambda: return id(vatra_token).empty();
+          then:
+            - lvgl.page.show: page_adopt
+          else:
+            - lvgl.page.show: page_main
+            - script.execute: summary_fetch
+
+  - id: vatra_on_post_result
+    mode: restart
+    parameters:
+      ok: bool
+    then:
+      - if:
+          condition:
+            lambda: return ok;
+          then:
+            - script.execute: summary_fetch
+          else:
+            - lambda: id(s_status) = "Hub did not take the click";
+            - script.execute: ui_refresh
+
+  - id: summary_fetch
+    mode: single
+    then:
+      - if:
+          condition:
+            and:
+              - wifi.connected:
+              - lambda: return !id(vatra_token).empty();
+          then:
+            - http_request.get:
+                url: !lambda return id(vatra_hub) + "/api/esp/display/" + std::string(App.get_name().c_str()) + "/summary";
+                request_headers:
+                  Authorization: !lambda return id(vatra_auth).c_str();
+                capture_response: true
+                max_response_buffer_size: 2048
+                on_response:
+                  then:
+                    - lambda: |-
+                        if (response->status_code != 200) {
+                          id(s_status) = "Hub answered HTTP " + std::to_string(response->status_code);
+                          return;
+                        }
+                        bool ok = json::parse_json(body, [](JsonObject root) -> bool {
+                          const char *t = root["time"] | "";
+                          if (t[0] != '\0') id(s_time) = t;
+                          if (!root["lightsOn"].isNull()) id(s_lights) = std::to_string(root["lightsOn"].as<int>());
+                          JsonObject w = root["water"];
+                          if (!w.isNull()) {
+                            id(s_water) = std::to_string(w["ml"] | 0) + " / " + std::to_string(w["target"] | 0) + " ml";
+                          }
+                          const char *a = root["ambilight"] | "--";
+                          id(s_ambilight) = a;
+                          const char *s = root["status"] | "";
+                          id(s_status) = s;
+                          return true;
+                        });
+                        if (!ok) id(s_status) = "Hub sent bad data";
+                    - script.execute: ui_refresh
+                on_error:
+                  then:
+                    - lambda: id(s_status) = "Hub not answering";
+                    - script.execute: ui_refresh
+
+  - id: ui_refresh
+    mode: queued
+    max_runs: 2
+    then:
+      - lvgl.label.update:
+          id: lbl_clock
+          text: !lambda |-
+            auto now = id(sntp_time).now();
+            if (now.is_valid()) return now.strftime("%H:%M");
+            return id(s_time);
+      - lvgl.label.update:
+          id: lbl_lights
+          text: !lambda return id(s_lights);
+      - lvgl.label.update:
+          id: lbl_water
+          text: !lambda return id(s_water);
+      - lvgl.label.update:
+          id: lbl_ambilight
+          text: !lambda return id(s_ambilight);
+      - lvgl.label.update:
+          id: lbl_status
+          text: !lambda return id(s_status);
+      - lvgl.label.update:
+          id: lbl_adopt_ip
+          text: !lambda |-
+            if (!id(wifi_id).is_connected()) return std::string("Waiting for WiFi");
+            return "This screen: " + id(vatra_ip).state;
+
+interval:
+  - interval: 10s
+    then:
+      - script.execute: summary_fetch
+  - interval: 5s
+    then:
+      - script.execute: ui_refresh

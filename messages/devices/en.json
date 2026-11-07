@@ -155,5 +155,55 @@
       }
     },
     "phoneNotifyPlaceholder": "mobile_app_'<'your_phone>"
+  },
+  "add": {
+    "title": "Add a Vatra device",
+    "intro": "Flash a display or button from this browser, then let the hub adopt it. The hub keeps it updated.",
+    "board": {
+      "vatra-display-oled": "Display, 0.96\" OLED (ESP32)",
+      "vatra-display-s3": "Display, 4\" touch (ESP32-S3)",
+      "vatra-button-atom": "Button, M5Stack Atom Lite",
+      "vatra-button-c3": "Button, ESP32-C3"
+    },
+    "flash": {
+      "title": "1. Install the firmware",
+      "hint": "Plug the board into this computer with a USB data cable, pick it below and install. Then join it to your WiFi in the same dialog.",
+      "board": "Board",
+      "install": "Install on {name}",
+      "manifest": "Firmware manifest",
+      "noFirmware": "This hub has no firmware yet. It arrives with the next hub update.",
+      "insecure": "Installing over USB needs a secure page: open the hub at https://… or on this computer at localhost. You can still adopt boards that are already flashed below.",
+      "unsupported": "This browser cannot talk to USB devices. Use Chrome or Edge on a computer.",
+      "openSecure": "Open the secure address"
+    },
+    "adopt": {
+      "title": "2. Adopt it",
+      "hint": "Boards on your network show up here once they are on WiFi. Adopting gives the board its own key and adds it to Home Assistant.",
+      "scan": "Scan again",
+      "none": "No boards found yet. Give a freshly installed board a minute to join the WiFi.",
+      "found": "Boards on the network",
+      "vatra": "Vatra",
+      "esphome": "ESPHome",
+      "action": "Adopt",
+      "manual": "Or type the board's address",
+      "forget": "To move a board to another hub, hold its button for 10 seconds; it forgets this hub and can be adopted again."
+    },
+    "adopted": "{image} adopted",
+    "ha": {
+      "added": "Added to Home Assistant.",
+      "already": "Home Assistant already has it.",
+      "needs_key": "Finish it in Home Assistant: Settings > Devices > ESPHome, and accept the board there.",
+      "unavailable": "Home Assistant is not connected, so it was only added to Vatra.",
+      "failed": "Home Assistant did not take it; add it there by hand."
+    },
+    "error": {
+      "unreachable": "The board did not answer. Check it is powered and on the same network.",
+      "not_vatra": "That is not a Vatra board. Install the Vatra firmware first.",
+      "already_adopted": "This board already belongs to a hub. Hold its button for 10 seconds to reset it.",
+      "refused": "The board did not accept the key. Try again.",
+      "bad_host": "Use the board's local address, like 192.168.1.50 or name.local.",
+      "forbidden": "Only the home owner can add devices.",
+      "failed": "Something went wrong. Try again."
+    }
   }
 }

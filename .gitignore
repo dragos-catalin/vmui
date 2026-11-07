@@ -34,6 +34,9 @@ test-results/
 playwright-report/
 playwright/.cache/
 
+# ESP firmware build output (firmware/build.sh); the hub serves it from VATRA_FIRMWARE_DIR
+firmware-dist/
+
 __pycache__/
 
 # Microsoft fonts copied for the Pi renderer; licensed, never commit

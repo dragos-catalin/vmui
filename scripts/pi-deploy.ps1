@@ -71,6 +71,11 @@ foreach ($f in '.env', '.private/credentials.env', '.private/fcm-service-account
   if (Test-Path $p) { scp -q -o BatchMode=yes $p "${Pi}:$Dest/$f" }
 }
 if (Test-Path (Join-Path $priv 'turzx\fonts')) { tar -cf - -C $priv turzx/fonts | ssh -o BatchMode=yes $Pi "tar -xf - -C $Dest" }
+# ESP32 product firmware (firmware/build.sh, built in the cloud, gitignored): served at /api/firmware
+if (Test-Path (Join-Path $priv 'firmware-dist\index.json')) {
+  ssh -o BatchMode=yes $Pi "rm -rf $Dest/firmware-dist.new"
+  tar -cf - -C $priv firmware-dist | ssh -o BatchMode=yes $Pi "mkdir -p $Dest/firmware-dist.new && tar -xf - -C $Dest/firmware-dist.new && rm -rf $Dest/firmware-dist && mv $Dest/firmware-dist.new/firmware-dist $Dest/firmware-dist && rm -rf $Dest/firmware-dist.new"
+}
 # Home Assistant packages (rest_command/scripts that call vmui on the Pi)
 if (Test-Path 'pi\ha-packages') { tar -cf - -C pi ha-packages | ssh -o BatchMode=yes $Pi "tar -xf - -C /tmp && sudo cp /tmp/ha-packages/*.yaml /srv/homepi/ha/packages/ && rm -rf /tmp/ha-packages" }
 # /api/desktop/pi restarts units with sudo -n; visudo -c refuses a broken file instead of locking us out

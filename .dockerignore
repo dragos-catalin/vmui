@@ -26,3 +26,4 @@ docs
 **/*.png
 !public/**/*.png
 deploy
+firmware

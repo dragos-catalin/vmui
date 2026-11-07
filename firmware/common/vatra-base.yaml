@@ -1,0 +1,302 @@
+# Vatra product firmware: shared base, included by every image in ../images/.
+#
+# One build per board serves every unit: no WiFi credentials, API key or hub
+# address are compiled in. A fresh unit provisions WiFi over Improv (serial,
+# or BLE on the button images) or the fallback hotspot + captive portal; the
+# Vatra hub then adopts it over the local web_server (see ../README.md):
+#   POST /text/Vatra hub/set?value=http://<hub>
+#   POST /text/Vatra token/set?value=vmd_...
+# Both values live in NVS. Adoption can only be undone physically: hold the
+# board's button for 10 s.
+#
+# Every image must define: substitutions image_id, project_kind, name_prefix,
+# friendly; and scripts vatra_on_hub (apply hub/token to the image's own
+# components) and vatra_on_post_result (parameter ok: bool, button feedback).
+
+substitutions:
+  version: "0.0.0-dev"
+  log_level: INFO
+  timezone: Europe/Bucharest
+
+esphome:
+  name: ${name_prefix}
+  friendly_name: ${friendly}
+  name_add_mac_suffix: true
+  min_version: 2026.10.0
+  # Resolves to firmware/images/.esphome/build/<image id>. Per image, because
+  # the two button images share the device name and would wipe each other.
+  build_path: ../.esphome/build/${image_id}
+  project:
+    name: vatra.${project_kind}
+    version: "${version}"
+  on_boot:
+    priority: -100
+    then:
+      - script.execute: vatra_apply_hub
+      - delay: 2min
+      - script.execute: vatra_check_update
+
+logger:
+  level: ${log_level}
+
+# No key compiled in: Home Assistant provisions the encryption key at runtime.
+# reboot_timeout 0: a unit used only with the Vatra hub never sees an API
+# client and must not reboot every 15 min for it.
+api:
+  encryption: {}
+  reboot_timeout: 0s
+
+ota:
+  - platform: esphome
+  - platform: http_request
+
+# The hub is plain http on the LAN.
+http_request:
+  timeout: 8s
+  verify_ssl: false
+
+wifi:
+  id: wifi_id
+  # No networks compiled in; Improv / the captive portal store them in NVS.
+  ap: {}
+  # The fallback hotspot is how a user rescues a unit whose WiFi changed;
+  # rebooting every 15 min would kick them out of the captive portal.
+  reboot_timeout: 0s
+
+captive_portal:
+
+improv_serial:
+  next_url: "http://{{ip_address}}/"
+
+safe_mode:
+
+time:
+  - platform: sntp
+    id: sntp_time
+    timezone: ${timezone}
+
+# The adoption surface. Internal entities are hidden from Home Assistant and
+# only reachable here (include_internal). Firmware upload through this page is
+# off: updates come from the hub (vatra_check_update) or ESPHome OTA.
+web_server:
+  port: 80
+  version: 3
+  include_internal: true
+  ota: false
+
+globals:
+  - id: vatra_hub
+    type: std::string
+    restore_value: true
+    max_restore_data_length: 120
+    initial_value: '""'
+  - id: vatra_token
+    type: std::string
+    restore_value: true
+    max_restore_data_length: 80
+    initial_value: '""'
+  # "Bearer <token>", rebuilt by vatra_apply_hub. http_request header lambdas
+  # return a const char*, so the string must outlive the request.
+  - id: vatra_auth
+    type: std::string
+    initial_value: '""'
+
+text:
+  - platform: template
+    id: vatra_hub_text
+    name: Vatra hub
+    internal: true
+    mode: text
+    max_length: 120
+    update_interval: 10s
+    lambda: return id(vatra_hub);
+    set_action:
+      - if:
+          condition:
+            lambda: |-
+              return id(vatra_token).empty() &&
+                     (x.rfind("http://", 0) == 0 || x.rfind("https://", 0) == 0);
+          then:
+            - lambda: |-
+                std::string v = x;
+                while (!v.empty() && (v.back() == '/' || v.back() == ' ')) v.pop_back();
+                id(vatra_hub) = v;
+            - script.execute: vatra_persist
+          else:
+            - logger.log:
+                level: WARN
+                tag: vatra
+                format: "hub change refused (adopted or not an http(s) URL)"
+  - platform: template
+    id: vatra_token_text
+    name: Vatra token
+    internal: true
+    mode: password
+    max_length: 80
+    update_interval: never
+    # Never echo the token back.
+    lambda: return std::string();
+    set_action:
+      - if:
+          condition:
+            # The hub must be set first: once a token is stored the hub URL is
+            # frozen, so a token without a hub would strand the unit.
+            lambda: |-
+              return id(vatra_token).empty() && !id(vatra_hub).empty() &&
+                     x.rfind("vmd_", 0) == 0;
+          then:
+            - lambda: id(vatra_token) = x;
+            - script.execute: vatra_persist
+            - script.execute: vatra_apply_hub
+          else:
+            - logger.log:
+                level: WARN
+                tag: vatra
+                format: "token refused (already adopted, no hub set, or not vmd_)"
+
+text_sensor:
+  - platform: template
+    id: vatra_firmware
+    name: Vatra firmware
+    internal: true
+    update_interval: 60s
+    lambda: |-
+      return std::string("${image_id}@${version}");
+  - platform: template
+    id: vatra_adopted
+    name: Vatra adopted
+    internal: true
+    update_interval: 10s
+    lambda: |-
+      return std::string(id(vatra_token).empty() ? "no" : "yes");
+  - platform: wifi_info
+    ip_address:
+      id: vatra_ip
+      internal: true
+
+button:
+  - platform: template
+    id: vatra_update_btn
+    name: Vatra update
+    internal: true
+    on_press:
+      - script.execute: vatra_check_update
+
+script:
+  # Restoring globals write their value to the preferences on their own 1 s
+  # tick; sync only after that tick so the flash write carries the new value.
+  - id: vatra_persist
+    mode: restart
+    then:
+      - delay: 2s
+      - lambda: global_preferences->sync();
+
+  - id: vatra_apply_hub
+    mode: queued
+    max_runs: 2
+    then:
+      - lambda: |-
+          id(vatra_auth) = id(vatra_token).empty() ? std::string() : "Bearer " + id(vatra_token);
+      - component.update: vatra_adopted
+      - script.execute: vatra_on_hub
+
+  # Bound to the board button: on_press starts it, on_release stops it, so it
+  # only completes on a continuous 10 s hold.
+  - id: vatra_forget_hold
+    mode: restart
+    then:
+      - delay: 10s
+      - script.execute: vatra_forget_now
+
+  - id: vatra_forget_now
+    mode: single
+    then:
+      - logger.log:
+          level: WARN
+          tag: vatra
+          format: "10 s hold: forgetting adoption and rebooting"
+      - lambda: |-
+          id(vatra_hub) = "";
+          id(vatra_token) = "";
+          id(vatra_auth) = "";
+      - delay: 2s
+      - lambda: |-
+          global_preferences->sync();
+          App.safe_reboot();
+
+  # click: single|double|long; btn: "" (no btn parameter) or a button name.
+  - id: vatra_post_click
+    mode: queued
+    max_runs: 3
+    parameters:
+      click: string
+      btn: string
+    then:
+      - if:
+          condition:
+            and:
+              - wifi.connected:
+              - lambda: return !id(vatra_token).empty();
+          then:
+            - http_request.post:
+                url: !lambda |-
+                  std::string u = id(vatra_hub) + "/api/esp/button?node=" + std::string(App.get_name().c_str()) + "&click=" + click;
+                  if (!btn.empty()) u += "&btn=" + btn;
+                  return u;
+                request_headers:
+                  Authorization: !lambda return id(vatra_auth).c_str();
+                max_response_buffer_size: 128
+                on_response:
+                  then:
+                    - script.execute:
+                        id: vatra_on_post_result
+                        ok: !lambda return response->status_code >= 200 && response->status_code < 300;
+                on_error:
+                  then:
+                    - script.execute:
+                        id: vatra_on_post_result
+                        ok: false
+
+  - id: vatra_check_update
+    mode: single
+    then:
+      - if:
+          condition:
+            and:
+              - wifi.connected:
+              - lambda: return !id(vatra_token).empty() && !id(vatra_hub).empty();
+          then:
+            - http_request.get:
+                url: !lambda return id(vatra_hub) + "/api/firmware/${image_id}/version";
+                request_headers:
+                  Authorization: !lambda return id(vatra_auth).c_str();
+                capture_response: true
+                max_response_buffer_size: 64
+                on_response:
+                  then:
+                    - lambda: |-
+                        if (response->status_code != 200) {
+                          ESP_LOGW("vatra", "version check: HTTP %d", response->status_code);
+                          return;
+                        }
+                        std::string v = body;
+                        const char *ws = " \t\r\n";
+                        v.erase(0, v.find_first_not_of(ws));
+                        size_t end = v.find_last_not_of(ws);
+                        v = end == std::string::npos ? std::string() : v.substr(0, end + 1);
+                        if (v.empty() || v.size() > 48 || v == "${version}") return;
+                        ESP_LOGW("vatra", "update ${version} -> %s", v.c_str());
+                        id(vatra_flash).execute();
+
+  - id: vatra_flash
+    mode: single
+    then:
+      - delay: 200ms
+      - ota.http_request.flash:
+          url: !lambda return id(vatra_hub) + "/api/firmware/${image_id}/ota.bin";
+          md5_url: !lambda return id(vatra_hub) + "/api/firmware/${image_id}/ota.md5";
+
+interval:
+  - interval: 6h
+    then:
+      - script.execute: vatra_check_update

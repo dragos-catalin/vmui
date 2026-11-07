@@ -1,0 +1,180 @@
+# vatra-display-oled: ideaspark ESP32 (esp32dev, no PSRAM) + SSD1306 128x64.
+#   OLED  I2C 0x3C, SDA GPIO21, SCL GPIO22. Two-colour panel: rows 0-15
+#         yellow, 16-63 blue; the hub renders with that split in mind.
+#   BOOT  GPIO0, active low: single / double / long click -> hub;
+#         hold 10 s -> forget adoption.
+#
+# Heap is the constraint (~300 KB, no PSRAM): the hub renders every view as a
+# 1-bit 128x64 BMP (1 086 bytes) and this board only blits it. Logger at WARN
+# (log lines are buffered for API/web clients), and no BLE Improv: the BLE
+# stack alone costs ~50 KB of heap here. Provisioning is Improv over USB
+# serial (ESP Web Tools) or the fallback hotspot.
+
+substitutions:
+  image_id: vatra-display-oled
+  project_kind: display
+  name_prefix: vatra-display
+  friendly: Vatra Display
+  log_level: WARN
+
+packages:
+  vatra: !include ../common/vatra-base.yaml
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+    advanced:
+      # Moves code out of DRAM; bought ~40 KB of heap on this board.
+      sram1_as_iram: true
+
+http_request:
+  buffer_size_rx: 1200   # the frame is 1 086 bytes; the default 512 forces re-reads
+
+globals:
+  - id: frame_ok
+    type: bool
+    initial_value: "false"
+  - id: frame_ms
+    type: uint32_t
+    initial_value: "0"
+
+i2c:
+  sda: GPIO21
+  scl: GPIO22
+  frequency: 400kHz
+
+image:
+  - platform: online_image
+    id: frame
+    # Placeholder: the real URL needs the hub address, which only exists at
+    # runtime, so vatra_on_hub sets it with online_image.set_url.
+    url: http://vatra.invalid/api/esp/display/unadopted
+    format: BMP
+    type: BINARY
+    buffer_size: 2048
+    update_interval: never
+    request_headers:
+      Authorization: !lambda return id(vatra_auth);
+    on_download_finished:
+      then:
+        - lambda: |-
+            id(frame_ok) = true;
+            id(frame_ms) = millis();
+        - component.update: oled
+    on_error:
+      then:
+        - lambda: id(frame_ok) = false;
+        - component.update: oled
+
+font:
+  - file: "gfonts://Roboto"
+    id: f_small
+    size: 10
+    glyphs: " -./:>?0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+  - file: "gfonts://Roboto@500"
+    id: f_title
+    size: 16
+    glyphs: " Vatr"
+
+display:
+  - platform: ssd1306_i2c
+    id: oled
+    model: SSD1306_128X64
+    address: 0x3C
+    update_interval: 1s
+    lambda: |-
+      const uint32_t now = millis();
+      const bool adopted = !id(vatra_token).empty();
+      if (adopted && id(frame_ok) && now - id(frame_ms) < 30000) {
+        it.image(0, 0, id(frame), COLOR_ON, COLOR_OFF);
+        return;
+      }
+      it.printf(64, 0, id(f_title), TextAlign::TOP_CENTER, "Vatra");
+      it.line(0, 16, 127, 16);
+      const std::string ip = id(vatra_ip).state;
+      const bool wifi_ok = id(wifi_id).is_connected();
+      if (!adopted) {
+        it.printf(64, 22, id(f_small), TextAlign::TOP_CENTER, "Devices > Add");
+        it.printf(64, 36, id(f_small), TextAlign::TOP_CENTER, "%s",
+                  wifi_ok && !ip.empty() ? ip.c_str() : "WiFi: connect via USB");
+        it.printf(64, 50, id(f_small), TextAlign::TOP_CENTER, "or hotspot vatra-display");
+        return;
+      }
+      it.printf(64, 24, id(f_small), TextAlign::TOP_CENTER, "%s",
+                wifi_ok ? "hub not answering" : "no WiFi");
+      it.printf(64, 40, id(f_small), TextAlign::TOP_CENTER, "%s", ip.c_str());
+
+interval:
+  - interval: 5s
+    then:
+      - if:
+          condition:
+            and:
+              - wifi.connected:
+              - lambda: return !id(vatra_token).empty();
+          then:
+            - component.update: frame
+
+script:
+  - id: vatra_on_hub
+    mode: queued
+    max_runs: 2
+    then:
+      - if:
+          condition:
+            lambda: return !id(vatra_token).empty();
+          then:
+            - online_image.set_url:
+                id: frame
+                url: !lambda return id(vatra_hub) + "/api/esp/display/" + std::string(App.get_name().c_str());
+                update: true
+      - component.update: oled
+
+  - id: vatra_on_post_result
+    mode: restart
+    parameters:
+      ok: bool
+    then:
+      # The hub switches the view on a click; pull the new frame right away.
+      - if:
+          condition:
+            lambda: return ok;
+          then:
+            - component.update: frame
+
+binary_sensor:
+  - platform: gpio
+    id: boot_btn
+    pin:
+      number: GPIO0
+      inverted: true
+      ignore_strapping_warning: true
+      mode:
+        input: true
+        pullup: true
+    filters:
+      - delayed_on: 15ms
+    on_press:
+      - script.execute: vatra_forget_hold
+    on_release:
+      - script.stop: vatra_forget_hold
+    on_multi_click:
+      - timing:
+          - ON for at most 350ms
+          - OFF for at least 180ms
+        then:
+          - script.execute: { id: vatra_post_click, click: single, btn: "" }
+      - timing:
+          - ON for at most 350ms
+          - OFF for at most 180ms
+          - ON for at most 350ms
+          - OFF for at least 100ms
+        then:
+          - script.execute: { id: vatra_post_click, click: double, btn: "" }
+      # Fires on release, so a 10 s forget hold does not also send "long".
+      - timing:
+          - ON for 1s to 5s
+          - OFF for at least 50ms
+        then:
+          - script.execute: { id: vatra_post_click, click: long, btn: "" }

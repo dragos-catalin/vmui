@@ -67,6 +67,10 @@ export const ha = {
   /** Fire a custom event on the HA bus; automations trigger on `platform: event`. */
   fireEvent: (eventType: string, data: Record<string, unknown> = {}) =>
     rest<{ message: string }>(`/events/${encodeURIComponent(eventType)}`, { method: "POST", body: JSON.stringify(data) }),
+  /** Integration config flows (Settings > Devices > Add integration), e.g. `esphome` with {host, port}. */
+  flowStart: (handler: string) => rest<HaFlowStep>("/config/config_entries/flow", { method: "POST", body: JSON.stringify({ handler, show_advanced_options: false }) }),
+  flowStep: (flowId: string, data: Record<string, unknown>) => rest<HaFlowStep>(`/config/config_entries/flow/${encodeURIComponent(flowId)}`, { method: "POST", body: JSON.stringify(data) }),
+  flowAbort: (flowId: string) => rest<unknown>(`/config/config_entries/flow/${encodeURIComponent(flowId)}`, { method: "DELETE" }).catch(() => null),
   /** State history for one entity since `since` (ISO). Minimal response = [{s, lu}]-style compact rows. */
   history: (entityId: string, since: Date) =>
     rest<HaState[][]>(`/history/period/${since.toISOString()}?filter_entity_id=${encodeURIComponent(entityId)}&minimal_response&no_attributes`),
@@ -82,6 +86,17 @@ export const ha = {
     );
     return r.service_response?.[entityId]?.forecast ?? [];
   },
+};
+
+/** One step of a config flow; `type` says whether HA wants a form, finished, or gave up. */
+export type HaFlowStep = {
+  type: "form" | "create_entry" | "abort" | "external" | "progress" | "menu" | string;
+  flow_id?: string;
+  step_id?: string;
+  reason?: string;
+  errors?: Record<string, string> | null;
+  title?: string;
+  result?: { entry_id?: string; title?: string } | string;
 };
 
 export type HaForecast = {

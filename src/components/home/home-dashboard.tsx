@@ -18,7 +18,7 @@ import { setAmbilightModeAction } from "@/server/actions/home";
 import { armIntercomAction } from "@/server/actions/intercom";
 import { addWaterAction } from "@/server/actions/nutrition";
 import type { PlacedDevice, WallSetting } from "@/server/queries/home";
-import { BellRing, Bot, Building2, PlugZap, Clapperboard, DoorOpen, Droplets, Eye, GlassWater, Lamp, Lightbulb, MonitorSmartphone, MousePointerClick, Music2, Tablet, Thermometer, Users } from "lucide-react";
+import { BellRing, Bot, Building2, PlugZap, Clapperboard, Cpu, DoorOpen, Droplets, Eye, GlassWater, Lamp, Lightbulb, MonitorSmartphone, MousePointerClick, Music2, Tablet, Thermometer, Users } from "lucide-react";
 import { AnimatePresence, LayoutGroup, useReducedMotion } from "motion/react";
 import * as m from "motion/react-m";
 import { useTranslations } from "next-intl";
@@ -49,7 +49,9 @@ const HouseCard = dynamic(() => import("./house-card").then((x) => withFade(x.Ho
 const IntegrationsCard = dynamic(() => import("./integrations-card").then((x) => withFade(x.IntegrationsCard)), { loading: () => <TabSkeleton /> });
 const CopilotSignalsCard = dynamic(() => import("./copilot-signals-card").then((x) => withFade(x.CopilotSignalsCard)), { loading: () => <TabSkeleton /> });
 
-const SECTION_ICON = { family: Users, house: Building2, integrations: PlugZap, turzx: MonitorSmartphone, nestHub: Tablet, deskButton: MousePointerClick, copilot: Bot } as const;
+const AddDeviceCard = dynamic(() => import("./add-device-card").then((x) => withFade(x.AddDeviceCard)), { loading: () => <TabSkeleton /> });
+
+const SECTION_ICON = { family: Users, house: Building2, integrations: PlugZap, addDevice: Cpu, turzx: MonitorSmartphone, nestHub: Tablet, deskButton: MousePointerClick, copilot: Bot } as const;
 const MODE_ICON = { movie: Clapperboard, music: Music2, off: Lamp } as const;
 const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
@@ -159,6 +161,7 @@ export function HomeDashboard({
                   {section === "family" && family && <FamilyCard {...family} me={access.userId} />}
                   {section === "house" && setup && <HouseCard devices={setup.devices} haConnected={setup.haConnected} defaultOpen />}
                   {section === "integrations" && setup && <IntegrationsCard integrations={setup.integrations} household={setup.household} masterKeyPinned={setup.masterKeyPinned} defaultOpen />}
+                  {section === "addDevice" && <AddDeviceCard />}
                   {section === "turzx" && <TurzxCard initial={turzx} pomodoro={pomodoro} defaultOpen />}
                   {section === "nestHub" && <DisplayCard initial={display} defaultOpen />}
                   {section === "deskButton" && <ButtonBindingsCard initial={buttons} scripts={haScripts} defaultOpen />}

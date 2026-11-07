@@ -22,7 +22,7 @@ FROM deps AS build
 WORKDIR /app
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1 VATRA_STANDALONE=1
-RUN pnpm exec next build
+RUN pnpm exec next build && mkdir -p firmware-dist
 
 FROM node:${NODE_VERSION}-bookworm-slim AS runtime
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 \
@@ -36,6 +36,8 @@ COPY --from=build --chown=node:node /app/.next/standalone ./
 COPY --from=build --chown=node:node /app/.next/static ./.next/static
 COPY --from=build --chown=node:node /app/public ./public
 COPY --from=build --chown=node:node /app/messages ./messages
+# ESP32 firmware (P6-03): the release workflow drops firmware-dist into the context; empty otherwise
+COPY --from=build --chown=node:node /app/firmware-dist ./firmware-dist
 USER node
 VOLUME ["/data"]
 EXPOSE 3737

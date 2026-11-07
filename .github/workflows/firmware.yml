@@ -1,0 +1,111 @@
+name: firmware
+
+# Vatra ESP32 product firmware (firmware/). One job per image; a final job
+# merges firmware-dist (manifests, index.json, SHA256SUMS) and, on a version
+# tag, attaches vatra-firmware-<version>.tar.gz to the GitHub release.
+
+on:
+  push:
+    branches: [main]
+    paths: ["firmware/**", ".github/workflows/firmware.yml"]
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+
+concurrency:
+  group: firmware-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+permissions:
+  contents: read
+
+env:
+  ESPHOME_VERSION: "2026.10.2"
+
+jobs:
+  build:
+    name: build ${{ matrix.image }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [vatra-display-oled, vatra-display-s3, vatra-button-atom, vatra-button-c3]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: firmware/build.sh
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/esphome
+            ~/.platformio
+            firmware/images/.esphome
+          key: firmware-${{ matrix.image }}-esphome-${{ env.ESPHOME_VERSION }}-${{ hashFiles('firmware/images/**', 'firmware/common/**') }}
+          restore-keys: |
+            firmware-${{ matrix.image }}-esphome-${{ env.ESPHOME_VERSION }}-
+
+      - name: Version
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then v="${GITHUB_REF_NAME#v}"; else v="0.0.0-dev+${GITHUB_SHA::7}"; fi
+          echo "VERSION=$v" >> "$GITHUB_ENV"
+
+      - name: Build
+        run: bash firmware/build.sh "${{ matrix.image }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ matrix.image }}
+          path: firmware-dist/${{ matrix.image }}
+          if-no-files-found: error
+
+  merge:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write # release upload on tags only
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: firmware-*
+          path: firmware-dist
+          # firmware-<id> -> firmware-dist/firmware-<id>/; renamed below
+
+      - name: Merge
+        id: m
+        run: |
+          set -euo pipefail
+          cd firmware-dist
+          for d in firmware-*/; do mv "$d" "${d#firmware-}"; done
+          cd ..
+          python3 firmware/manifest.py --index firmware-dist
+          cat firmware-dist/index.json
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then v="${GITHUB_REF_NAME#v}"; else v="0.0.0-dev+${GITHUB_SHA::7}"; fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          tar -czf "vatra-firmware-$v.tar.gz" firmware-dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware-dist
+          path: firmware-dist
+
+      - name: Attach to the release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes
+          gh release upload "$GITHUB_REF_NAME" "vatra-firmware-${{ steps.m.outputs.version }}.tar.gz" --clobber
