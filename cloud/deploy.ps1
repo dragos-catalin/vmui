@@ -44,10 +44,12 @@ function Build([string]$name, [string]$context, [string]$dockerfile) {
 steps:
 - name: gcr.io/cloud-builders/docker
   args: ['build', '-f', '$dockerfile', '-t', '$img', '.']
+  env: ['DOCKER_BUILDKIT=1']
 images: ['$img']
 tags: ['vatra-cloud', '$name']
 options:
   logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
 "@ | Set-Content -Encoding ascii $cfg
   gcloud builds submit $context --config $cfg --project $Project --region $Region | Out-Host
   if ($LASTEXITCODE) { throw "build $name failed" }
