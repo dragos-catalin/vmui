@@ -48,12 +48,23 @@ P10-01,P10,ACME DNS-01 proxy for <id>.<domain>,todo,,
 P10-02,P10,SNI relay (2 regions) + opt-in UI,todo,,
 P10-03,P10,Push relay FCM+APNs E2E,todo,,
 P10-04,P10,Public demo hub for reviewers (resets nightly),todo,,
-P10-05,P10,Vatra Cloud subscription via brivio,todo,,
+P10-05,P10,Vatra Cloud subscription via brivio,deferred,,"owner 2026-11-07: later; apps consumption-only, sold on the web via brivio"
 P11-01,P11,Privacy policy / ToS / account deletion page / AI Act art. 50 disclosures,todo,,
 P11-02,P11,Trademark check EUIPO/OSIM classes 9/42,todo,,
 P11-03,P11,Licences AGPL/MIT + NOTICE + third-party,todo,,
-P11-04,P11,Git history secret scrub + public repo,todo,,irreversible: ask before
+P11-04,P11,Git history secret scrub + public repo,deferred,,"owner 2026-11-07: later (irreversible)"
 P11-05,P11,Docs site + install guide,todo,,
 X-01,X,AI assistant on MCP tools in apps (consent + disclosure),todo,,
 X-02,X,Matter devices via HA in the UI,todo,,
 X-03,X,Community scene marketplace,todo,,
+
+X-04,X,Critical alerts (smoke/CO/water) with escalation: no receipt in 60 s -> next member -> critical alert -> SMS via brivio,todo,,"owner: Apple Critical Alerts entitlement request"
+X-05,X,Guest link with expiry (signed URL checked on the hub, through the relay),todo,,
+X-06,X,Cloud 'hub offline' alert to the owner when the relay tunnel drops,todo,,
+X-07,X,Staged OS/container rollouts by channel percentage + signed .halt kill switch,todo,,
+X-08,X,Update window from home state (nobody home / night; never with alarm armed or an intercom call),todo,,
+X-09,X,Household export (JSON + zip) + per-member privacy dashboard with retention,todo,,
+X-10,X,AI ledger (context, model, cost, tools per request) + local-only AI mode,todo,,
+X-11,X,Relay transparency log on the hub (what the relay saw, when deleted),todo,,
+X-12,X,Factory reset from a button at boot + minimal recovery slot with the setup hotspot,todo,,
+X-13,X,Alexa / Google Home account linking through the relay,todo,,
