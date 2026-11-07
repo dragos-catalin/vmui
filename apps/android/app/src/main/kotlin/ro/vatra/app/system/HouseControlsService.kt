@@ -28,6 +28,7 @@ import java.util.function.Consumer
  * Android Device Controls (power menu / Home controls panel): every toggleable device the member may
  * see, grouped by room. Lights with a brightness get a range slider. Control = this device's permissions.
  */
+@androidx.annotation.RequiresApi(30)
 class HouseControlsService : ControlsProviderService() {
     private val app get() = VatraApp.from(this)
     private val updates = MutableSharedFlow<Control>(extraBufferCapacity = 64)

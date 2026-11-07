@@ -73,7 +73,7 @@ object Notifier {
         parseColor(p.color)?.let { b.setColor(it) }
         p.progress?.let { b.setProgress(100, it, false) }
 
-        if (p.isIntercomRing) {
+        if (p.isIntercomRing && Build.VERSION.SDK_INT >= 31) {
             val canOpen = p.actions.any { it.id == "open" }
             val caller = Person.Builder().setName(p.title).setImportant(true).build()
             val decline = actionIntent(c, p, "ignore")
