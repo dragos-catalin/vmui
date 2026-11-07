@@ -91,6 +91,21 @@ object Notifier {
         nm.notify(p.notificationId, b.build())
     }
 
+    /** A relay push this phone could not open (key rotated, another device's key): still tell the user. */
+    fun showGeneric(c: Context, cardId: String) {
+        if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(c, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
+        val nid = cardId.ifEmpty { "vatra-generic" }.hashCode()
+        val open = PendingIntent.getActivity(c, nid, Intent(c, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        val n = Notification.Builder(c, CH_HIGH)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(c.getString(R.string.push_generic_title))
+            .setContentText(c.getString(R.string.push_generic_body))
+            .setContentIntent(open)
+            .setAutoCancel(true)
+            .build()
+        c.getSystemService(NotificationManager::class.java).notify(nid, n)
+    }
+
     private fun actionIntent(c: Context, p: PushPayload, action: String): PendingIntent =
         PendingIntent.getBroadcast(
             c,

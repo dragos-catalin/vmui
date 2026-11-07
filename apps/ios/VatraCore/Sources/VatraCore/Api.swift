@@ -399,11 +399,67 @@ public struct PushConfig: Codable, Sendable, Equatable {
   public var vapidKey: String?
   /// The hub can send through Apple Push (its own .p8 key, or the Vatra push relay).
   public var apns = false
-  enum CodingKeys: String, CodingKey { case fcm, webPush, vapidKey, apns }
+  /// Vatra Cloud push relay (null when the owner has not enabled it): register handles there, then PUT kind relay.
+  public var relay: PushRelay?
+  enum CodingKeys: String, CodingKey { case fcm, webPush, vapidKey, apns, relay }
   public init(from d: Decoder) throws {
     let c = try d.container(keyedBy: CodingKeys.self)
     fcm = try c.decodeIfPresent(FcmOptions.self, forKey: .fcm); webPush = try c.v(.webPush, false)
     vapidKey = try c.decodeIfPresent(String.self, forKey: .vapidKey); apns = try c.v(.apns, false)
+    relay = (try? c.decodeIfPresent(PushRelay.self, forKey: .relay)).flatMap { $0.url.isEmpty || $0.hub.isEmpty ? nil : $0 }
+  }
+}
+
+public struct PushRelay: Codable, Sendable, Equatable {
+  public var url = ""
+  public var hub = ""
+  enum CodingKeys: String, CodingKey { case url, hub }
+  public init(url: String, hub: String) { self.url = url; self.hub = hub }
+  public init(from d: Decoder) throws {
+    let c = try d.container(keyedBy: CodingKeys.self)
+    url = try c.v(.url, ""); hub = try c.v(.hub, "")
+  }
+}
+
+/// PUT /api/v1/app/push kind relay → the per-device end-to-end key, returned once (base64url, 32 bytes).
+public struct RelayRegistered: Codable, Sendable, Equatable {
+  public var ok = false
+  public var e2eKey = ""
+  enum CodingKeys: String, CodingKey { case ok, e2eKey }
+  public init(from d: Decoder) throws {
+    let c = try d.container(keyedBy: CodingKeys.self)
+    ok = try c.v(.ok, false); e2eKey = try c.v(.e2eKey, "")
+  }
+  /// The decoded key, nil unless exactly 32 bytes.
+  public var key: Data? { PushCrypto.b64url(e2eKey).flatMap { $0.count == 32 ? $0 : nil } }
+}
+
+/// POST {relay}/v1/handles → an opaque handle the hub stores instead of the platform token.
+public struct RelayHandle: Codable, Sendable, Equatable {
+  public var handle = ""
+  enum CodingKeys: String, CodingKey { case handle }
+  public init(from d: Decoder) throws {
+    let c = try d.container(keyedBy: CodingKeys.self)
+    handle = try c.v(.handle, "")
+  }
+}
+
+struct RelayHandleRequest: Codable, Sendable, Equatable {
+  let platform: String
+  let token: String
+  let hub: String
+}
+
+/// GET /api/v1/app/push/card?id=: one card (bare, or wrapped as `{card}`).
+public struct PushCard: Decodable, Sendable, Equatable {
+  public let card: Card
+  enum CodingKeys: String, CodingKey { case card }
+  public init(from d: Decoder) throws {
+    if let c = try? d.container(keyedBy: CodingKeys.self), let w = try? c.decode(Card.self, forKey: .card) {
+      card = w
+    } else {
+      card = try Card(from: d)
+    }
   }
 }
 
@@ -418,9 +474,11 @@ public enum PushRegistration: Encodable, Sendable, Equatable {
   /// An APNs device token (hex) for this app's bundle; `sandbox` for development-signed builds;
   /// `activityToken` = the intercom Live Activity push-to-start token (iOS 17.2+).
   case apns(token: String, sandbox: Bool, activityToken: String? = nil)
+  /// Vatra Cloud push relay handles (`platform` apns | apns-sandbox | fcm); answered with RelayRegistered.
+  case relay(platform: String, handle: String, activityHandle: String?)
   case none
 
-  enum K: String, CodingKey { case kind, token, endpoint, p256dh, auth, sandbox, activityToken }
+  enum K: String, CodingKey { case kind, token, endpoint, p256dh, auth, sandbox, activityToken, platform, handle, activityHandle }
 
   public func encode(to e: Encoder) throws {
     var c = e.container(keyedBy: K.self)
@@ -431,6 +489,9 @@ public enum PushRegistration: Encodable, Sendable, Equatable {
     case .apns(let t, let s, let a):
       try c.encode("apns", forKey: .kind); try c.encode(t, forKey: .token); try c.encode(s, forKey: .sandbox)
       try c.encodeIfPresent(a, forKey: .activityToken)
+    case .relay(let p, let h, let a):
+      try c.encode("relay", forKey: .kind); try c.encode(p, forKey: .platform); try c.encode(h, forKey: .handle)
+      if let a { try c.encode(a, forKey: .activityHandle) } else { try c.encodeNil(forKey: .activityHandle) }
     case .none: try c.encode("none", forKey: .kind)
     }
   }

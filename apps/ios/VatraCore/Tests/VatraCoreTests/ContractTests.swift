@@ -45,7 +45,8 @@ final class ContractTests: XCTestCase {
     "waterAct": { _ = try $0.response($1, Water.self) },
     "nutritionToday": { _ = try $0.response($1, NutritionToday.self) },
     "push": { _ = try $0.response($1, PushConfig.self) },
-    "pushRegister": { _ = try $0.response($1, Ok.self) },
+    "pushRegister": { _ = try $0.response($1, RelayRegistered.self) },
+    "pushCard": { _ = try $0.response($1, PushCard.self) },
     "presence": { _ = try $0.response($1, PresenceResult.self) },
   ]
 
@@ -65,6 +66,9 @@ final class ContractTests: XCTestCase {
     XCTAssertEqual(st.states["light.bed_lamp"]?.state, "on")
     XCTAssertEqual(try response("nutritionToday", NutritionToday.self).remaining.calories, 1280)
     XCTAssertTrue(try XCTUnwrap(try response("notifyList", Cards.self).cards.first).unread)
+    XCTAssertEqual(try response("push", PushConfig.self).relay, PushRelay(url: "https://push.vatra.dragoscatalin.ro", hub: "mfrggzdfmztwq2lk"))
+    XCTAssertEqual(try response("pushRegister", RelayRegistered.self).key?.count, 32)
+    XCTAssertEqual(try response("pushCard", PushCard.self).card.actions.map(\.id), ["open"])
   }
 
   func testRequestsEncodeLikeTheFixtures() throws {
@@ -74,12 +78,12 @@ final class ContractTests: XCTestCase {
     try assertRequest("intercomAct", IntercomAct(action: "arm", minutes: 30))
     try assertRequest("waterAct", WaterAct(op: "drink", ml: 250))
     try assertRequest("presence", PresenceReport(state: "home", source: "geofence"))
-    try assertRequest(
-      "pushRegister",
-      PushRegistration.unifiedPush(
-        endpoint: "https://ntfy.sh/upAbCdEfGhIjKl?up=1",
-        p256dh: "BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM",
-        auth: "tBHItJI5svbpez7KI4CCXg"))
+    try assertRequest("pushRegister", PushRegistration.relay(platform: "apns", handle: "h1.Zm9vYmFyYmF6cXV4cXV1eGNvcmdlZ3JhdWx0", activityHandle: nil))
+  }
+
+  func testUnifiedPushRegistrationShape() throws {
+    let o = try XCTUnwrap(JSONSerialization.jsonObject(with: Wire.encode(PushRegistration.unifiedPush(endpoint: "https://ntfy.sh/up?up=1", p256dh: "p", auth: "a"))) as? [String: String])
+    XCTAssertEqual(o, ["kind": "unifiedpush", "endpoint": "https://ntfy.sh/up?up=1", "p256dh": "p", "auth": "a"])
   }
 
   func testApnsRegistrationShape() throws {

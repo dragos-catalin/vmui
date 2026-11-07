@@ -8,6 +8,10 @@
     },
     "webPush": true,
     "vapidKey": null,
-    "apns": false
+    "apns": false,
+    "relay": {
+      "url": "https://push.vatra.dragoscatalin.ro",
+      "hub": "mfrggzdfmztwq2lk"
+    }
   }
 }

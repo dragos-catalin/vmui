@@ -4,6 +4,7 @@ import { generateApiKey } from "@/lib/api-auth";
 import { apiKeyScopesSchema, isUnrestricted, type ApiKeyScopes } from "@/lib/api-key-scopes";
 import { requireRole } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { demoRefusal } from "@/lib/demo/mode";
 import { apiKeys, auditLog, instances } from "@/lib/db/schema";
 import { PC_ACTIONS, TOOL_BY_NAME } from "@/lib/mcp/tools";
 import { eq, inArray } from "drizzle-orm";
@@ -59,6 +60,8 @@ function describeScopes(s: ApiKeyScopes | null): string {
 export async function createApiKeyAction(
   input: z.infer<typeof createSchema>,
 ): Promise<{ ok: true; id: string; plaintext: string } | { ok: false; error: string }> {
+  const demo = demoRefusal();
+  if (demo) return demo;
   try {
     await requireRole("admin");
   } catch (err) {

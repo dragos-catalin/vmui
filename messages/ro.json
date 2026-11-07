@@ -101,6 +101,10 @@
         "title": "Buton birou",
         "hint": "Ce face fiecare apăsare"
       },
+      "vatraCloud": {
+        "title": "Vatra Cloud",
+        "hint": "Acces de la distanță și releu de notificări"
+      },
       "copilot": {
         "title": "Semnale Copilot",
         "hint": "Lumini și carduri pentru evenimente agent"

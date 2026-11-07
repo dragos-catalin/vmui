@@ -1,6 +1,7 @@
 "use server";
 
 import { issueSessionForUser } from "@/lib/auth";
+import { demoRefusal } from "@/lib/demo/mode";
 import { FAMILY_ROLES, HomeAccessError, inviteRoleSchema, requireOwner, roomGrantsSchema, type RoomGrants } from "@/lib/home/access";
 import { acceptInvite, bindDevice, createInvite, createMemberAccount, inviteByToken, ownerCount, removeMember, revokeInvite, upsertMember } from "@/lib/home/family";
 import { revalidatePath } from "next/cache";
@@ -9,6 +10,8 @@ import { z } from "zod";
 type Result<T = unknown> = ({ ok: true } & T) | { ok: false; error: string };
 
 async function owner<T>(fn: (by: string) => Promise<T>): Promise<Result<{ data: T }>> {
+  const demo = demoRefusal();
+  if (demo) return demo;
   try {
     const a = await requireOwner();
     const data = await fn(a.email || "owner");
@@ -96,6 +99,8 @@ export async function bindDeviceAction(input: { deviceId: string; userId: string
 const acceptInput = z.object({ token: z.string().min(16).max(128), email: z.email().max(200), displayName: z.string().trim().min(1).max(80), password: z.string().min(8).max(200) });
 
 export async function acceptInviteAction(input: z.input<typeof acceptInput>): Promise<Result> {
+  const demo = demoRefusal();
+  if (demo) return demo;
   const p = acceptInput.safeParse(input);
   if (!p.success) return { ok: false, error: p.error.issues[0]?.message ?? "Invalid input" };
   if (!(await inviteByToken(p.data.token))) return { ok: false, error: "invalid" };

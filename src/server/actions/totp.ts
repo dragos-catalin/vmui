@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { auditLog, users } from "@/lib/db/schema";
 import { getCurrentUser, verifyUserPassword } from "@/lib/auth";
+import { demoRefusal } from "@/lib/demo/mode";
 import {
   countBackupCodes,
   decryptTotpSecret,
@@ -74,6 +75,8 @@ export async function confirmTotpEnrollmentAction(input: {
   enrollmentId: string;
   code: string;
 }): Promise<{ ok: true; backupCodes: string[] } | { ok: false; error: string }> {
+  const demo = demoRefusal();
+  if (demo) return demo;
   const me = await getCurrentUser();
   if (!me) return { ok: false, error: "Not authenticated" };
   const pending = pendingStore().get(input.enrollmentId);

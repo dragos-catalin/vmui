@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Vatra app API",
-    "version": "2.0.0",
-    "description": "Contract between the Vatra hub and its native apps. apiVersion 2, minClient 1 (GET /api/discover). Errors are { ok:false, code, error } with `error` in the device language (Accept-Language or x-vatra-locale)."
+    "version": "3.0.0",
+    "description": "Contract between the Vatra hub and its native apps. apiVersion 3, minClient 1 (GET /api/discover). Errors are { ok:false, code, error } with `error` in the device language (Accept-Language or x-vatra-locale)."
   },
   "servers": [
     {
@@ -1237,6 +1237,142 @@
         }
       }
     },
+    "/api/v1/app/push/card": {
+      "get": {
+        "operationId": "pushCard",
+        "summary": "One notification card, for a relay push too large to carry it (full = \"0\")",
+        "description": "Same shape and visibility as one item of GET /api/v1/app/notify; 404 not_found when the card does not exist or this member may not see it.\n\nAny household member's paired device; room grants apply.",
+        "tags": [
+          "app"
+        ],
+        "security": [
+          {
+            "deviceAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "body": {
+                      "type": "string"
+                    },
+                    "subtitle": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "priority": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "actions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "style": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "label",
+                          "style"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "createdAt": {},
+                    "readAt": {}
+                  },
+                  "required": [
+                    "id",
+                    "kind",
+                    "title",
+                    "body",
+                    "subtitle",
+                    "priority",
+                    "actions",
+                    "createdAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "unauthorized: no `Authorization: Bearer vmd_…` header",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "not_bound / forbidden / no_room_access",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/app/intercom": {
       "get": {
         "operationId": "intercom",
@@ -1820,7 +1956,7 @@
       "get": {
         "operationId": "push",
         "summary": "How this hub can wake the app: FCM client options, Web Push (UnifiedPush) and/or Apple Push",
-        "description": "fcm is null when the hub has no Firebase project configured; the app then offers UnifiedPush only. webPush is always true (UnifiedPush needs no hub account). apns is true when the hub can reach Apple Push, with its own key or through the Vatra push relay.\n\nAny household member's paired device; room grants apply.",
+        "description": "fcm is null when the hub has no Firebase project configured; the app then offers UnifiedPush only. webPush is always true (UnifiedPush needs no hub account). apns is true when the hub holds its own Apple Push key. relay is the Vatra Cloud push relay (url + this hub's id) when the owner enabled it, else null; apps prefer it when present.\n\nAny household member's paired device; room grants apply.",
         "tags": [
           "app"
         ],
@@ -1881,13 +2017,37 @@
                     },
                     "apns": {
                       "type": "boolean"
+                    },
+                    "relay": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "url": {
+                              "type": "string"
+                            },
+                            "hub": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "url",
+                            "hub"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
                     "fcm",
                     "webPush",
                     "vapidKey",
-                    "apns"
+                    "apns",
+                    "relay"
                   ],
                   "additionalProperties": false
                 }
@@ -1919,7 +2079,7 @@
       "put": {
         "operationId": "pushRegister",
         "summary": "Register (or clear) how this device is woken",
-        "description": "kind fcm: an FCM registration token. kind unifiedpush: the distributor's https endpoint plus the RFC 8291 receiver keys; private-network endpoints are refused. kind apns: the iOS app's APNs device token (hex), sandbox for development-signed builds, optionally its Live Activity push-to-start token. kind none: stop pushing.\n\nAny household member's paired device; room grants apply.",
+        "description": "kind fcm: an FCM registration token. kind unifiedpush: the distributor's https endpoint plus the RFC 8291 receiver keys; private-network endpoints are refused. kind apns: the iOS app's APNs device token (hex), sandbox for development-signed builds, optionally its Live Activity push-to-start token. kind relay: a Vatra Cloud push handle (from POST <relay.url>/v1/handles) for the platform, optionally a Live Activity handle; the answer carries e2eKey, the device's fresh end-to-end key (base64url, 32 bytes), returned only here and rotated on every registration. kind none: stop pushing.\n\nAny household member's paired device; room grants apply.",
         "tags": [
           "app"
         ],
@@ -2026,6 +2186,43 @@
                     "properties": {
                       "kind": {
                         "type": "string",
+                        "const": "relay"
+                      },
+                      "platform": {
+                        "type": "string",
+                        "enum": [
+                          "apns",
+                          "apns-sandbox",
+                          "fcm"
+                        ]
+                      },
+                      "handle": {
+                        "type": "string",
+                        "pattern": "^h1\\.[A-Za-z0-9_-]{20,2000}$"
+                      },
+                      "activityHandle": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^h1\\.[A-Za-z0-9_-]{20,2000}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "platform",
+                      "handle"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
                         "const": "none"
                       }
                     },
@@ -2050,6 +2247,9 @@
                     "ok": {
                       "type": "boolean",
                       "const": true
+                    },
+                    "e2eKey": {
+                      "type": "string"
                     }
                   },
                   "required": [

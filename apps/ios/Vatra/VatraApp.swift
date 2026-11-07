@@ -45,7 +45,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 
   /// Silent pushes: a dismissed card removes its notification and ends a ringing Live Activity.
   func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable: Any]) async -> UIBackgroundFetchResult {
-    guard let p = PushPayload.from(userInfo: userInfo) else { return .noData }
+    guard let p = VatraEnv.push(userInfo)?.payload else { return .noData }
     if p.isDismiss {
       let center = UNUserNotificationCenter.current()
       let ids = await center.deliveredNotifications().filter { $0.request.identifier == p.threadKey || $0.request.content.threadIdentifier == p.threadKey }.map(\.request.identifier)
@@ -63,10 +63,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 
   nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
     let info = response.notification.request.content.userInfo
-    guard let p = PushPayload.from(userInfo: info) else { return }
+    guard let got = VatraEnv.push(info) else { return }
+    let p = got.payload, sender = got.client
     let action = response.actionIdentifier
     if action == UNNotificationDefaultActionIdentifier || action == UNNotificationDismissActionIdentifier {
-      if let c = VatraEnv.activeClient() { _ = await c.notify(.read(ids: [p.id])) }
+      if let c = sender { _ = await c.notify(.read(ids: [p.id])) }
       if action == UNNotificationDefaultActionIdentifier { await MainActor.run { AppModel.shared.tab = .alerts } }
       return
     }
@@ -75,7 +76,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
       await MainActor.run { UIApplication.shared.open(u) }
       return
     }
-    if let c = VatraEnv.activeClient() { _ = await c.act(cardId: p.id, action: id) }
+    if let c = sender { _ = await c.act(cardId: p.id, action: id) }
     await AppModel.shared.refreshNow()
   }
 }

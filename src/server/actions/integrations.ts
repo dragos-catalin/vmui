@@ -1,6 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
+import { demoRefusal } from "@/lib/demo/mode";
 import { auditLog } from "@/lib/db/schema";
 import { HomeAccessError, requireOwner } from "@/lib/home/access";
 import { credential } from "@/lib/home/credentials";
@@ -20,6 +21,8 @@ export type IntegrationsView = ReturnType<typeof integrationsView>;
 /** New master key + every stored secret re-encrypted in one transaction. Not available
  *  when the key is pinned by VMUI_MASTER_KEY (the env owner rotates it there). */
 export async function rotateMasterKeyAction(): Promise<Result<{ rows: number }>> {
+  const demo = demoRefusal();
+  if (demo) return demo;
   try {
     await requireOwner();
     if (masterKeyFromEnv()) return { ok: false, error: "key_pinned" };
@@ -43,6 +46,8 @@ export async function getIntegrationsAction(): Promise<Result<IntegrationsView>>
 
 /** Save integration values; for secrets an empty field means "keep", "-" means "clear". */
 export async function saveIntegrationsAction(input: Partial<Record<IntegrationKey, string>>): Promise<Result> {
+  const demo = demoRefusal();
+  if (demo) return demo;
   const p = patchSchema.safeParse(input);
   if (!p.success) return { ok: false, error: p.error.issues[0]?.message ?? "invalid" };
   try {

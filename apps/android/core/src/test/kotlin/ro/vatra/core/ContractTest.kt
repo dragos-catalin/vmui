@@ -52,6 +52,11 @@ class ContractTest {
         assertTrue(st.rooms.single().canControl)
         assertEquals("on", st.states["light.bed_lamp"]?.state)
         assertEquals(1280.0, response("nutritionToday", NutritionToday.serializer()).remaining.calories, 0.0)
+        val relay = response("push", ro.vatra.core.model.PushConfig.serializer()).relay
+        assertEquals("mfrggzdfmztwq2lk", relay?.hub)
+        assertTrue(relay?.usable == true)
+        assertEquals(32, ro.vatra.core.push.PushCrypto.decodeKey(response("pushRegister", ro.vatra.core.model.RelayRegistered.serializer()).e2eKey).size)
+        assertEquals("open", response("pushCard", ro.vatra.core.model.Card.serializer()).actions.single().id)
     }
 
     @Test fun requestsEncodeLikeTheFixtures() {
@@ -66,15 +71,13 @@ class ContractTest {
         assertEquals(request("presence"), WireJson.encodeToJsonElement(ro.vatra.core.model.PresenceReport.serializer(), ro.vatra.core.model.PresenceReport("home", "geofence")))
         assertEquals(
             request("pushRegister"),
-            KindJson.encodeToJsonElement(
-                ro.vatra.core.model.PushRegistration.serializer(),
-                ro.vatra.core.model.PushRegistration.UnifiedPush(
-                    "https://ntfy.sh/upAbCdEfGhIjKl?up=1",
-                    "BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM",
-                    "tBHItJI5svbpez7KI4CCXg",
-                ),
-            ),
+            ro.vatra.core.net.HubClient.relayRegistration("apns", "h1.Zm9vYmFyYmF6cXV4cXV1eGNvcmdlZ3JhdWx0", null),
         )
+        val unified = KindJson.encodeToJsonElement(
+            ro.vatra.core.model.PushRegistration.serializer(),
+            ro.vatra.core.model.PushRegistration.UnifiedPush("https://ntfy.sh/up1?up=1", "p256", "auth"),
+        ).jsonObject
+        assertEquals("unifiedpush", (unified["kind"] as kotlinx.serialization.json.JsonPrimitive).content)
     }
 
     @Test fun unknownFieldsAreIgnored() {
@@ -97,7 +100,8 @@ class ContractTest {
             "waterAct" to Water.serializer(),
             "nutritionToday" to NutritionToday.serializer(),
             "push" to ro.vatra.core.model.PushConfig.serializer(),
-            "pushRegister" to Ok.serializer(),
+            "pushRegister" to ro.vatra.core.model.RelayRegistered.serializer(),
+            "pushCard" to ro.vatra.core.model.Card.serializer(),
             "presence" to ro.vatra.core.model.PresenceResult.serializer(),
         )
     }

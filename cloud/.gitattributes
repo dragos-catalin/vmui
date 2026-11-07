@@ -1,0 +1,6 @@
+*.sh text eol=lf
+*.service text eol=lf
+*.go text eol=lf
+Dockerfile* text eol=lf
+go.mod text eol=lf
+*.json text eol=lf

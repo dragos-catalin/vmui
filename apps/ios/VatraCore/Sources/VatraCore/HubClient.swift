@@ -98,6 +98,18 @@ public struct HubClient: Sendable {
   }
   public func registerPush(_ r: PushRegistration) async -> ApiResult<Ok> { await send("PUT", "/api/v1/app/push", Wire.encode(r)) }
 
+  /// PUT kind relay with the handles from RelayClient; the answer carries the new end-to-end key (rotated each time).
+  public func registerRelay(platform: String, handle: String, activityHandle: String?) async -> ApiResult<RelayRegistered> {
+    await send("PUT", "/api/v1/app/push", Wire.encode(PushRegistration.relay(platform: platform, handle: handle, activityHandle: activityHandle)))
+  }
+
+  /// The full card behind a trimmed relay push (`full:"0"`), with the same visibility as the notify list.
+  public func pushCard(id: String) async -> ApiResult<Card> {
+    let q = id.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: "-_"))) ?? ""
+    let r: ApiResult<PushCard> = await send("GET", "/api/v1/app/push/card?id=\(q)&lang=\(language)", nil)
+    return r.map(\.card)
+  }
+
   public func pair(_ req: PairRequest) async -> ApiResult<PairResponse> {
     await send("POST", "/api/devices/pair", Wire.encode(req), auth: false)
   }

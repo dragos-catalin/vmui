@@ -1,5 +1,9 @@
 import "server-only";
+import { isDemo } from "@/lib/demo/mode";
 import { haConfig } from "./credentials";
+
+// Demo hub (VATRA_DEMO=1): every call is answered by the in-process simulated house, no HA_URL.
+const sim = () => import("@/lib/demo/sim-ha");
 
 export type HaState = {
   entity_id: string;
@@ -23,6 +27,7 @@ function cfg() {
 }
 
 async function rest<T>(path: string, init?: RequestInit): Promise<T> {
+  if (isDemo()) return (await sim()).simRest<T>(path, init);
   const { url, token } = cfg();
   const res = await fetch(`${url}/api${path}`, {
     ...init,
@@ -43,7 +48,7 @@ async function rest<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const ha = {
-  configured: () => haConfig() !== null,
+  configured: () => isDemo() || haConfig() !== null,
   publicUrl: () => {
     const c = haConfig();
     return c?.publicDomain ? `https://${c.publicDomain}` : c?.url ?? null;
@@ -115,6 +120,7 @@ export type HaForecast = {
  * connection and return each result in order. 10 s timeout for the whole batch.
  */
 export async function haWsCommands<T extends unknown[]>(types: string[]): Promise<T> {
+  if (isDemo()) return (await sim()).simWsCommands<T>(types);
   const { url, token } = cfg();
   const ws = new WebSocket(url.replace(/^http/, "ws") + "/api/websocket");
   return new Promise<T>((resolve, reject) => {
@@ -143,6 +149,10 @@ export async function haWsCommands<T extends unknown[]>(types: string[]): Promis
 }
 
 export async function* haStateChanges(signal: AbortSignal): AsyncGenerator<HaState> {
+  if (isDemo()) {
+    yield* (await sim()).simStateChanges(signal);
+    return;
+  }
   const { url, token } = cfg();
   const wsUrl = url.replace(/^http/, "ws") + "/api/websocket";
   const ws = new WebSocket(wsUrl);

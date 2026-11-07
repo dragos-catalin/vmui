@@ -1,5 +1,6 @@
 "use server";
 
+import { demoRefusal } from "@/lib/demo/mode";
 import { adoptEsp, addToHa, discoverEsp, isLanHost, probeEsp, type AdoptResult, type EspFound, type EspProbe, type HaAdd } from "@/lib/firmware/adopt";
 import { listImages, type FirmwareImage } from "@/lib/firmware/store";
 import { HomeAccessError, journalUserId, requireOwner } from "@/lib/home/access";
@@ -38,6 +39,8 @@ const adoptInput = z.object({ host, name: z.string().trim().max(64).optional(), 
 
 /** Owner-only: give the board a scoped token + the hub address, then offer it to Home Assistant. */
 export async function adoptEspAction(raw: { host: string; name?: string; addHa?: boolean }): Promise<{ ok: true; data: Extract<AdoptResult, { ok: true }> } | Fail> {
+  const demo = demoRefusal();
+  if (demo) return demo;
   const p = adoptInput.safeParse(raw);
   if (!p.success) return { ok: false, error: "bad_host" };
   try {

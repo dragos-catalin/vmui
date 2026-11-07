@@ -1,0 +1,51 @@
+{
+  "title": "Vatra Cloud",
+  "intro": "Accesează acest hub de oriunde și primește notificări prin releele Vatra, fără să deschizi vreun port pe router.",
+  "beta": "Beta: accesul de la distanță funcționează doar după ce id-ul acestui hub e pe lista de acces Vatra Cloud. Trimite id-ul hubului echipei Vatra ca să fii adăugat.",
+  "hubId": "Id hub",
+  "publicUrl": "Adresă publică",
+  "copy": "Copiază",
+  "copied": "Copiat",
+  "remote": {
+    "label": "Acces de la distanță",
+    "hint": "Deschide hubul la adresa publică din afara casei. Traficul rămâne criptat cap-coadă până la acest hub.",
+    "on": "Accesul de la distanță e pornit",
+    "off": "Accesul de la distanță e oprit"
+  },
+  "push": {
+    "label": "Releu de notificări",
+    "hint": "Trimite notificările pe telefon prin releul Vatra, fără o cheie Firebase sau Apple proprie.",
+    "on": "Releul de notificări e pornit",
+    "off": "Releul de notificări e oprit"
+  },
+  "state": {
+    "label": "Tunel",
+    "off": "Oprit",
+    "connecting": "Se conectează",
+    "online": "Conectat",
+    "error": "Eroare",
+    "clients": "{count, plural, =0 {nicio conexiune deschisă} one {# conexiune deschisă} few {# conexiuni deschise} other {# de conexiuni deschise}}"
+  },
+  "cert": {
+    "title": "Certificat",
+    "none": "Încă nu există un certificat. Se emite automat când pornești accesul de la distanță.",
+    "expires": "Expiră pe {date}",
+    "renews": "Următoarea reînnoire: {date}",
+    "issue": "Emite certificatul acum",
+    "issued": "Certificat emis",
+    "error": "Ultima încercare a eșuat: {error}"
+  },
+  "lastError": "Ultima eroare: {error}",
+  "privacy": {
+    "title": "Ce văd releele Vatra",
+    "body": "Releul de acces de la distanță transmite doar TLS criptat: certificatul și cheia lui stau pe acest hub, deci releul nu poate citi paginile sau datele tale. Releul de notificări vede id-urile dispozitivelor, tipul notificării și momentul trimiterii; conținutul notificării e criptat pentru telefonul tău.",
+    "link": "Politica de confidențialitate"
+  },
+  "errors": {
+    "forbidden": "Doar proprietarul casei poate modifica Vatra Cloud.",
+    "demo_readonly": "Vatra Cloud nu poate fi modificat pe hubul demo.",
+    "issue_failed": "Certificatul nu a putut fi emis. Verifică dacă id-ul hubului e pe lista de acces și încearcă mai târziu.",
+    "invalid": "Cerere invalidă.",
+    "failed": "Ceva n-a mers. Încearcă din nou."
+  }
+}

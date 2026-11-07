@@ -248,7 +248,29 @@ data class PushConfig(
     val fcm: FcmOptions? = null,
     val webPush: Boolean = false,
     val vapidKey: String? = null,
+    /** Vatra Cloud push relay; null when the owner has not enabled it (or an older hub). */
+    val relay: RelayInfo? = null,
 )
+
+/**
+ * Where to register the push token (`url`) and which hub id the relay handle is bound to. `fcm` is the
+ * relay's own Firebase client options when it differs from the hub's (optional; else [PushConfig.fcm]).
+ */
+@Serializable
+data class RelayInfo(val url: String = "", val hub: String = "", val fcm: FcmOptions? = null) {
+    val usable: Boolean get() = url.startsWith("https://") && hub.isNotEmpty()
+}
+
+/** POST {relay}/v1/handles. */
+@Serializable
+data class RelayHandleRequest(val platform: String, val token: String, val hub: String)
+
+@Serializable
+data class RelayHandle(val handle: String)
+
+/** PUT /api/v1/app/push kind relay answer: the per-device end-to-end key, returned once (base64url). */
+@Serializable
+data class RelayRegistered(val ok: Boolean = true, val e2eKey: String = "")
 
 /** Runtime FirebaseOptions handed out by the hub, so no google-services.json ships in the app. */
 @Serializable

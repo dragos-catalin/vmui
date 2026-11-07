@@ -4,9 +4,11 @@ import UIKit
 import UserNotifications
 import VatraCore
 
-/// APNs for the active hub: asks for permission, registers the device token (and the intercom Live Activity
-/// push-to-start token) with PUT /api/v1/app/push kind apns. The hub sends through its own key or the Vatra
-/// push relay (src/lib/notify/apns.ts); when it can do neither (`apns: false`) nothing is registered.
+/// APNs for the active hub: asks for permission, then registers the device token (and the intercom Live
+/// Activity push-to-start token). When the hub has Vatra Cloud push (`relay` in GET /api/v1/app/push) the
+/// tokens go to the relay, which returns opaque handles; the hub gets only those (PUT kind relay) and answers
+/// with a fresh end-to-end key kept in the shared Keychain for the notification service. Otherwise PUT kind
+/// apns as before (the hub's own .p8 key); with neither (`apns: false`, no relay) nothing is registered.
 enum Push {
   static var enabled: Bool { VatraEnv.group.object(forKey: "push.on") as? Bool ?? true }
 
@@ -47,7 +49,7 @@ enum Push {
       _ = await c.registerPush(.none)
       return
     }
-    guard await c.pushConfig().value?.apns == true else { return }
+    guard let cfg = await c.pushConfig().value, cfg.apns || cfg.relay != nil else { return }
     let center = UNUserNotificationCenter.current()
     let ok = (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
     guard ok else { return }
@@ -62,8 +64,25 @@ enum Push {
   }
 
   private static func send(_ hex: String) async {
-    guard enabled, let c = VatraEnv.activeClient() else { return }
-    _ = await c.registerPush(.apns(token: hex, sandbox: sandbox, activityToken: VatraEnv.group.string(forKey: activityKey)))
+    guard enabled, let hub = VatraEnv.store.current().active else { return }
+    let c = VatraEnv.client(hub)
+    let activity = VatraEnv.group.string(forKey: activityKey)
+    let cfg = await c.pushConfig().value
+    if let relay = cfg?.relay, await sendRelay(relay, client: c, hubId: hub.id, token: hex, activity: activity) { return }
+    guard cfg?.apns ?? true else { return }
+    _ = await c.registerPush(.apns(token: hex, sandbox: sandbox, activityToken: activity))
+  }
+
+  /// Handles from the relay, then PUT kind relay; stores the rotated key. False when any step failed, so the
+  /// caller falls back to a direct registration (the hub may still send through its own key).
+  private static func sendRelay(_ relay: PushRelay, client c: HubClient, hubId: String, token: String, activity: String?) async -> Bool {
+    let platform = sandbox ? "apns-sandbox" : "apns"
+    let rc = RelayClient(baseUrl: relay.url)
+    guard let handle = await rc.handle(platform: platform, token: token, hub: relay.hub).value else { return false }
+    var activityHandle: String?
+    if let activity { activityHandle = await rc.handle(platform: platform, token: activity, hub: relay.hub).value }
+    guard let key = await c.registerRelay(platform: platform, handle: handle, activityHandle: activityHandle).value?.key else { return false }
+    return VatraEnv.pushKeys.set(key, hub: hubId)
   }
 
   /// iOS 17.2+: a token that lets the hub START the intercom Live Activity without the app running.

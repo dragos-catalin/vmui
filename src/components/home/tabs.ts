@@ -1,14 +1,14 @@
 export const HOME_TABS = ["home", "ambilight", "notifications", "nutrition", "settings"] as const;
 export type HomeTab = (typeof HOME_TABS)[number];
 
-export const SETTINGS_SECTIONS = ["family", "house", "integrations", "addDevice", "turzx", "nestHub", "deskButton", "copilot"] as const;
+export const SETTINGS_SECTIONS = ["family", "house", "integrations", "addDevice", "turzx", "nestHub", "deskButton", "copilot", "vatraCloud"] as const;
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
 
 /** Nav groups, in order. Extensions = optional, owner-specific integrations a fresh install can ignore. */
 export const SETTINGS_GROUPS = [
   { id: "household", sections: ["family", "house", "integrations"] },
   { id: "devices", sections: ["addDevice", "turzx", "nestHub", "deskButton"] },
-  { id: "extensions", sections: ["copilot"] },
+  { id: "extensions", sections: ["vatraCloud", "copilot"] },
 ] as const satisfies ReadonlyArray<{ id: string; sections: readonly SettingsSection[] }>;
 
 /** Old `?tab=` values keep working: bookmarks, the desktop app and HA links use them.

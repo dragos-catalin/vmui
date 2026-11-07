@@ -13,7 +13,12 @@ data class PairedHub(
     val deviceId: String,
     val memberName: String = "",
     val addedAt: Long = 0,
-)
+    /** Vatra Cloud relay: the hub id the push handle is bound to, and the hub's per-device E2E key (base64url). */
+    val relayHubId: String = "",
+    val e2eKey: String = "",
+) {
+    val relayed: Boolean get() = e2eKey.isNotEmpty()
+}
 
 /** The phone may belong to several homes (parents' house, holiday home): one active, the rest switchable. */
 @Serializable
@@ -29,6 +34,13 @@ data class HubList(val hubs: List<PairedHub> = emptyList(), val activeId: String
     }
 
     fun select(id: String): HubList = if (hubs.any { it.id == id }) copy(activeId = id) else this
+
+    /** A new relay registration rotates the key; an empty key means the hub is back on direct push. */
+    fun withRelayKey(id: String, relayHubId: String, e2eKey: String): HubList =
+        copy(hubs = hubs.map { if (it.id == id) it.copy(relayHubId = relayHubId, e2eKey = e2eKey) else it })
+
+    /** Hubs to try a relay push with, the active one first (the push itself does not name the hub). */
+    fun relayCandidates(): List<PairedHub> = listOfNotNull(active?.takeIf { it.relayed }) + hubs.filter { it.relayed && it.id != active?.id }
 
     fun encode(): String = WireJson.encodeToString(serializer(), this)
 

@@ -101,6 +101,10 @@
         "title": "Desk button",
         "hint": "What each click does"
       },
+      "vatraCloud": {
+        "title": "Vatra Cloud",
+        "hint": "Remote access and push relay"
+      },
       "copilot": {
         "title": "Copilot signals",
         "hint": "Lights and cards for agent events"

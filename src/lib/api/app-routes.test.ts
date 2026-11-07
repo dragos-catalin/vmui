@@ -18,7 +18,23 @@ vi.mock("@/lib/home/ha-client", () => ({
     fireEvent: async (type: string, data: Record<string, unknown>) => void events.push({ type, data }),
   },
 }));
-vi.mock("@/lib/notify", () => ({ notify: async () => null, dismissByTag: async () => undefined, listCards: async () => [], localizeCards: async () => [], localizeCard: async () => null, markRead: async () => undefined, ack: async () => undefined, dismiss: async () => null, getCard: async () => null, visibleToRole: () => true }));
+const cards: Record<string, Record<string, unknown>> = {
+  "c-pc": { id: "c-pc", kind: "pc", title: "PC offline", body: "", subtitle: null, priority: "default", url: null, actions: [], createdAt: 1, readAt: null },
+  "c-door": { id: "c-door", kind: "intercom", title: "Door", body: "", subtitle: null, priority: "high", url: null, actions: [{ id: "open", label: "Open", style: "primary" }], createdAt: 2, readAt: null },
+};
+vi.mock("@/lib/notify", () => ({
+  notify: async () => null,
+  dismissByTag: async () => undefined,
+  listCards: async () => [],
+  localizeCards: async () => [],
+  localizeCard: async (c: unknown) => c,
+  markRead: async () => undefined,
+  ack: async () => undefined,
+  dismiss: async () => null,
+  getCard: async (id: string) => cards[id] ?? null,
+  visibleToRole: (kind: string, role: string) => role === "owner" || kind === "intercom",
+}));
+vi.mock("@/lib/cloud/identity", () => ({ cloudEndpoints: () => ({ api: "https://push.vatra.test" }), hubIdentity: () => ({ hubId: "abcdefghijklmnop", pub: "x" }) }));
 
 let R: typeof import("./app-routes");
 let H: typeof import("./define-route");
@@ -160,8 +176,58 @@ describe("push registration (P7-03)", () => {
 
   it("config always offers Web Push and hides FCM when the hub has no Firebase app", async () => {
     const r = await call(R.pushConfigRoute, "vmd_guest");
-    expect(r.body).toMatchObject({ webPush: true, apns: false });
+    expect(r.body).toMatchObject({ webPush: true, apns: false, relay: null });
     expect(r.body.fcm === null || typeof r.body.fcm === "object").toBe(true);
+  });
+
+  it("config offers the Vatra Cloud relay once the owner enabled it", async () => {
+    process.env.VATRA_CLOUD_PUSH = "1";
+    try {
+      expect((await call(R.pushConfigRoute, "vmd_guest")).body).toMatchObject({ relay: { url: "https://push.vatra.test", hub: "abcdefghijklmnop" } });
+    } finally {
+      delete process.env.VATRA_CLOUD_PUSH;
+    }
+  });
+
+  it("relay registration returns a fresh e2e key once and stores it encrypted; any other kind clears it", async () => {
+    const { decrypt } = await import("@/lib/crypto");
+    const handle = `h1.${"A".repeat(30)}_-x`;
+    const act = `h1.${"b".repeat(40)}`;
+    const r = await call(R.pushRegisterRoute, "vmd_kid", { body: { kind: "relay", platform: "apns-sandbox", handle, activityHandle: act } });
+    expect(r.status).toBe(200);
+    const key = r.body.e2eKey as string;
+    expect(key).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(Buffer.from(key, "base64url")).toHaveLength(32);
+    const stored = await row("d-kid");
+    expect(stored).toMatchObject({ pushKind: "relay-apns-sandbox", pushToken: handle, pushActivity: act });
+    expect(stored?.pushKey).toBeTruthy();
+    expect(stored?.pushKey).not.toBe(key);
+    expect(stored?.pushKey).not.toContain(key);
+    expect(decrypt(stored!.pushKey!)).toBe(key);
+    const again = await call(R.pushRegisterRoute, "vmd_kid", { body: { kind: "relay", platform: "fcm", handle } });
+    expect(again.body.e2eKey).not.toBe(key);
+    expect(await row("d-kid")).toMatchObject({ pushKind: "relay-fcm", pushActivity: null });
+    for (const bad of ["h2.aaaaaaaaaaaaaaaaaaaaaaaa", "h1.short", `h1.${"a".repeat(30)}=`]) {
+      expect((await call(R.pushRegisterRoute, "vmd_kid", { body: { kind: "relay", platform: "fcm", handle: bad } })).status, bad).toBe(400);
+    }
+    expect((await call(R.pushRegisterRoute, "vmd_kid", { body: { kind: "fcm", token: "f".repeat(40) } })).body).toEqual({ ok: true });
+    expect(await row("d-kid")).toMatchObject({ pushKind: "fcm", pushKey: null });
+  });
+});
+
+describe("push card (P10)", () => {
+  it("returns a card the member may see, in the notify list shape", async () => {
+    const r = await call(R.pushCardRoute, "vmd_guest", { query: "id=c-door" });
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ id: "c-door", kind: "intercom", title: "Door", actions: [{ id: "open", label: "Open", style: "primary" }] });
+    expect((await call(R.pushCardRoute, "vmd_owner", { query: "id=c-pc" })).body).toMatchObject({ id: "c-pc" });
+  });
+
+  it("refuses an owner-only card to a guest and a missing card with not_found", async () => {
+    const g = await call(R.pushCardRoute, "vmd_guest", { query: "id=c-pc" });
+    expect(g.status).toBe(404);
+    expect(g.body).toMatchObject({ ok: false, code: "not_found" });
+    expect((await call(R.pushCardRoute, "vmd_owner", { query: "id=nope" })).status).toBe(404);
   });
 });
 

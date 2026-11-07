@@ -1,5 +1,6 @@
 import { apiError, apiForbidden } from "@/lib/api-error";
 import { userCount } from "@/lib/auth";
+import { demoRefusalResponse } from "@/lib/demo/mode";
 import { canManageHome, currentHomeActor } from "@/lib/home/access";
 import { BackupError, MAX_BACKUP_BYTES, stageHubRestore } from "@/lib/hub-backup";
 import { rateLimit } from "@/lib/rate-limit";
@@ -24,6 +25,8 @@ const ERRORS = {
 const ipOf = (req: NextRequest) => req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? req.headers.get("x-real-ip") ?? "local";
 
 export async function POST(req: NextRequest) {
+  const demo = demoRefusalResponse();
+  if (demo) return demo;
   if (!rateLimit(`restore:${ipOf(req)}`, 8, 600).ok) return apiError(req, "rate_limited", 429);
   const claimed = (await userCount()) > 0;
   const form = await req.formData().catch(() => null);

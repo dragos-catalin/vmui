@@ -1,0 +1,14 @@
+# vatra-push (Cloud Run). Build context: cloud/
+FROM golang:1.24-bookworm AS build
+WORKDIR /src
+COPY go.mod ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/vatra-push ./cmd/push
+
+FROM gcr.io/distroless/static-debian12:nonroot
+COPY --from=build /out/vatra-push /vatra-push
+USER nonroot:nonroot
+ENV PORT=8080
+EXPOSE 8080
+ENTRYPOINT ["/vatra-push"]

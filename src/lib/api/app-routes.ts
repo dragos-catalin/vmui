@@ -20,7 +20,11 @@ import { credential } from "@/lib/home/credentials";
 import { fcmProjectId } from "@/lib/notify/fcm";
 import { apnsConfigured } from "@/lib/notify/apns";
 import { endpointAllowed } from "@/lib/notify/unifiedpush";
+import { relayEnabled } from "@/lib/notify/relay";
+import { cloudEndpoints, hubIdentity } from "@/lib/cloud/identity";
+import { encrypt } from "@/lib/crypto";
 import { eq } from "drizzle-orm";
+import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { defineRoute, RouteError, type AppRoute } from "./define-route";
 
@@ -232,6 +236,22 @@ export const notifyListRoute = defineRoute({
   },
 });
 
+export const pushCardRoute = defineRoute({
+  id: "pushCard",
+  method: "GET",
+  path: "/api/v1/app/push/card",
+  summary: "One notification card, for a relay push too large to carry it (full = \"0\")",
+  description: "Same shape and visibility as one item of GET /api/v1/app/notify; 404 not_found when the card does not exist or this member may not see it.",
+  auth: "member",
+  input: z.object({ id: z.string().min(1).max(64), lang: z.string().optional() }),
+  output: cardSchema,
+  handler: async ({ actor, input, req }) => {
+    const c = await getCard(input.id);
+    if (!c || !visibleToRole(c.kind, actor.role)) throw new RouteError("not_found", 404);
+    return toCard(await localizeCard(c, localeOf(req)));
+  },
+});
+
 export const notifyActRoute = defineRoute({
   id: "notifyAct",
   method: "POST",
@@ -368,6 +388,8 @@ function fcmClientOptions() {
 const b64url = (min: number, max: number) => z.string().regex(/^[A-Za-z0-9_-]+$/).min(min).max(max);
 /** APNs device / Live Activity tokens: hex, 32 bytes today, Apple reserves the right to grow them. */
 const hexToken = z.string().regex(/^[0-9a-fA-F]+$/).min(64).max(200);
+/** Vatra Cloud push handle: opaque to the hub, sealed by the relay (CONTRACT.md § Push handles). */
+const relayHandle = z.string().regex(/^h1\.[A-Za-z0-9_-]{20,2000}$/);
 
 export const pushConfigRoute = defineRoute({
   id: "push",
@@ -375,15 +397,22 @@ export const pushConfigRoute = defineRoute({
   path: "/api/v1/app/push",
   summary: "How this hub can wake the app: FCM client options, Web Push (UnifiedPush) and/or Apple Push",
   description:
-    "fcm is null when the hub has no Firebase project configured; the app then offers UnifiedPush only. webPush is always true (UnifiedPush needs no hub account). apns is true when the hub can reach Apple Push, with its own key or through the Vatra push relay.",
+    "fcm is null when the hub has no Firebase project configured; the app then offers UnifiedPush only. webPush is always true (UnifiedPush needs no hub account). apns is true when the hub holds its own Apple Push key. relay is the Vatra Cloud push relay (url + this hub's id) when the owner enabled it, else null; apps prefer it when present.",
   auth: "member",
   output: z.object({
     fcm: z.object({ projectId: z.string(), applicationId: z.string(), apiKey: z.string(), senderId: z.string() }).nullable(),
     webPush: z.boolean(),
     vapidKey: z.string().nullable(),
     apns: z.boolean(),
+    relay: z.object({ url: z.string(), hub: z.string() }).nullable(),
   }),
-  handler: async () => ({ fcm: fcmClientOptions(), webPush: true, vapidKey: process.env.VAPID_PUBLIC_KEY ?? null, apns: apnsConfigured() }),
+  handler: async () => ({
+    fcm: fcmClientOptions(),
+    webPush: true,
+    vapidKey: process.env.VAPID_PUBLIC_KEY ?? null,
+    apns: apnsConfigured(),
+    relay: relayEnabled() ? { url: cloudEndpoints().api, hub: hubIdentity().hubId } : null,
+  }),
 });
 
 export const pushRegisterRoute = defineRoute({
@@ -392,18 +421,27 @@ export const pushRegisterRoute = defineRoute({
   path: "/api/v1/app/push",
   summary: "Register (or clear) how this device is woken",
   description:
-    "kind fcm: an FCM registration token. kind unifiedpush: the distributor's https endpoint plus the RFC 8291 receiver keys; private-network endpoints are refused. kind apns: the iOS app's APNs device token (hex), sandbox for development-signed builds, optionally its Live Activity push-to-start token. kind none: stop pushing.",
+    "kind fcm: an FCM registration token. kind unifiedpush: the distributor's https endpoint plus the RFC 8291 receiver keys; private-network endpoints are refused. kind apns: the iOS app's APNs device token (hex), sandbox for development-signed builds, optionally its Live Activity push-to-start token. kind relay: a Vatra Cloud push handle (from POST <relay.url>/v1/handles) for the platform, optionally a Live Activity handle; the answer carries e2eKey, the device's fresh end-to-end key (base64url, 32 bytes), returned only here and rotated on every registration. kind none: stop pushing.",
   auth: "member",
   input: z.discriminatedUnion("kind", [
     z.object({ kind: z.literal("fcm"), token: z.string().min(20).max(4096) }),
     z.object({ kind: z.literal("unifiedpush"), endpoint: z.string().url().max(2048), p256dh: b64url(80, 100), auth: b64url(16, 32) }),
     z.object({ kind: z.literal("apns"), token: hexToken, sandbox: z.boolean().default(false), activityToken: hexToken.nullable().optional() }),
+    z.object({ kind: z.literal("relay"), platform: z.enum(["apns", "apns-sandbox", "fcm"]), handle: relayHandle, activityHandle: relayHandle.nullable().optional() }),
     z.object({ kind: z.literal("none") }),
   ]),
-  output: okSchema,
+  output: okSchema.extend({ e2eKey: z.string().optional() }),
   handler: async ({ actor, input }) => {
     if (!actor.deviceId) throw new RouteError("not_bound", 403);
-    const clear = { pushP256dh: null, pushAuth: null, pushActivity: null };
+    const clear = { pushP256dh: null, pushAuth: null, pushActivity: null, pushKey: null };
+    if (input.kind === "relay") {
+      const e2eKey = randomBytes(32).toString("base64url");
+      await db
+        .update(pairedDevices)
+        .set({ ...clear, pushToken: input.handle, pushKind: `relay-${input.platform}`, pushActivity: input.activityHandle ?? null, pushKey: encrypt(e2eKey) })
+        .where(eq(pairedDevices.id, actor.deviceId));
+      return { ok: true as const, e2eKey };
+    }
     const set =
       input.kind === "fcm"
         ? { ...clear, pushToken: input.token, pushKind: "fcm" }
@@ -455,6 +493,7 @@ export const APP_ROUTES: readonly AppRoute[] = [
   lightsSetRoute,
   notifyListRoute,
   notifyActRoute,
+  pushCardRoute,
   intercomGetRoute,
   intercomActRoute,
   waterGetRoute,

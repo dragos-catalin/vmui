@@ -179,7 +179,8 @@ struct IntercomBanner: View {
         Spacer()
         Text(Date(timeIntervalSince1970: TimeInterval(state.since)), style: .relative).font(.caption)
       }
-      if !attrs.door.isEmpty { Text(attrs.door).font(.subheadline) }
+      let door = attrs.secret(state).door
+      if !door.isEmpty { Text(door).font(.subheadline) }
       IntercomButtons(attrs: attrs, state: state)
     }
   }
@@ -190,7 +191,7 @@ struct IntercomButtons: View {
   let state: IntercomAttributes.ContentState
   var body: some View {
     HStack {
-      if state.canOpen {
+      if attrs.secret(state).canOpen {
         Button(intent: OpenDoorIntent(cardId: attrs.cardId)) { Label(L("door_open"), systemImage: "door.left.hand.open") }
           .buttonStyle(.borderedProminent)
       }

@@ -36,6 +36,10 @@
     <string name="push_fcm">Google (Firebase Cloud Messaging)</string>
     <string name="push_unifiedpush">UnifiedPush (ntfy, NextPush…)</string>
     <string name="push_none">Off: only when the app is open</string>
+    <string name="push_via_cloud">Push: Vatra Cloud (end-to-end encrypted)</string>
+    <string name="push_via_direct">Push: direct from the hub</string>
+    <string name="push_generic_title">New alert from your home</string>
+    <string name="push_generic_body">Open Vatra to see the details.</string>
     <string name="presence_title">Arriving and leaving home</string>
     <string name="presence_body">Tell the hub when you arrive or leave, so automations can turn lights on or off.</string>
     <string name="presence_disclosure">Vatra uses your location in the background, even when the app is closed, only to notice when you arrive at or leave this home. The hub receives just \"home\" or \"away\", never your position. You can turn this off at any time in Settings.</string>

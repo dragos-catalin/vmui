@@ -20,6 +20,7 @@ import type observe from "../../messages/observe/en.json";
 import type ops from "../../messages/ops/en.json";
 import type cloud from "../../messages/cloud/en.json";
 import type setup from "../../messages/setup/en.json";
+import type vatraCloud from "../../messages/vatraCloud/en.json";
 import type { LOCALES } from "./config";
 
 declare module "next-intl" {
@@ -47,6 +48,7 @@ declare module "next-intl" {
       auth: typeof auth;
       misc: typeof misc;
       setup: typeof setup;
+      vatraCloud: typeof vatraCloud;
     };
   }
 }

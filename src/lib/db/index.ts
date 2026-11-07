@@ -1005,6 +1005,8 @@ sqlite.exec(`CREATE TABLE IF NOT EXISTS paired_devices (
   if (!cols.has("push_auth")) alterAddColumn("ALTER TABLE paired_devices ADD COLUMN push_auth TEXT");
   // P8-02: iOS Live Activity push-to-start token
   if (!cols.has("push_activity")) alterAddColumn("ALTER TABLE paired_devices ADD COLUMN push_activity TEXT");
+  // P10: Vatra Cloud push relay end-to-end key (encrypted with the master key)
+  if (!cols.has("push_key")) alterAddColumn("ALTER TABLE paired_devices ADD COLUMN push_key TEXT");
 }
 sqlite.exec(`CREATE TABLE IF NOT EXISTS meals (
   id TEXT PRIMARY KEY,

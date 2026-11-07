@@ -1,6 +1,346 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "VATRA_PUSH_BODY": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open to see details"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deschide pentru detalii"
+          }
+        }
+      }
+    },
+    "VATRA_PUSH_TITLE_AGENTS": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agents"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agenți"
+          }
+        }
+      }
+    },
+    "VATRA_PUSH_TITLE_ALERT": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alert from home"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alertă de acasă"
+          }
+        }
+      }
+    },
+    "VATRA_PUSH_TITLE_AMBILIGHT": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ambilight"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ambilight"
+          }
+        }
+      }
+    },
+    "VATRA_PUSH_TITLE_BATTERY": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Battery low"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Baterie descărcată"
+          }
+        }
+      }
+    },
+    "VATRA_PUSH_TITLE_CARD": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vatra"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vatra"
+          }
+        }
+      }
+    },
+    "VATRA_PUSH_TITLE_CONTACT": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New message"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mesaj nou"
+          }
+        }
+      }
+    },
+    "VATRA_PUSH_TITLE_COPILOT": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copilot"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copilot"
+          }
+        }
+      }
+    },
+    "VATRA_PUSH_TITLE_DOOR": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A door opened"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "S-a deschis o ușă"
+          }
+        }
+      }
+    },
+    "VATRA_PUSH_TITLE_GENERIC": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vatra"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vatra"
+          }
+        }
+      }
+    },
+    "VATRA_PUSH_TITLE_HOME": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "News from home"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noutăți de acasă"
+          }
+        }
+      }
+    },
+    "VATRA_PUSH_TITLE_INTERCOM": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Someone is at the door"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sună cineva la ușă"
+          }
+        }
+      }
+    },
+    "VATRA_PUSH_TITLE_NUTRITION": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nutrition"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nutriție"
+          }
+        }
+      }
+    },
+    "VATRA_PUSH_TITLE_PAIRING": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A device wants to join"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un dispozitiv vrea să intre"
+          }
+        }
+      }
+    },
+    "VATRA_PUSH_TITLE_PC": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PC update"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noutate de la PC"
+          }
+        }
+      }
+    },
+    "VATRA_PUSH_TITLE_PI": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hub update"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noutate de la hub"
+          }
+        }
+      }
+    },
+    "VATRA_PUSH_TITLE_PRESENCE": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Movement at home"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mișcare în casă"
+          }
+        }
+      }
+    },
+    "VATRA_PUSH_TITLE_SYSTEM": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vatra"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vatra"
+          }
+        }
+      }
+    },
+    "VATRA_PUSH_TITLE_WATER": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Time for water"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "E timpul pentru apă"
+          }
+        }
+      }
+    },
+    "VATRA_PUSH_TITLE_WINDOW": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A window is open"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O fereastră e deschisă"
+          }
+        }
+      }
+    },
     "add_address": {
       "extractionState": "manual",
       "localizations": {
@@ -1344,6 +1684,40 @@
         }
       }
     },
+    "push_generic_body": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Vatra to see the details."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deschide Vatra ca să vezi detaliile."
+          }
+        }
+      }
+    },
+    "push_generic_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New alert from your home"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alertă nouă de acasă"
+          }
+        }
+      }
+    },
     "push_none": {
       "extractionState": "manual",
       "localizations": {
@@ -1374,6 +1748,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "UnifiedPush (ntfy, NextPush…)"
+          }
+        }
+      }
+    },
+    "push_via_cloud": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Push: Vatra Cloud (end-to-end encrypted)"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Push: Vatra Cloud (criptat end-to-end)"
+          }
+        }
+      }
+    },
+    "push_via_direct": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Push: direct from the hub"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Push: direct de la hub"
           }
         }
       }

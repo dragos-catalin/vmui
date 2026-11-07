@@ -23,6 +23,14 @@ export const INTEGRATION_KEYS = [
   "PC_WOL_IP",
   "CODAI_API_KEY",
   "FCM_SERVICE_ACCOUNT",
+  "VATRA_CLOUD_DOMAIN",
+  "VATRA_CLOUD_API",
+  "VATRA_CLOUD_ACME",
+  "VATRA_CLOUD_RELAY",
+  "VATRA_CLOUD_RELAY_PIN",
+  // "1" = remote access through the SNI relay / "1" = notifications through the push relay
+  "VATRA_CLOUD_REMOTE",
+  "VATRA_CLOUD_PUSH",
 ] as const;
 export type IntegrationKey = (typeof INTEGRATION_KEYS)[number];
 /** Values never echoed back to a client (the UI only learns whether they are set). */

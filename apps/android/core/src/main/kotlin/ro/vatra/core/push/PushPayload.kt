@@ -65,5 +65,19 @@ data class PushPayload(
             val obj = runCatching { WireJson.parseToJsonElement(bytes.decodeToString()) as? JsonObject }.getOrNull() ?: return null
             return fromMap(obj.mapValues { (_, v) -> (v as? JsonPrimitive)?.contentOrNull.orEmpty() })
         }
+
+        /**
+         * A Vatra Cloud relay push: `{v, id, e, full, type, kind}` where `e` is the sealed upPayload JSON.
+         * Null when it does not open with [key] (another hub's key, tampered, or not a relay push).
+         * `full:"0"` (or a minimal plaintext with `fetch:"1"`) means the card must be fetched from the hub.
+         */
+        fun fromRelay(m: Map<String, String>, key: ByteArray): PushPayload? {
+            val id = m["id"]?.takeIf { it.isNotEmpty() } ?: return null
+            val e = m["e"]?.takeIf { it.isNotEmpty() } ?: return null
+            val plain = runCatching { PushCrypto.open(key, id, e) }.getOrNull() ?: return null
+            val p = fromJson(plain) ?: return null
+            if (p.id != id) return null
+            return if (m["full"] == "0") p.copy(needsFetch = true) else p
+        }
     }
 }

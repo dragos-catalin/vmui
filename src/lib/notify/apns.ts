@@ -6,11 +6,10 @@ import "server-only";
 import type { LocalizedCard } from "./index";
 import { upPayload } from "./unifiedpush";
 
-// Apple Push (P8-02) for the Vatra iPhone / iPad / watch app. Two ways out, same payload:
-//  - direct: the hub holds an APNs auth key (.p8) of the team that signs the app — APNS_KEY (PEM text
-//    or a file path), APNS_KEY_ID, APNS_TEAM_ID, APNS_TOPIC (bundle id, default ro.vatra.app);
-//  - relay: VATRA_PUSH_RELAY (https origin) + VATRA_PUSH_RELAY_TOKEN — the Vatra push relay (P10-03)
-//    holds the key, so a self-hosted hub never needs an Apple account. It forwards exactly what we hand it.
+// Apple Push (P8-02) for the Vatra iPhone / iPad / watch app, direct: the hub holds an APNs auth key (.p8)
+// of the team that signs the app — APNS_KEY (PEM text or a file path), APNS_KEY_ID, APNS_TEAM_ID,
+// APNS_TOPIC (bundle id, default ro.vatra.app). Hubs without an Apple account use the Vatra Cloud relay
+// instead (./relay.ts, end-to-end sealed; the app registers push kind "relay").
 // The alert is visible (iOS has no reliable data-only wake), mutable-content lets the Notification Service
 // Extension fetch the full card and attach the action buttons; `vatra` carries the same string fields as
 // the FCM data map and the UnifiedPush JSON, so every app parses one shape (VatraCore PushPayload).
@@ -46,15 +45,8 @@ function directKey(): Direct | null {
   return direct;
 }
 
-function relay(): { url: string; token: string } | null {
-  const url = credential("VATRA_PUSH_RELAY");
-  const token = credential("VATRA_PUSH_RELAY_TOKEN");
-  if (!url || !token || !/^https:\/\//.test(url)) return null;
-  return { url: url.replace(/\/$/, ""), token };
-}
-
 export function apnsConfigured(): boolean {
-  return directKey() !== null || relay() !== null;
+  return directKey() !== null;
 }
 
 const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString("base64url");
@@ -150,29 +142,9 @@ function directSend(d: Direct): ApnsSend {
     });
 }
 
-/** Through the Vatra push relay: one POST per request, the relay answers with Apple's status and reason. */
-function relaySend(rl: { url: string; token: string }): ApnsSend {
-  return async (r) => {
-    try {
-      const res = await fetch(`${rl.url}/v1/apns`, {
-        method: "POST",
-        headers: { authorization: `Bearer ${rl.token}`, "content-type": "application/json" },
-        body: JSON.stringify(r),
-        signal: AbortSignal.timeout(10_000),
-      });
-      const j = (await res.json().catch(() => ({}))) as { status?: number; reason?: string };
-      return { status: j.status ?? res.status, reason: j.reason };
-    } catch (e) {
-      return { status: 0, reason: (e as Error).message };
-    }
-  };
-}
-
 function defaultSend(): ApnsSend | null {
   const d = directKey();
-  if (d) return directSend(d);
-  const rl = relay();
-  return rl ? relaySend(rl) : null;
+  return d ? directSend(d) : null;
 }
 
 const GONE = new Set(["BadDeviceToken", "Unregistered", "DeviceTokenNotForTopic"]);

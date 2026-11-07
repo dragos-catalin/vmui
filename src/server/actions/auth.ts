@@ -14,6 +14,7 @@ import {
 } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { auditLog, sessions, users } from "@/lib/db/schema";
+import { demoRefusal } from "@/lib/demo/mode";
 import { clearFailures, rateLimit, recordFailure } from "@/lib/rate-limit";
 import { redactSecrets } from "@/lib/redact";
 import { burnSetupCode, checkSetupCode } from "@/lib/setup-code";
@@ -204,6 +205,8 @@ const signUpSchema = z.object({
 export type SignUpState = { error?: string } | undefined;
 
 export async function signUpAction(_prev: SignUpState, formData: FormData): Promise<SignUpState> {
+  const demo = demoRefusal();
+  if (demo) return { error: demo.error };
   const parsed = signUpSchema.safeParse({
     email: formData.get("email"),
     displayName: formData.get("displayName"),
@@ -264,6 +267,8 @@ export async function signOutAction(): Promise<void> {
 }
 
 export async function deleteUserAction(userId: string): Promise<{ ok: boolean; error?: string }> {
+  const demo = demoRefusal();
+  if (demo) return demo;
   const me = await requireRole("admin");
   if (!me) return { ok: false, error: "Auth not enabled" };
   if (me.id === userId) return { ok: false, error: "You cannot delete yourself" };
@@ -286,6 +291,8 @@ const updateRoleSchema = z.object({
 export async function updateUserRoleAction(
   input: z.infer<typeof updateRoleSchema>,
 ): Promise<{ ok: boolean; error?: string }> {
+  const demo = demoRefusal();
+  if (demo) return demo;
   const me = await requireRole("admin");
   if (!me) return { ok: false, error: "Auth not enabled" };
   const parsed = updateRoleSchema.safeParse(input);
@@ -313,6 +320,8 @@ const adminResetPasswordSchema = z.object({
 export async function adminResetPasswordAction(
   input: z.infer<typeof adminResetPasswordSchema>,
 ): Promise<{ ok: true; password?: string } | { ok: false; error: string }> {
+  const demo = demoRefusal();
+  if (demo) return demo;
   const me = await requireRole("admin");
   if (!me) return { ok: false, error: "settings.users.resetPassword.errors.generic" };
   const parsed = adminResetPasswordSchema.safeParse(input);
@@ -347,6 +356,8 @@ const changeMyPasswordSchema = z
 export async function changeMyPasswordAction(
   input: z.infer<typeof changeMyPasswordSchema>,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const demo = demoRefusal();
+  if (demo) return demo;
   const me = await getCurrentUser();
   if (!me) return { ok: false, error: "settings.security.password.errors.generic" };
   const parsed = changeMyPasswordSchema.safeParse(input);

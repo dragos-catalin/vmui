@@ -56,6 +56,28 @@ const IOS = {
   "entity.device": ["Device", "Dispozitiv"],
   "entity.house_action": ["Action", "Acțiune"],
   "entity.scene": ["Scene", "Scenă"],
+  // Generic alert of a Vatra Cloud relay push (aps.alert loc keys, CONTRACT.md "Push relay"); the NSE
+  // replaces it with the decrypted card. One title per hub notify kind (src/lib/notify NOTIFY_KINDS).
+  VATRA_PUSH_BODY: ["Open to see details", "Deschide pentru detalii"],
+  VATRA_PUSH_TITLE_GENERIC: ["Vatra", "Vatra"],
+  VATRA_PUSH_TITLE_INTERCOM: ["Someone is at the door", "Sună cineva la ușă"],
+  VATRA_PUSH_TITLE_DOOR: ["A door opened", "S-a deschis o ușă"],
+  VATRA_PUSH_TITLE_WINDOW: ["A window is open", "O fereastră e deschisă"],
+  VATRA_PUSH_TITLE_PRESENCE: ["Movement at home", "Mișcare în casă"],
+  VATRA_PUSH_TITLE_BATTERY: ["Battery low", "Baterie descărcată"],
+  VATRA_PUSH_TITLE_WATER: ["Time for water", "E timpul pentru apă"],
+  VATRA_PUSH_TITLE_NUTRITION: ["Nutrition", "Nutriție"],
+  VATRA_PUSH_TITLE_PC: ["PC update", "Noutate de la PC"],
+  VATRA_PUSH_TITLE_PI: ["Hub update", "Noutate de la hub"],
+  VATRA_PUSH_TITLE_PAIRING: ["A device wants to join", "Un dispozitiv vrea să intre"],
+  VATRA_PUSH_TITLE_COPILOT: ["Copilot", "Copilot"],
+  VATRA_PUSH_TITLE_AGENTS: ["Agents", "Agenți"],
+  VATRA_PUSH_TITLE_AMBILIGHT: ["Ambilight", "Ambilight"],
+  VATRA_PUSH_TITLE_ALERT: ["Alert from home", "Alertă de acasă"],
+  VATRA_PUSH_TITLE_HOME: ["News from home", "Noutăți de acasă"],
+  VATRA_PUSH_TITLE_CONTACT: ["New message", "Mesaj nou"],
+  VATRA_PUSH_TITLE_SYSTEM: ["Vatra", "Vatra"],
+  VATRA_PUSH_TITLE_CARD: ["Vatra", "Vatra"],
 };
 
 const fmt = (s) => s.replace(/%(\d+)\$s/g, "%$1$@").replace(/%(\d+)\$d/g, "%$1$lld");

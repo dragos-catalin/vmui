@@ -1337,6 +1337,8 @@ export const pairedDevices = sqliteTable("paired_devices", {
   pushKind: text("push_kind"),
   /** iOS only: the Live Activity push-to-start token, so an intercom ring starts the Lock Screen activity. */
   pushActivity: text("push_activity"),
+  /** Vatra Cloud relay ("relay-*" kinds): the per-device AES-256-GCM end-to-end key (base64url), encrypted with the master key. */
+  pushKey: text("push_key"),
   /** UnifiedPush / Web Push receiver keys (base64url P-256 public key + 16-byte auth secret). */
   pushP256dh: text("push_p256dh"),
   pushAuth: text("push_auth"),

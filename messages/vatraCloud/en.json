@@ -1,0 +1,51 @@
+{
+  "title": "Vatra Cloud",
+  "intro": "Reach this hub from anywhere and get notifications through the Vatra relays, without opening a port on your router.",
+  "beta": "Beta: remote access only works once this hub id is on the Vatra Cloud allow-list. Send the hub id to the Vatra team to join.",
+  "hubId": "Hub id",
+  "publicUrl": "Public address",
+  "copy": "Copy",
+  "copied": "Copied",
+  "remote": {
+    "label": "Remote access",
+    "hint": "Open this hub at its public address from outside your home. Traffic stays end-to-end encrypted to this hub.",
+    "on": "Remote access is on",
+    "off": "Remote access is off"
+  },
+  "push": {
+    "label": "Push relay",
+    "hint": "Send phone notifications through the Vatra push relay instead of a Firebase or Apple key of your own.",
+    "on": "Push relay is on",
+    "off": "Push relay is off"
+  },
+  "state": {
+    "label": "Tunnel",
+    "off": "Off",
+    "connecting": "Connecting",
+    "online": "Online",
+    "error": "Error",
+    "clients": "{count, plural, =0 {no open connections} one {# open connection} other {# open connections}}"
+  },
+  "cert": {
+    "title": "Certificate",
+    "none": "No certificate yet. It is issued automatically when remote access is turned on.",
+    "expires": "Expires {date}",
+    "renews": "Next renewal {date}",
+    "issue": "Issue certificate now",
+    "issued": "Certificate issued",
+    "error": "Last attempt failed: {error}"
+  },
+  "lastError": "Last error: {error}",
+  "privacy": {
+    "title": "What the Vatra relays see",
+    "body": "The remote access relay only forwards encrypted TLS: the certificate and its key live on this hub, so the relay cannot read your pages or data. The push relay sees device ids, the notification kind and timing; the notification content is encrypted for your phone.",
+    "link": "Privacy policy"
+  },
+  "errors": {
+    "forbidden": "Only the home owner can change Vatra Cloud.",
+    "demo_readonly": "Vatra Cloud cannot be changed on the demo hub.",
+    "issue_failed": "The certificate could not be issued. Check that this hub id is on the allow-list and try again later.",
+    "invalid": "Invalid request.",
+    "failed": "Something went wrong. Try again."
+  }
+}

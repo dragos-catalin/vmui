@@ -35,6 +35,10 @@
     <string name="push_fcm">Google (Firebase Cloud Messaging)</string>
     <string name="push_unifiedpush">UnifiedPush (ntfy, NextPush…)</string>
     <string name="push_none">Oprite: doar cu aplicația deschisă</string>
+    <string name="push_via_cloud">Push: Vatra Cloud (criptat end-to-end)</string>
+    <string name="push_via_direct">Push: direct de la hub</string>
+    <string name="push_generic_title">Alertă nouă de acasă</string>
+    <string name="push_generic_body">Deschide Vatra ca să vezi detaliile.</string>
     <string name="presence_title">Sosire și plecare de acasă</string>
     <string name="presence_body">Anunță hubul când ajungi sau pleci, ca automatizările să aprindă sau să stingă luminile.</string>
     <string name="presence_disclosure">Vatra folosește locația în fundal, chiar și cu aplicația închisă, doar ca să observe când ajungi sau pleci din această casă. Hubul primește doar „acasă” sau „plecat”, niciodată poziția ta. Poți opri oricând din Setări.</string>

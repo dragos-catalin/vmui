@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SETTINGS_GROUPS, SETTINGS_SECTIONS } from "./tabs";
+import { normalizeSettingsSection, SETTINGS_GROUPS, SETTINGS_SECTIONS } from "./tabs";
 
 describe("settings groups", () => {
   it("place every settings section in exactly one group", () => {
@@ -10,5 +10,10 @@ describe("settings groups", () => {
 
   it("keep owner-specific integrations under extensions", () => {
     expect(SETTINGS_GROUPS.find((g) => g.id === "extensions")?.sections).toContain("copilot");
+  });
+
+  it("open Vatra Cloud from ?section=vatraCloud", () => {
+    expect(normalizeSettingsSection("settings", "vatraCloud")).toBe("vatraCloud");
+    expect(SETTINGS_GROUPS.find((g) => g.id === "extensions")?.sections).toContain("vatraCloud");
   });
 });

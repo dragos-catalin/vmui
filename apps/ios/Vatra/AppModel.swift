@@ -132,6 +132,7 @@ final class AppModel {
       Task { _ = await c.registerPush(.none) }
     }
     hubs = VatraEnv.store.update { $0.remove(id) }
+    VatraEnv.pushKeys.remove(hub: id)
     resetHubState()
     start()
   }

@@ -1,0 +1,5 @@
+.copilot-tmp
+relay
+*.md
+**/*_test.go
+**/testdata

@@ -16,6 +16,7 @@ class AppPrefs(private val context: Context) {
     private val pushMethod = stringPreferencesKey("push.method")
     private val geofence = booleanPreferencesKey("presence.geofence")
     private val tileAction = stringPreferencesKey("tile.action")
+    private val fcmId = stringPreferencesKey("push.fcm.fid")
 
     /** "fcm" | "unifiedpush" | "none"; null = choose automatically (FCM when the hub offers it). */
     val push: Flow<String?> = context.appPrefs.data.map { it[pushMethod] }
@@ -27,4 +28,8 @@ class AppPrefs(private val context: Context) {
     suspend fun setTile(v: String) = context.appPrefs.edit { it[tileAction] = v }
     suspend fun pushNow(): String? = push.first()
     suspend fun tileNow(): String? = tile.first()
+
+    /** Last Firebase installation ID (not a secret: useless without the project's server key). */
+    suspend fun setFcmId(v: String) = context.appPrefs.edit { it[fcmId] = v }
+    suspend fun fcmIdNow(): String? = context.appPrefs.data.first()[fcmId]
 }

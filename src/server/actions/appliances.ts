@@ -2,6 +2,7 @@
 
 import { APPLIANCE_PROFILE_IDS, type ApplianceProfile } from "@/lib/devices/appliance-scopes";
 import { mintApplianceToken } from "@/lib/devices/pairing";
+import { demoRefusal } from "@/lib/demo/mode";
 import { HomeAccessError, journalUserId, requireOwner } from "@/lib/home/access";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -12,6 +13,8 @@ type Result = { ok: true; data: { id: string; token: string } } | { ok: false; e
 
 /** Owner-only: a scoped token for one appliance. The clear token is returned once and never stored. */
 export async function mintApplianceAction(raw: { profile: string; name: string }): Promise<Result> {
+  const demo = demoRefusal();
+  if (demo) return demo;
   const p = input.safeParse(raw);
   if (!p.success) return { ok: false, error: "invalid" };
   try {

@@ -136,6 +136,14 @@ fun SettingsScreen(ui: HomeUi, onAddHub: () -> Unit) {
                 Text(stringResource(label), Modifier.padding(start = 8.dp))
             }
         }
+        if ((push ?: PushSetup.defaultMethod) == "fcm" && PushSetup.fcmAvailable) {
+            val relayed = hubs.active?.relayed == true
+            Text(
+                stringResource(if (relayed) R.string.push_via_cloud else R.string.push_via_direct),
+                style = MaterialTheme.typography.bodySmall,
+                color = c.fgMuted,
+            )
+        }
 
         if (Presence.available) {
             Row(Modifier.fillMaxWidth().padding(top = 16.dp), verticalAlignment = Alignment.CenterVertically) {

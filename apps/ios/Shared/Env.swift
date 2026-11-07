@@ -21,6 +21,24 @@ enum VatraEnv {
   static func client(_ hub: PairedHub) -> HubClient { HubClient(baseUrl: hub.baseUrl, token: hub.token, language: language) }
 
   static func activeClient() -> HubClient? { store.current().active.map(client) }
+
+  /// Per-hub end-to-end keys for relay pushes (same shared Keychain group as the tokens).
+  static let pushKeys = PushKeyStore()
+
+  /// A push as this device may read it: a relay push is decrypted with the key of whichever paired hub
+  /// opens it (the push does not name the hub; AES-GCM rejects every other key), a direct push is read as
+  /// is. The client is the hub that sent it, for fetching the full card or acting on it.
+  static func push(_ userInfo: [AnyHashable: Any]) -> (payload: PushPayload, client: HubClient?)? {
+    let hubs = store.current()
+    if PushPayload.relayEnvelope(userInfo) != nil {
+      let ordered = (hubs.active.map { [$0] } ?? []) + hubs.hubs.filter { $0.id != hubs.active?.id }
+      for h in ordered {
+        if let k = pushKeys.key(hub: h.id), let p = PushPayload.fromRelay(userInfo, key: k) { return (p, client(h)) }
+      }
+      return nil
+    }
+    return PushPayload.from(userInfo: userInfo).map { ($0, hubs.active.map(client)) }
+  }
 }
 
 /// What the widgets, controls and complications draw without waiting for the network; written by the app

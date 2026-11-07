@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { auditLog, pairedDevices, type PairedDeviceRow } from "@/lib/db/schema";
 import { APPLIANCE_PROFILES, type ApplianceProfile } from "@/lib/devices/appliance-scopes";
+import { redeemDemoInvite } from "@/lib/demo/invite";
 import { requestCredential } from "@/lib/esp/auth";
 import { msg } from "@/lib/notify/i18n";
 import { and, desc, eq } from "drizzle-orm";
@@ -103,6 +104,13 @@ export function createPairingInvite(userId: string, by: string): { code: string;
 
 /** Single use. Returns the ticket for the new device, or null when unknown/expired/used. */
 export async function redeemPairingInvite(code: string, name: string, platform: string, ip: string | null, language: string | null): Promise<PairingTicket | null> {
+  // demo hub (P10-04): the static invite published in the store notes pairs as the reviewer, never consumed
+  const demo = await redeemDemoInvite(code);
+  if (demo) {
+    const t = await approveByLogin(name, platform, ip, demo.email, language, demo.userId);
+    await db.insert(auditLog).values({ accountId: "devices", action: "device.pair.demo", target: t.id, status: "ok", message: `${name} (${platform}) via the demo invite` });
+    return t;
+  }
   const key = hash(code);
   const inv = invites.get(key);
   invites.delete(key);

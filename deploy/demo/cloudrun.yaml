@@ -1,0 +1,53 @@
+# Vatra demo hub for store reviewers (P10-04, docs/product/cloud/CONTRACT.md "Demo hub").
+# Apply: see README.md. ${IMAGE} is substituted at deploy time (immutable digest preferred).
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: vatra-demo
+  labels:
+    app: vatra-demo
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "0"
+        # one container: the demo state is in-process (SQLite in /tmp, simulated HA, pairing invites)
+        autoscaling.knative.dev/maxScale: "1"
+        run.googleapis.com/startup-cpu-boost: "true"
+    spec:
+      containerConcurrency: 80
+      timeoutSeconds: 300
+      containers:
+        - image: ${IMAGE}
+          ports:
+            - name: http1
+              containerPort: 3737
+          env:
+            - name: VATRA_DEMO
+              value: "1"
+            - name: VMUI_DB_PATH
+              value: /tmp/vatra/vmui.db
+            - name: VATRA_MASTER_KEY_FILE
+              value: /tmp/vatra/vatra-master.key
+            - name: VATRA_DEMO_REVIEW_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: vatra-demo-review-password
+                  key: latest
+            - name: VATRA_DEMO_INVITE
+              valueFrom:
+                secretKeyRef:
+                  name: vatra-demo-invite
+                  key: latest
+          resources:
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          startupProbe:
+            httpGet:
+              path: /api/discover
+              port: 3737
+            initialDelaySeconds: 2
+            periodSeconds: 3
+            timeoutSeconds: 3
+            failureThreshold: 40

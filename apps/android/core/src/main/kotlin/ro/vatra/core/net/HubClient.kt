@@ -5,6 +5,10 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -19,6 +23,7 @@ import ro.vatra.core.OpJson
 import ro.vatra.core.WireJson
 import ro.vatra.core.model.Applied
 import ro.vatra.core.model.ApiErrorBody
+import ro.vatra.core.model.Card
 import ro.vatra.core.model.Cards
 import ro.vatra.core.model.Control
 import ro.vatra.core.model.Discover
@@ -36,9 +41,11 @@ import ro.vatra.core.model.PairResponse
 import ro.vatra.core.model.PairStatus
 import ro.vatra.core.model.PushConfig
 import ro.vatra.core.model.PushRegistration
+import ro.vatra.core.model.RelayRegistered
 import ro.vatra.core.model.Water
 import ro.vatra.core.model.WaterAct
 import java.io.IOException
+import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -101,6 +108,19 @@ class HubClient(
     suspend fun registerPush(r: PushRegistration): ApiResult<Ok> =
         send("PUT", "/api/v1/app/push", KindJson.encodeToString(PushRegistration.serializer(), r), Ok.serializer())
 
+    /**
+     * Registers a Vatra Cloud relay handle; the hub answers with a fresh per-device `e2eKey` (rotated
+     * on every call), which must be stored before the next push arrives.
+     */
+    suspend fun registerRelayHandle(platform: String, handle: String, activityHandle: String? = null): ApiResult<RelayRegistered> =
+        send("PUT", "/api/v1/app/push", relayRegistration(platform, handle, activityHandle).toString(), RelayRegistered.serializer())
+
+    /** One card by id (a relay push too large to carry it); same shape and visibility as an item of [cards]. */
+    suspend fun pushCard(id: String): ApiResult<Card> {
+        val q = URLEncoder.encode(id, "UTF-8")
+        return get("/api/v1/app/push/card?id=$q&lang=$language", Card.serializer())
+    }
+
     suspend fun pair(req: PairRequest): ApiResult<PairResponse> =
         send("POST", "/api/devices/pair", WireJson.encodeToString(PairRequest.serializer(), req), PairResponse.serializer(), auth = false)
 
@@ -136,6 +156,15 @@ class HubClient(
     companion object {
         /** The app-contract version this build speaks (src/lib/api-version.ts API_VERSION). */
         const val CLIENT_API = 2
+
+        /** PUT /api/v1/app/push kind relay; `activityHandle` is sent as an explicit null (WireJson would drop it). */
+        fun relayRegistration(platform: String, handle: String, activityHandle: String? = null) = buildJsonObject {
+            put("kind", "relay")
+            put("platform", platform)
+            put("handle", handle)
+            put("activityHandle", activityHandle?.let(::JsonPrimitive) ?: JsonNull)
+        }
+
         private val JSON = "application/json".toMediaType()
         val defaultHttp: OkHttpClient = OkHttpClient.Builder()
             .connectTimeout(5, TimeUnit.SECONDS)

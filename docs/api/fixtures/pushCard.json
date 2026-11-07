@@ -1,0 +1,24 @@
+{
+  "request": {
+    "id": "c1",
+    "lang": "en"
+  },
+  "response": {
+    "id": "c1",
+    "kind": "intercom",
+    "title": "Someone is at the door",
+    "body": "",
+    "subtitle": null,
+    "priority": "high",
+    "url": null,
+    "actions": [
+      {
+        "id": "open",
+        "label": "Open",
+        "style": "primary"
+      }
+    ],
+    "createdAt": 1793961000,
+    "readAt": null
+  }
+}
