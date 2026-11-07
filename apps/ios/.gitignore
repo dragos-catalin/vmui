@@ -1,0 +1,8 @@
+build/
+*.xcodeproj/
+VatraCore/.build/
+# rendered by scripts/build.sh from the brand geometry
+icon-1024.png
+# written by XcodeGen from project.yml
+*/Info.plist
+*/*.entitlements

@@ -18,6 +18,7 @@ import { db } from "@/lib/db";
 import { auditLog, pairedDevices } from "@/lib/db/schema";
 import { credential } from "@/lib/home/credentials";
 import { fcmProjectId } from "@/lib/notify/fcm";
+import { apnsConfigured } from "@/lib/notify/apns";
 import { endpointAllowed } from "@/lib/notify/unifiedpush";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
@@ -365,20 +366,24 @@ function fcmClientOptions() {
 }
 
 const b64url = (min: number, max: number) => z.string().regex(/^[A-Za-z0-9_-]+$/).min(min).max(max);
+/** APNs device / Live Activity tokens: hex, 32 bytes today, Apple reserves the right to grow them. */
+const hexToken = z.string().regex(/^[0-9a-fA-F]+$/).min(64).max(200);
 
 export const pushConfigRoute = defineRoute({
   id: "push",
   method: "GET",
   path: "/api/v1/app/push",
-  summary: "How this hub can wake the app: FCM client options and/or Web Push (UnifiedPush)",
-  description: "fcm is null when the hub has no Firebase project configured; the app then offers UnifiedPush only. webPush is always true (UnifiedPush needs no hub account).",
+  summary: "How this hub can wake the app: FCM client options, Web Push (UnifiedPush) and/or Apple Push",
+  description:
+    "fcm is null when the hub has no Firebase project configured; the app then offers UnifiedPush only. webPush is always true (UnifiedPush needs no hub account). apns is true when the hub can reach Apple Push, with its own key or through the Vatra push relay.",
   auth: "member",
   output: z.object({
     fcm: z.object({ projectId: z.string(), applicationId: z.string(), apiKey: z.string(), senderId: z.string() }).nullable(),
     webPush: z.boolean(),
     vapidKey: z.string().nullable(),
+    apns: z.boolean(),
   }),
-  handler: async () => ({ fcm: fcmClientOptions(), webPush: true, vapidKey: process.env.VAPID_PUBLIC_KEY ?? null }),
+  handler: async () => ({ fcm: fcmClientOptions(), webPush: true, vapidKey: process.env.VAPID_PUBLIC_KEY ?? null, apns: apnsConfigured() }),
 });
 
 export const pushRegisterRoute = defineRoute({
@@ -386,25 +391,30 @@ export const pushRegisterRoute = defineRoute({
   method: "PUT",
   path: "/api/v1/app/push",
   summary: "Register (or clear) how this device is woken",
-  description: "kind fcm: an FCM registration token. kind unifiedpush: the distributor's https endpoint plus the RFC 8291 receiver keys; private-network endpoints are refused. kind none: stop pushing.",
+  description:
+    "kind fcm: an FCM registration token. kind unifiedpush: the distributor's https endpoint plus the RFC 8291 receiver keys; private-network endpoints are refused. kind apns: the iOS app's APNs device token (hex), sandbox for development-signed builds, optionally its Live Activity push-to-start token. kind none: stop pushing.",
   auth: "member",
   input: z.discriminatedUnion("kind", [
     z.object({ kind: z.literal("fcm"), token: z.string().min(20).max(4096) }),
     z.object({ kind: z.literal("unifiedpush"), endpoint: z.string().url().max(2048), p256dh: b64url(80, 100), auth: b64url(16, 32) }),
+    z.object({ kind: z.literal("apns"), token: hexToken, sandbox: z.boolean().default(false), activityToken: hexToken.nullable().optional() }),
     z.object({ kind: z.literal("none") }),
   ]),
   output: okSchema,
   handler: async ({ actor, input }) => {
     if (!actor.deviceId) throw new RouteError("not_bound", 403);
+    const clear = { pushP256dh: null, pushAuth: null, pushActivity: null };
     const set =
       input.kind === "fcm"
-        ? { pushToken: input.token, pushKind: "fcm", pushP256dh: null, pushAuth: null }
+        ? { ...clear, pushToken: input.token, pushKind: "fcm" }
         : input.kind === "unifiedpush"
           ? (() => {
               if (!endpointAllowed(input.endpoint)) throw new RouteError("invalid_request", 400);
-              return { pushToken: input.endpoint, pushKind: "unifiedpush", pushP256dh: input.p256dh, pushAuth: input.auth };
+              return { ...clear, pushToken: input.endpoint, pushKind: "unifiedpush", pushP256dh: input.p256dh, pushAuth: input.auth };
             })()
-          : { pushToken: null, pushKind: null, pushP256dh: null, pushAuth: null };
+          : input.kind === "apns"
+            ? { ...clear, pushToken: input.token.toLowerCase(), pushKind: input.sandbox ? "apns-sandbox" : "apns", pushActivity: input.activityToken?.toLowerCase() ?? null }
+            : { ...clear, pushToken: null, pushKind: null };
     await db.update(pairedDevices).set(set).where(eq(pairedDevices.id, actor.deviceId));
     return { ok: true as const };
   },

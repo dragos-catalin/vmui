@@ -1332,8 +1332,11 @@ export const pairedDevices = sqliteTable("paired_devices", {
   lastIp: text("last_ip"),
   /** FCM registration token (Android) — wakes the app for a notification */
   pushToken: text("push_token"),
-  /** How pushToken is delivered: null/"fcm" = FCM registration token, "unifiedpush" = Web Push endpoint URL (RFC 8030/8291). */
+  /** How pushToken is delivered: null/"fcm" = FCM registration token, "unifiedpush" = Web Push endpoint URL (RFC 8030/8291),
+   *  "apns" / "apns-sandbox" = APNs device token (hex) of the iOS app, production or development-signed. */
   pushKind: text("push_kind"),
+  /** iOS only: the Live Activity push-to-start token, so an intercom ring starts the Lock Screen activity. */
+  pushActivity: text("push_activity"),
   /** UnifiedPush / Web Push receiver keys (base64url P-256 public key + 16-byte auth secret). */
   pushP256dh: text("push_p256dh"),
   pushAuth: text("push_auth"),

@@ -8,6 +8,7 @@ import { randomBytes } from "node:crypto";
 import { EventEmitter } from "node:events";
 import "server-only";
 import { z } from "zod";
+import { sendApns, type ApnsTarget } from "./apns";
 import { sendFcm } from "./fcm";
 import { sendUnifiedPush, type UpTarget } from "./unifiedpush";
 import { deviceLocale, isMsg, packText, render, unpackText, type Text } from "./i18n";
@@ -219,7 +220,7 @@ function inQuiet(from: string, to: string): boolean {
 async function wakePhones(card: Card, fcm: { enabled: boolean }): Promise<void> {
   if (!fcm.enabled) return;
   const devs = await db
-    .select({ id: pairedDevices.id, pushToken: pairedDevices.pushToken, pushKind: pairedDevices.pushKind, pushP256dh: pairedDevices.pushP256dh, pushAuth: pairedDevices.pushAuth, language: pairedDevices.language, role: homeMembers.role, infraRole: users.role })
+    .select({ id: pairedDevices.id, pushToken: pairedDevices.pushToken, pushKind: pairedDevices.pushKind, pushP256dh: pairedDevices.pushP256dh, pushAuth: pairedDevices.pushAuth, pushActivity: pairedDevices.pushActivity, language: pairedDevices.language, role: homeMembers.role, infraRole: users.role })
     .from(pairedDevices)
     .leftJoin(homeMembers, eq(homeMembers.userId, pairedDevices.userId))
     .leftJoin(users, eq(users.id, pairedDevices.userId))
@@ -227,6 +228,7 @@ async function wakePhones(card: Card, fcm: { enabled: boolean }): Promise<void> 
   // one payload per language the paired phones speak; FCM and UnifiedPush devices side by side
   const byLocale = new Map<Locale, string[]>();
   const upByLocale = new Map<Locale, UpTarget[]>();
+  const apnsByLocale = new Map<Locale, ApnsTarget[]>();
   for (const d of devs) {
     if (!d.pushToken) continue;
     // an infra admin with no membership row is the owner (same rule as lib/home/access.ts)
@@ -235,6 +237,8 @@ async function wakePhones(card: Card, fcm: { enabled: boolean }): Promise<void> 
     const l = deviceLocale(d.language);
     if (d.pushKind === "unifiedpush") {
       if (d.pushP256dh && d.pushAuth) upByLocale.set(l, [...(upByLocale.get(l) ?? []), { endpoint: d.pushToken, p256dh: d.pushP256dh, auth: d.pushAuth }]);
+    } else if (d.pushKind === "apns" || d.pushKind === "apns-sandbox") {
+      apnsByLocale.set(l, [...(apnsByLocale.get(l) ?? []), { token: d.pushToken, sandbox: d.pushKind === "apns-sandbox", activityToken: d.pushActivity }]);
     } else byLocale.set(l, [...(byLocale.get(l) ?? []), d.pushToken]);
   }
   for (const [locale, tokens] of byLocale) {
@@ -244,6 +248,10 @@ async function wakePhones(card: Card, fcm: { enabled: boolean }): Promise<void> 
   for (const [locale, targets] of upByLocale) {
     const gone = await sendUnifiedPush(targets, await localizeCard(card, locale));
     for (const t of gone) await db.update(pairedDevices).set({ pushToken: null, pushKind: null, pushP256dh: null, pushAuth: null }).where(eq(pairedDevices.pushToken, t));
+  }
+  for (const [locale, targets] of apnsByLocale) {
+    const gone = await sendApns(targets, await localizeCard(card, locale));
+    for (const t of gone) await db.update(pairedDevices).set({ pushToken: null, pushKind: null, pushActivity: null }).where(eq(pairedDevices.pushToken, t));
   }
 }
 

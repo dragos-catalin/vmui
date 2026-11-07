@@ -145,9 +145,22 @@ describe("push registration (P7-03)", () => {
     expect(await row("d-kid")).toMatchObject({ pushKind: null, pushToken: null });
   });
 
+  it("stores an iOS APNs token (lower-cased) with its sandbox flag and Live Activity token (P8-02)", async () => {
+    const r = await call(R.pushRegisterRoute, "vmd_kid", { body: { kind: "apns", token: "AB".repeat(32), sandbox: true, activityToken: "cd".repeat(32) } });
+    expect(r.body).toEqual({ ok: true });
+    expect(await row("d-kid")).toMatchObject({ pushKind: "apns-sandbox", pushToken: "ab".repeat(32), pushActivity: "cd".repeat(32), pushP256dh: null });
+    await call(R.pushRegisterRoute, "vmd_kid", { body: { kind: "apns", token: "ef".repeat(32) } });
+    expect(await row("d-kid")).toMatchObject({ pushKind: "apns", pushToken: "ef".repeat(32), pushActivity: null });
+    for (const token of ["zz".repeat(32), "ab".repeat(10)]) {
+      expect((await call(R.pushRegisterRoute, "vmd_kid", { body: { kind: "apns", token } })).status, token).toBe(400);
+    }
+    await call(R.pushRegisterRoute, "vmd_kid", { body: { kind: "none" } });
+    expect(await row("d-kid")).toMatchObject({ pushKind: null, pushToken: null, pushActivity: null });
+  });
+
   it("config always offers Web Push and hides FCM when the hub has no Firebase app", async () => {
     const r = await call(R.pushConfigRoute, "vmd_guest");
-    expect(r.body).toMatchObject({ webPush: true });
+    expect(r.body).toMatchObject({ webPush: true, apns: false });
     expect(r.body.fcm === null || typeof r.body.fcm === "object").toBe(true);
   });
 });

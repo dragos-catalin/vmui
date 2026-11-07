@@ -1819,8 +1819,8 @@
     "/api/v1/app/push": {
       "get": {
         "operationId": "push",
-        "summary": "How this hub can wake the app: FCM client options and/or Web Push (UnifiedPush)",
-        "description": "fcm is null when the hub has no Firebase project configured; the app then offers UnifiedPush only. webPush is always true (UnifiedPush needs no hub account).\n\nAny household member's paired device; room grants apply.",
+        "summary": "How this hub can wake the app: FCM client options, Web Push (UnifiedPush) and/or Apple Push",
+        "description": "fcm is null when the hub has no Firebase project configured; the app then offers UnifiedPush only. webPush is always true (UnifiedPush needs no hub account). apns is true when the hub can reach Apple Push, with its own key or through the Vatra push relay.\n\nAny household member's paired device; room grants apply.",
         "tags": [
           "app"
         ],
@@ -1878,12 +1878,16 @@
                         "string",
                         "null"
                       ]
+                    },
+                    "apns": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
                     "fcm",
                     "webPush",
-                    "vapidKey"
+                    "vapidKey",
+                    "apns"
                   ],
                   "additionalProperties": false
                 }
@@ -1915,7 +1919,7 @@
       "put": {
         "operationId": "pushRegister",
         "summary": "Register (or clear) how this device is woken",
-        "description": "kind fcm: an FCM registration token. kind unifiedpush: the distributor's https endpoint plus the RFC 8291 receiver keys; private-network endpoints are refused. kind none: stop pushing.\n\nAny household member's paired device; room grants apply.",
+        "description": "kind fcm: an FCM registration token. kind unifiedpush: the distributor's https endpoint plus the RFC 8291 receiver keys; private-network endpoints are refused. kind apns: the iOS app's APNs device token (hex), sandbox for development-signed builds, optionally its Live Activity push-to-start token. kind none: stop pushing.\n\nAny household member's paired device; room grants apply.",
         "tags": [
           "app"
         ],
@@ -1979,6 +1983,42 @@
                       "endpoint",
                       "p256dh",
                       "auth"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "apns"
+                      },
+                      "token": {
+                        "type": "string",
+                        "minLength": 64,
+                        "maxLength": 200,
+                        "pattern": "^[0-9a-fA-F]+$"
+                      },
+                      "sandbox": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "activityToken": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "minLength": 64,
+                            "maxLength": 200,
+                            "pattern": "^[0-9a-fA-F]+$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "token"
                     ]
                   },
                   {

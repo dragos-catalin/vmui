@@ -1003,6 +1003,8 @@ sqlite.exec(`CREATE TABLE IF NOT EXISTS paired_devices (
   if (!cols.has("push_kind")) alterAddColumn("ALTER TABLE paired_devices ADD COLUMN push_kind TEXT");
   if (!cols.has("push_p256dh")) alterAddColumn("ALTER TABLE paired_devices ADD COLUMN push_p256dh TEXT");
   if (!cols.has("push_auth")) alterAddColumn("ALTER TABLE paired_devices ADD COLUMN push_auth TEXT");
+  // P8-02: iOS Live Activity push-to-start token
+  if (!cols.has("push_activity")) alterAddColumn("ALTER TABLE paired_devices ADD COLUMN push_activity TEXT");
 }
 sqlite.exec(`CREATE TABLE IF NOT EXISTS meals (
   id TEXT PRIMARY KEY,
