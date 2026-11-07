@@ -208,6 +208,34 @@ pub fn status(url: &str, id: &str) -> Result<String> {
     Ok(v["status"].as_str().unwrap_or("rejected").to_string())
 }
 
+/// Longest password accepted from the UI before it is sent to the hub.
+pub const MAX_PASSWORD: usize = 200;
+
+/// POST /api/v1/app/account/delete as the paired member. Err carries the hub's localised `error`
+/// (e.g. owner_cannot_delete) so the UI can show it verbatim; falls back to the code or HTTP status.
+pub fn delete_account(url: &str, token: &str, password: &str, lang: &str) -> Result<()> {
+    if password.is_empty() || password.chars().count() > MAX_PASSWORD {
+        return Err(anyhow!("invalid_password"));
+    }
+    if !token.starts_with("vmd_") {
+        return Err(anyhow!("not_bound"));
+    }
+    let lang = if lang == "en" { "en" } else { "ro" };
+    let a: ureq::Agent = ureq::Agent::config_builder().timeout_global(Some(Duration::from_secs(15))).http_status_as_error(false).build().into();
+    let r = a
+        .post(&format!("{url}/api/v1/app/account/delete"))
+        .header("Authorization", &format!("Bearer {token}"))
+        .header("Accept-Language", lang)
+        .send_json(json!({"password": password}))?;
+    let status = r.status().as_u16();
+    let v: Value = r.into_body().read_json().unwrap_or(Value::Null);
+    if (200..300).contains(&status) && v["ok"].as_bool() == Some(true) {
+        return Ok(());
+    }
+    let msg = v["error"].as_str().or_else(|| v["code"].as_str()).map(str::to_string).unwrap_or_else(|| format!("HTTP {status}"));
+    Err(anyhow!(msg))
+}
+
 pub fn device_name() -> String {
     #[cfg(target_os = "android")]
     {

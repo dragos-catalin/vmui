@@ -1,0 +1,3 @@
+# /etc/rugix/bootstrapping.toml (x86): the image already carries every partition; vatra-firstboot
+# grows the data partition to the disk. Rugix only mounts and manages state.
+disabled = true

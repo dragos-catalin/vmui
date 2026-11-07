@@ -1,0 +1,36 @@
+# /etc/rugix/state/vatra.toml (P5-04): what survives reboots and OS updates, on the data partition
+# (/run/rugix/state/persist/...). On the first boot each entry is copied from the system image.
+#:schema https://raw.githubusercontent.com/rugix/rugix/refs/tags/v1.4.0/schemas/rugix-ctrl-state.schema.json
+
+# the hub: compose + .env pins, vmui.db, HA / ESPHome / Mosquitto state, updater config + OS bundles
+[[persist]]
+directory = "/srv/vatra"
+
+# container images and volumes (the image uses the containerd snapshotter)
+[[persist]]
+directory = "/var/lib/docker"
+
+[[persist]]
+directory = "/var/lib/containerd"
+
+# firstboot stamp, setup code, stack status, SSH host keys (sshd_config.d/50-vatra-hostkeys.conf)
+[[persist]]
+directory = "/var/lib/vatra"
+
+[[persist]]
+directory = "/var/lib/systemd/timers"
+
+[[persist]]
+directory = "/var/log/journal"
+
+# wifi profiles from the setup hotspot / vatra-wifi.txt (Pi)
+[[persist]]
+directory = "/etc/NetworkManager/system-connections"
+
+# identity: same hostname and mDNS name after every update (Rugix keeps /etc/machine-id itself,
+# in /run/rugix/state/machine-id, so the DHCP client id stays too)
+[[persist]]
+file = "/etc/hostname"
+
+[[persist]]
+file = "/etc/hosts"

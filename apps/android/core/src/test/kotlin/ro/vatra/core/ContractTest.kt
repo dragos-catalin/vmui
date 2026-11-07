@@ -70,6 +70,10 @@ class ContractTest {
         assertEquals(request("waterAct"), WireJson.encodeToJsonElement(WaterAct.serializer(), WaterAct("drink", 250)))
         assertEquals(request("presence"), WireJson.encodeToJsonElement(ro.vatra.core.model.PresenceReport.serializer(), ro.vatra.core.model.PresenceReport("home", "geofence")))
         assertEquals(
+            request("accountDelete"),
+            WireJson.encodeToJsonElement(ro.vatra.core.model.AccountDeleteRequest.serializer(), ro.vatra.core.model.AccountDeleteRequest("correct horse battery staple")),
+        )
+        assertEquals(
             request("pushRegister"),
             ro.vatra.core.net.HubClient.relayRegistration("apns", "h1.Zm9vYmFyYmF6cXV4cXV1eGNvcmdlZ3JhdWx0", null),
         )
@@ -103,6 +107,7 @@ class ContractTest {
             "pushRegister" to ro.vatra.core.model.RelayRegistered.serializer(),
             "pushCard" to ro.vatra.core.model.Card.serializer(),
             "presence" to ro.vatra.core.model.PresenceResult.serializer(),
+            "accountDelete" to Ok.serializer(),
         )
     }
 }

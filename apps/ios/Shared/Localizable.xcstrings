@@ -341,6 +341,227 @@
         }
       }
     },
+    "account_delete": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete my account"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Șterge-mi contul"
+          }
+        }
+      }
+    },
+    "account_delete_confirm": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete account permanently"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Șterge contul definitiv"
+          }
+        }
+      }
+    },
+    "account_delete_failed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The account could not be deleted. Try again."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contul nu a putut fi șters. Încearcă din nou."
+          }
+        }
+      }
+    },
+    "account_delete_info": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Account deletion info"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Informații despre ștergerea contului"
+          }
+        }
+      }
+    },
+    "account_delete_irreversible": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This cannot be undone. To join this home again you will need a new invite."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Acțiunea nu poate fi anulată. Ca să revii în această casă vei avea nevoie de o invitație nouă."
+          }
+        }
+      }
+    },
+    "account_delete_items": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "• your account and sign-in\\n• your nutrition journal (meals, water, goals)\\n• your AI consent\\n• every device paired to you: this phone, your watch, TV and any other phone"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "• contul tău și datele de autentificare\\n• jurnalul de nutriție (mese, apă, obiective)\\n• consimțământul pentru AI\\n• toate dispozitivele asociate ție: acest telefon, ceasul, televizorul și orice alt telefon"
+          }
+        }
+      }
+    },
+    "account_delete_owner": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The owner deletes the household by resetting the hub."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Proprietarul șterge casa resetând hubul."
+          }
+        }
+      }
+    },
+    "account_delete_page": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Account deletion"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ștergerea contului"
+          }
+        }
+      }
+    },
+    "account_delete_password": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your password"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parola ta"
+          }
+        }
+      }
+    },
+    "account_delete_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete your account?"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Îți ștergi contul?"
+          }
+        }
+      }
+    },
+    "account_delete_warning": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This deletes your account in %1$@: your sign-in, your paired phones and watches, your room access, your meals, water and nutrition profile, and your notifications. The house, its devices and the other members stay. This cannot be undone."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Asta îți șterge contul din %1$@: datele de conectare, telefoanele și ceasurile asociate, accesul la camere, mesele, apa și profilul de nutriție, și notificările tale. Casa, dispozitivele și ceilalți membri rămân. Nu se poate anula."
+          }
+        }
+      }
+    },
+    "account_owner_note": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You are the owner of this home. The owner deletes the household by resetting the hub."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ești proprietarul acestei case. Proprietarul șterge gospodăria resetând hubul."
+          }
+        }
+      }
+    },
+    "account_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your account"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contul tău"
+          }
+        }
+      }
+    },
     "add_address": {
       "extractionState": "manual",
       "localizations": {
@@ -1612,6 +1833,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sosire și plecare de acasă"
+          }
+        }
+      }
+    },
+    "privacy_policy": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Privacy policy"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Politica de confidențialitate"
           }
         }
       }

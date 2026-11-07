@@ -23,6 +23,7 @@ import { HubBackupCard } from "./hub-backup-card";
 import { BootScriptsCard } from "./boot-scripts-card";
 import { ChangePasswordCard } from "./change-password-card";
 import { CodaiCard } from "./codai-card";
+import { DeleteAccountCard } from "./delete-account-card";
 import { KnownHostsCard } from "./known-hosts-card";
 import { PasskeysCard } from "./passkeys-card";
 import { QuietHoursPanel } from "./quiet-hours-panel";
@@ -316,6 +317,7 @@ function Shortcuts() {
 
 function SecuritySection({ authEnabled }: { authEnabled: boolean }) {
   const t = useTranslations("settings");
+  const tl = useTranslations("legal.accountCard");
   if (!authEnabled) {
     return (
       <PageSection title={t("nav.security.title")}>
@@ -346,6 +348,9 @@ function SecuritySection({ authEnabled }: { authEnabled: boolean }) {
       </PageSection>
       <PageSection title={t("security.sessions.title")} description={t("security.sessions.description")}>
         <SessionsCard />
+      </PageSection>
+      <PageSection title={tl("title")} description={tl("description")}>
+        <DeleteAccountCard />
       </PageSection>
     </>
   );

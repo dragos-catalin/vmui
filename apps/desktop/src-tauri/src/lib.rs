@@ -90,6 +90,18 @@ mod mobile_cmds {
     pub async fn conn_clear() {
         let _ = mobile::set_conn(mobile::Conn::default());
     }
+    /// Delete the paired member's account on the hub, then forget the connection.
+    #[tauri::command]
+    pub async fn account_delete(password: String, lang: Option<String>) -> Result<(), String> {
+        if password.is_empty() || password.chars().count() > crate::pairing::MAX_PASSWORD {
+            return Err("invalid_password".into());
+        }
+        let c = mobile::conn().map_err(|_| "not_bound".to_string())?;
+        let l = lang.unwrap_or_default();
+        tauri::async_runtime::spawn_blocking(move || crate::pairing::delete_account(&c.url, &c.token, &password, &l)).await.map_err(|e| e.to_string())?.map_err(|e| e.to_string())?;
+        let _ = mobile::set_conn(mobile::Conn::default());
+        Ok(())
+    }
     #[tauri::command]
     pub async fn discover() -> Vec<crate::pairing::Found> {
         tauri::async_runtime::spawn_blocking(crate::pairing::discover).await.unwrap_or_default()
@@ -156,7 +168,7 @@ pub fn run() {
             mobile_cmds::init(app);
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![health, vmui_get, vmui_send, ambilight_mode, pc_action, hyper_send, hyper_instances, app_info, conn_get, apk_link, conn_set, conn_clear, discover, pair_request, pair_login, pair_wait, tasks, pending_link])
+        .invoke_handler(tauri::generate_handler![health, vmui_get, vmui_send, ambilight_mode, pc_action, hyper_send, hyper_instances, app_info, conn_get, apk_link, conn_set, conn_clear, account_delete, discover, pair_request, pair_login, pair_wait, tasks, pending_link])
         .run(tauri::generate_context!())
         .expect("vmui mobile");
 }

@@ -36,6 +36,8 @@ export const api = {
   vmuiSend: <T = unknown>(method: "POST" | "PUT", path: string, body: unknown) => invoke<T>("vmui_send", { method, path, body }),
   appInfo: () => invoke<{ root: string; vmui: string; haUrl: string; displayUrl: string; version: string; dev?: boolean; paired?: boolean }>("app_info"),
   connClear: () => invoke<void>("conn_clear"),
+  /** Deletes the paired member's account on the hub, then forgets the pairing. Rejects with the hub's localised text. */
+  accountDelete: (password: string, lang: "ro" | "en") => invoke<void>("account_delete", { password, lang }),
   lightsGet: () => invoke<LightsPayload>("lights_get"),
   lightsOp: <T = unknown>(body: Record<string, unknown>) => invoke<T>("lights_op", { body }),
   bleScan: (seconds = 8) => invoke<Discovered[]>("ble_scan", { seconds }),

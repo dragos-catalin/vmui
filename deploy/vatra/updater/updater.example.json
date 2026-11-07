@@ -3,5 +3,7 @@
   "repo": "dragos-catalin/vmui",
   "verify": "keyless",
   "keep_snapshots": 3,
-  "health_timeout": { "default": 240, "HA_IMAGE": 900 }
+  "health_timeout": { "default": 240, "HA_IMAGE": 900 },
+  "os_reboot_window": "02:00-06:00",
+  "os_health_timeout": 600
 }

@@ -23,6 +23,9 @@ apt-get install -y -qq --no-install-recommends docker-ce docker-ce-cli container
 rm -rf /tmp/vatra-src; mkdir -p /tmp/vatra-src
 tar -xf /tmp/vatra-payload.tar -C /tmp/vatra-src
 bash /tmp/vatra-src/src/deploy/vatra/hub-install.sh --root / --arch amd64 --bake /tmp/vatra-src/bake --platform x86
+if [ "${VATRA_AB:-0}" = 1 ]; then
+  bash /tmp/vatra-src/src/deploy/vatra/os/rootfs-ab.sh --platform x86 --version "${VATRA_VERSION:?}" --src /tmp/vatra-src/src
+fi
 systemctl enable qemu-guest-agent.service vatra-bootnote.service >/dev/null 2>&1 || true
 # console shows the address + setup code (agetty reads /etc/issue.d)
 install -d /etc/issue.d

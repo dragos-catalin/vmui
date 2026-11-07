@@ -1,0 +1,5 @@
+#!/bin/sh
+# vatra-os-health (P5-04): on a slot that is only being tried, wait for docker + a healthy vatra
+# container + /api/discover, then `rugix-ctrl system commit`; otherwise reboot uncommitted and the
+# bootloader returns to the committed slot. Logic and tests: vatra_updater.py os-health.
+exec /usr/bin/python3 /opt/vatra/updater/vatra_updater.py os-health "$@"

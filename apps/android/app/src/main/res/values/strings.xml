@@ -79,4 +79,14 @@
     <string name="widget_label">Vatra home</string>
     <string name="widget_lights">%1$d lights on</string>
     <string name="tile_label">Movie lights</string>
+    <string name="account_title">Account and privacy</string>
+    <string name="privacy_policy">Privacy policy</string>
+    <string name="account_delete_info">Account deletion info</string>
+    <string name="account_delete">Delete my account</string>
+    <string name="account_owner_note">You are the owner of this home. The owner deletes the household by resetting the hub.</string>
+    <string name="account_delete_title">Delete your account?</string>
+    <string name="account_delete_warning">Your account on this home\'s hub will be erased. The hub deletes:</string>
+    <string name="account_delete_items">• your account and sign-in\n• your nutrition journal (meals, water, goals)\n• your AI consent\n• every device paired to you: this phone, your watch, TV and any other phone</string>
+    <string name="account_delete_irreversible">This cannot be undone. To join this home again you will need a new invite.</string>
+    <string name="account_delete_confirm">Delete my account</string>
 </resources>

@@ -1,0 +1,18 @@
+[Unit]
+Description=Vatra A/B (Pi): config partition writable at /boot/firmware (setup note, vatra-wifi.txt)
+# Rugix mounts partition 1 read-only at /run/rugix/mounts/config; a second mount of the same FAT
+# with other flags is refused (EBUSY), so the existing mount is made rw and bind-mounted.
+DefaultDependencies=no
+After=local-fs-pre.target
+Before=local-fs.target vatra-firstboot.service vatra-netsetup.service vatra-bootnote.service
+ConditionPathIsMountPoint=/run/rugix/mounts/config
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/mount -o remount,rw /run/rugix/mounts/config
+ExecStart=/bin/mkdir -p /boot/firmware
+ExecStart=/bin/mount --bind /run/rugix/mounts/config /boot/firmware
+
+[Install]
+WantedBy=local-fs.target

@@ -1,0 +1,17 @@
+[Unit]
+Description=Vatra A/B OS health: commit the slot being tried, or reboot back to the committed one
+Documentation=file:///opt/vatra/updater/vatra_updater.py
+After=docker.service vatra-firstboot.service vatra-stack.service
+Wants=docker.service
+ConditionPathExists=/etc/vatra-os-release
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/opt/vatra/bin/vatra-os-health
+# 2 = this boot fell back to the committed slot (reported in update-status.json): not a failure
+SuccessExitStatus=2
+TimeoutStartSec=30min
+
+[Install]
+WantedBy=multi-user.target

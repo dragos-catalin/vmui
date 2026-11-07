@@ -1,0 +1,12 @@
+[Unit]
+Description=Vatra A/B (x86): the ESP (Rugix config partition) at /efi for bootctl
+ConditionPathIsMountPoint=/run/rugix/mounts/config
+
+[Mount]
+What=/run/rugix/mounts/config
+Where=/efi
+Type=none
+Options=bind
+
+[Install]
+WantedBy=local-fs.target

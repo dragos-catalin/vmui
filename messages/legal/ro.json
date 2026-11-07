@@ -1,0 +1,193 @@
+{
+  "draft": "Ciornă pentru verificare juridică. Nu este consultanță juridică.",
+  "placeholder": "Valoare provizorie: editorul trebuie să o confirme înainte de lansarea în magazine.",
+  "updated": "Ultima actualizare: {date}",
+  "nav": {
+    "label": "Pagini legale",
+    "privacy": "Confidențialitate",
+    "legal": "Contact și informații legale",
+    "licenses": "Licențe",
+    "deleteAccount": "Ștergerea contului"
+  },
+  "privacy": {
+    "metaTitle": "Confidențialitate",
+    "title": "Confidențialitatea pe acest hub",
+    "description": "Vatra rulează în casa ta. Datele gospodăriei rămân pe acest hub, cu excepția cazului în care proprietarul pornește o funcție care are nevoie de internet.",
+    "controller": {
+      "title": "Cine răspunde",
+      "body": "Persoana care a instalat acest hub (proprietarul) decide ce se păstrează și cine îl folosește. Pentru datele ținute doar pe hub, proprietarul este operatorul. Editorul Vatra, {publisher}, nu primește niciodată aceste date. Editorul răspunde doar de serviciile opționale Vatra Cloud descrise mai jos."
+    },
+    "local": {
+      "title": "Ce păstrează acest hub",
+      "items": [
+        "Conturi: nume, e-mail, hash-ul parolei (scrypt), passkey-uri, secrete 2FA (criptate), sesiuni și preferințe de limbă și aspect.",
+        "Gospodăria: roluri în familie, permisiuni pe camere, invitații, telefoane și calculatoare asociate (nume, platformă, ultimul IP, tokenuri de notificare).",
+        "Casa: dispozitivele și stările din Home Assistant, scene, evenimente de la ușă și interfon, notificări și istoricul lor.",
+        "Jurnalul de nutriție și apă al fiecărui membru, dacă îl folosește: mese, macronutrienți, note și mesajele antrenorului.",
+        "Mașini: conturi și credențiale ale furnizorilor cloud (criptate cu cheia principală a hubului), inventarul de VM-uri, înregistrările de terminal pornite de tine.",
+        "Jurnal de securitate: cine, ce, când și cu ce rezultat. Intrările mai vechi de 30 de zile sunt mutate într-o arhivă comprimată pe hub."
+      ]
+    },
+    "leaves": {
+      "title": "Ce iese de pe hub, și doar dacă e pornit",
+      "items": [
+        "Acces de la distanță Vatra Cloud (oprit implicit): un releu criptat trimite conexiunile spre hub. Releul vede id-ul hubului, adresa IP a clientului și momentele conexiunii, niciodată conținutul (TLS cap la cap, cheia certificatului rămâne pe hub).",
+        "Certificate Vatra Cloud: pentru certificatul [id hub].vatra.dragoscatalin.ro, hubul trimite o valoare de verificare DNS de unică folosință prin proxy-ul Vatra către furnizorul DNS.",
+        "Notificări pe telefon: prin Apple Push Notification service, Google Firebase Cloud Messaging sau un server UnifiedPush ales de tine. Cu releul de notificări Vatra Cloud, cardul e criptat cap la cap pentru fiecare dispozitiv; releul, Apple și Google văd doar tokenul (într-un identificator opac), id-ul hubului, id-ul cardului, tipul, prioritatea și momentul.",
+        "Asistentul AI (oprit până accepți notificarea AI): întrebarea ta, conversația și rezultatele uneltelor necesare merg la serverul de modele Ollama setat în VMUI_OLLAMA_URL (implicit pe acest calculator, deci nu iese nimic). Antrenorul de nutriție: când proprietarul adaugă o cheie codai și a acceptat notificarea, totalurile din jurnal (fără nume) merg la gateway-ul codai (ai.codai.ro) pentru a formula un sfat pe zi. Vezi secțiunea AI.",
+        "Furnizorii cloud pe care îi conectezi (AWS, Azure, Google Cloud, Scaleway): hubul le apelează API-urile cu credențialele tale.",
+        "Actualizări: actualizatorul verifică lista publică de versiuni pe GitHub (GitHub vede adresa IP a hubului)."
+      ]
+    },
+    "ai": {
+      "title": "Funcții AI",
+      "body": "Răspunsurile AI sunt generate de un model de limbaj și pot greși. Înainte de prima folosire ți se cere acordul; îl poți retrage oricând din pagina AI. Fără acordul tău hubul nu trimite nimic unui furnizor AI."
+    },
+    "retention": {
+      "title": "Cât timp se păstrează datele",
+      "body": "Datele rămân pe hub până când un membru sau proprietarul le șterge. Sesiunile expiră după 30 de zile. Jurnalul de securitate păstrează 30 de zile active, apoi o arhivă pe hub. Serviciile Vatra Cloud nu păstrează conținutul mesajelor; contoarele de limitare stau în memorie o zi."
+    },
+    "rights": {
+      "title": "Export și ștergere",
+      "body": "Membrii își pot șterge singuri contul la /account/delete pe acest hub (administratorii și din Setări › Securitate). Proprietarul poate exporta tot hubul ca backup criptat (Setări › Backup) și poate elimina membri. Pentru a șterge tot, resetează hubul (șterge volumul de date sau reinstalează imaginea). Întrebări despre Vatra Cloud: {email}."
+    },
+    "complaint": "Poți depune și o plângere la autoritatea de protecție a datelor; în România aceasta este ANSPDCP (www.dataprotection.ro).",
+    "more": "Politicile complete pentru aplicațiile mobile și desktop și pentru Vatra Cloud sunt în docs/legal din codul sursă."
+  },
+  "legal": {
+    "metaTitle": "Contact și informații legale",
+    "title": "Contact și informații legale",
+    "description": "Cine publică Vatra și cum ne poți contacta.",
+    "publisher": {
+      "title": "Editor",
+      "name": "Nume",
+      "country": "Țară",
+      "postal": "Adresă poștală",
+      "phone": "Telefon",
+      "note": "Vatra este publicată de un dezvoltator persoană fizică, nu de o firmă."
+    },
+    "contact": {
+      "title": "Puncte de contact",
+      "privacy": "Confidențialitate și cereri privind datele",
+      "security": "Vulnerabilități de securitate",
+      "authorities": "Punct de contact pentru autorități (Regulamentul privind serviciile digitale, art. 11) și pentru utilizatori (art. 12)",
+      "languages": "Limbi: engleză și română."
+    },
+    "hub": {
+      "title": "Acest hub",
+      "body": "Acest hub este administrat de proprietarul lui, nu de editor. Pentru orice legat de conturi sau date pe acest hub, întreabă persoana care te-a invitat."
+    },
+    "dsa": {
+      "title": "Regulamentul privind serviciile digitale",
+      "body": "Vatra Cloud transmite trafic criptat și nu găzduiește conținut public. Coordonatorul serviciilor digitale din România este ANCOM."
+    }
+  },
+  "licenses": {
+    "metaTitle": "Licențe",
+    "title": "Licențe și cod sursă",
+    "description": "Vatra este software liber. Îl poți folosi, studia, distribui și modifica.",
+    "agpl": {
+      "title": "GNU Affero General Public License v3.0",
+      "body": "Software-ul hubului este licențiat sub AGPL-3.0. Dacă rulezi o versiune modificată și o pui la dispoziția altora prin rețea, trebuie să le oferi codul ei sursă. Programul vine FĂRĂ NICIO GARANȚIE, în măsura permisă de lege.",
+      "full": "Citește licența"
+    },
+    "source": {
+      "title": "Codul sursă al acestui hub",
+      "link": "Obține codul sursă",
+      "version": "Versiune",
+      "commit": "Commit",
+      "unknown": "neînregistrat"
+    },
+    "other": {
+      "title": "Alte componente",
+      "body": "Firmware-ul ESP32 și SDK-urile sunt sub licența MIT. Aplicațiile native sunt publicate separat."
+    },
+    "third": {
+      "title": "Software de la terți",
+      "body": "{count} pachete open-source sunt incluse în acest hub, grupate pe licență.",
+      "missing": "Fișierul NOTICE.md nu a fost găsit pe acest hub.",
+      "group": "{license} ({count})",
+      "source": "sursă"
+    }
+  },
+  "deleteAccount": {
+    "metaTitle": "Ștergerea contului",
+    "title": "Șterge-ți contul Vatra",
+    "description": "Contul tău există pe hubul gospodăriei, nu pe serverele Vatra. Iată cum îl ștergi și ce se elimină.",
+    "hub": {
+      "title": "Pe hub (web)",
+      "steps": [
+        "Autentifică-te pe hub.",
+        "Deschide [adresa hubului]/account/delete (administratorii o găsesc și în Setări › Securitate).",
+        "La Ștergerea contului, introdu parola și confirmă."
+      ]
+    },
+    "apps": {
+      "title": "În aplicațiile Android, iOS și Windows",
+      "body": "Aplicațiile nu au un cont separat: acționează în numele contului tău de pe hub. Ca să-l ștergi, deschide hubul într-un browser (adresa cu care ai asociat aplicația) și urmează pașii de mai sus. Ca să deconectezi doar un telefon sau un calculator, folosește Uită (Android, iOS) sau Deconectează (Windows); proprietarul poate revoca un dispozitiv și din Acasă › Dispozitive asociate."
+    },
+    "owner": {
+      "title": "Dacă ești proprietarul hubului",
+      "body": "Proprietarul nu își poate șterge contul, pentru că hubul ar rămâne fără nimeni care să-l administreze. Transferă întâi proprietatea unui alt adult sau resetează hubul: șterge volumul de date sau reinstalează imaginea. Tot ce e pe hub se șterge."
+    },
+    "email": {
+      "title": "Prin e-mail",
+      "body": "Dacă nu te mai poți autentifica, roagă proprietarul hubului să te elimine (Acasă › Setări › Familie). Pentru datele Vatra Cloud (identificatori de notificare, înregistrări ale releului), scrie la {email} de pe adresa contului. Răspundem în cel mult o lună."
+    },
+    "deleted": {
+      "title": "Ce se șterge",
+      "items": [
+        "Contul tău: nume, e-mail, parolă, passkey-uri, setări 2FA, sesiuni și preferințe.",
+        "Calitatea de membru al gospodăriei și permisiunile pe camere.",
+        "Jurnalul de nutriție și apă și acordul pentru AI.",
+        "Telefoanele și calculatoarele asociate sunt revocate, iar tokenurile de notificare și cheile lor de criptare sunt șterse."
+      ]
+    },
+    "kept": {
+      "title": "Ce se păstrează",
+      "body": "Jurnalul de securitate păstrează o linie că un cont a fost șters (id-ul contului, momentul), 30 de zile activ, apoi în arhiva hubului. Ce ai creat pentru toată gospodăria (scene, camere, programări) rămâne, fără numele tău."
+    }
+  },
+  "accountCard": {
+    "title": "Ștergerea contului",
+    "description": "Elimină contul și datele tale personale de pe acest hub.",
+    "body": "Contul, jurnalul, calitatea de membru și dispozitivele asociate sunt eliminate. Acțiunea nu poate fi anulată.",
+    "password": "Parola actuală",
+    "submit": "Șterge-mi contul",
+    "confirmTitle": "Îți ștergi contul?",
+    "confirmBody": "Vei fi deconectat, iar datele tale de pe acest hub vor fi șterse. Acțiunea nu poate fi anulată.",
+    "confirm": "Șterge contul",
+    "deleted": "Contul tău a fost șters.",
+    "learnMore": "Ce se șterge",
+    "ownerTitle": "Proprietarul nu își poate șterge contul",
+    "ownerBody": "Transferă proprietatea unui alt adult sau resetează hubul ca să ștergi tot.",
+    "lastAdminTitle": "Ești ultimul administrator",
+    "lastAdminBody": "Fă întâi alt cont administrator.",
+    "errors": {
+      "generic": "Contul nu a putut fi șters. Încearcă din nou.",
+      "password": "Introdu parola actuală.",
+      "wrongPassword": "Parola nu este corectă.",
+      "rateLimited": "Prea multe încercări. Încearcă din nou peste 15 minute.",
+      "owner": "Proprietarul gospodăriei nu își poate șterge contul. Transferă proprietatea sau resetează hubul.",
+      "lastAdmin": "Ești ultimul administrator. Fă întâi alt cont administrator."
+    }
+  },
+  "ai": {
+    "badge": "Generat de AI",
+    "consentTitle": "Înainte să folosești asistentul AI",
+    "consentIntro": "Răspunsurile vin de la un model de limbaj AI, nu de la o persoană. Pot greși: verifică-le înainte să acționezi.",
+    "consentSent": "Când trimiți un mesaj, hubul trimite întrebarea ta, conversația de până atunci și rezultatele uneltelor pe care le folosește (de exemplu nume de VM-uri, costuri, intrări din jurnal) serviciului AI configurat pe acest hub.",
+    "consentRoute": "Traseu: {route}.",
+    "consentCoach": "Antrenorul de nutriție folosește și el AI pentru a formula sfatul zilnic, doar din totalurile jurnalului (fără nume).",
+    "consentOff": "Poți opri AI oricând din această pagină. Fără acordul tău nu se trimite nimic.",
+    "accept": "Pornește AI",
+    "decline": "Nu acum",
+    "on": "AI este pornit",
+    "turnOff": "Oprește AI",
+    "off": "AI este oprit. Pornește-l ca să conversezi.",
+    "turnedOn": "AI a fost pornit.",
+    "turnedOff": "AI a fost oprit. Nu se mai trimite nimic.",
+    "privacy": "Confidențialitate",
+    "required": "Pornește întâi AI: acceptă notificarea de mai sus."
+  }
+}

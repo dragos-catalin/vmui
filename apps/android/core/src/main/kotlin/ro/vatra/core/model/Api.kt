@@ -136,6 +136,10 @@ data class Ok(val ok: Boolean = true)
 @Serializable
 data class CardAct(val id: String, val action: String)
 
+/** POST /api/v1/app/account/delete: a non-owner member erases their own account (re-authenticated by password). */
+@Serializable
+data class AccountDeleteRequest(val password: String)
+
 /** POST /api/v1/app/presence. */
 @Serializable
 data class PresenceReport(val state: String, val source: String = "geofence")

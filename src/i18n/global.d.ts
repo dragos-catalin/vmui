@@ -21,6 +21,7 @@ import type ops from "../../messages/ops/en.json";
 import type cloud from "../../messages/cloud/en.json";
 import type setup from "../../messages/setup/en.json";
 import type vatraCloud from "../../messages/vatraCloud/en.json";
+import type legal from "../../messages/legal/en.json";
 import type { LOCALES } from "./config";
 
 declare module "next-intl" {
@@ -49,6 +50,7 @@ declare module "next-intl" {
       misc: typeof misc;
       setup: typeof setup;
       vatraCloud: typeof vatraCloud;
+      legal: typeof legal;
     };
   }
 }

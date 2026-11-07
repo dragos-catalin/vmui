@@ -1,5 +1,6 @@
 "use client";
 
+import { AiConsentPanel, useAiConsent } from "@/components/ai/ai-consent";
 import { LogViewer } from "@/components/ops/log-viewer";
 import { Alert, Badge, Button, EmptyState, PageHeader, PageSection, PageShell, Skeleton, Textarea } from "@/components/ui";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,9 @@ const SUGGESTIONS = ["idle", "lastHour", "cost", "recommend"] as const;
 export function AgentChat() {
   const t = useTranslations("ops.ai");
   const tc = useTranslations("common");
+  const tl = useTranslations("legal.ai");
+  const [consent, setConsent] = useAiConsent();
+  const allowed = !!consent?.granted;
   const [msgs, setMsgs] = useState<UiMsg[]>([]);
   const [input, setInput] = useState("");
   const [status, setStatus] = useState<Status | null>(null);
@@ -49,7 +53,7 @@ export function AgentChat() {
 
   const send = (text?: string) => {
     const message = (text ?? input).trim();
-    if (!message) return;
+    if (!message || !allowed) return;
     setInput("");
     const userMsg: UiMsg = { role: "user", content: message };
     setMsgs((m) => [...m, userMsg]);
@@ -57,7 +61,8 @@ export function AgentChat() {
       const history = msgs.map((m) => ({ role: m.role, content: m.content, tool_name: m.tool }));
       const r = await askAgentAction({ message, history });
       if (!r.ok) {
-        setMsgs((m) => [...m, { role: "assistant", content: t("errorPrefix", { error: r.error }) }]);
+        if (r.error === "ai_consent_required") setConsent((c) => (c ? { ...c, granted: false } : c));
+        setMsgs((m) => [...m, { role: "assistant", content: r.error === "ai_consent_required" ? tl("required") : t("errorPrefix", { error: r.error }) }]);
         return;
       }
       const newOnes = r.messages.slice(history.length + 1) as UiMsg[];
@@ -94,6 +99,8 @@ export function AgentChat() {
         }
       />
 
+      <AiConsentPanel state={consent} onChange={setConsent} />
+
       {status && !status.ok && (
         <Alert tone="danger" title={t("status.unreachable", { url: status.url })}>
           {status.error}
@@ -114,7 +121,7 @@ export function AgentChat() {
               title={t("empty.title")}
               description={t("empty.description")}
               action={SUGGESTIONS.map((s) => (
-                <Button key={s} size="sm" variant="secondary" onClick={() => send(t(`suggestions.${s}`))} disabled={!status?.ok}>
+                <Button key={s} size="sm" variant="secondary" onClick={() => send(t(`suggestions.${s}`))} disabled={!status?.ok || !allowed}>
                   {t(`suggestions.${s}`)}
                 </Button>
               ))}
@@ -151,13 +158,13 @@ export function AgentChat() {
                 send();
               }
             }}
-            placeholder={t("placeholder")}
+            placeholder={allowed ? t("placeholder") : tl("off")}
             aria-label={t("placeholder")}
             rows={2}
             className="min-h-11 flex-1 resize-none"
-            disabled={pending}
+            disabled={pending || !allowed}
           />
-          <Button type="submit" loading={pending} disabled={!input.trim()} className="min-h-11 sm:min-h-9">
+          <Button type="submit" loading={pending} disabled={!input.trim() || !allowed} className="min-h-11 sm:min-h-9">
             <Send className="size-4" aria-hidden />
             {t("send")}
           </Button>
@@ -170,6 +177,7 @@ export function AgentChat() {
 
 function Bubble({ m }: { m: UiMsg }) {
   const t = useTranslations("ops.ai");
+  const tl = useTranslations("legal.ai");
   if (m.role === "tool") return <ToolResult m={m} />;
   const isUser = m.role === "user";
   const Icon = isUser ? User : Bot;
@@ -188,6 +196,7 @@ function Bubble({ m }: { m: UiMsg }) {
       >
         <span className="sr-only">{isUser ? t("roles.user") : t("roles.assistant")}</span>
         <p className="whitespace-pre-wrap break-words">{m.content}</p>
+        {!isUser && <p className="mt-1 text-2xs text-fg-muted">{tl("badge")}</p>}
       </div>
     </div>
   );

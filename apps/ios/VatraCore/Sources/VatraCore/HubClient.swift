@@ -110,6 +110,12 @@ public struct HubClient: Sendable {
     return r.map(\.card)
   }
 
+  /// Deletes the paired member's account on this hub. Refusals: owner_cannot_delete 409, wrong_password 403,
+  /// not_bound 403, rate_limited 429, demo_readonly 403 (message localised by the hub).
+  public func deleteAccount(password: String) async -> ApiResult<Ok> {
+    await send("POST", "/api/v1/app/account/delete", Wire.encode(AccountDelete(password: password)))
+  }
+
   public func pair(_ req: PairRequest) async -> ApiResult<PairResponse> {
     await send("POST", "/api/devices/pair", Wire.encode(req), auth: false)
   }

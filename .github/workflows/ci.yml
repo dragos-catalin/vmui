@@ -31,6 +31,8 @@ jobs:
     uses: dragos-catalin/workflows/.github/workflows/node-ci.yml@v1
     with:
       tasks: lint typecheck test
+      # P11-01: NOTICE.md must match the production tree and every licence must be allowed
+      extra: node scripts/notice.mjs --check
   security:
     uses: dragos-catalin/workflows/.github/workflows/security.yml@v1
     with:

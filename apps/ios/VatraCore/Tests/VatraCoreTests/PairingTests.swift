@@ -130,6 +130,28 @@ final class PairingTests: XCTestCase {
     XCTAssertEqual(Stub.seen.count, 1)
   }
 
+  func testDeleteAccountPostsThePasswordWithTheDeviceToken() async throws {
+    Stub.reset([(200, #"{"ok":true}"#)])
+    let c = HubClient(baseUrl: url, token: "vmd_x", language: "ro", session: Stub.session)
+    let r = await c.deleteAccount(password: "pw 1")
+    XCTAssertEqual(r, .ok(Ok()))
+    let req = try XCTUnwrap(Stub.seen.first)
+    XCTAssertEqual(req.request.httpMethod, "POST")
+    XCTAssertEqual(req.request.url?.path, "/api/v1/app/account/delete")
+    XCTAssertEqual(req.request.value(forHTTPHeaderField: "Authorization"), "Bearer vmd_x")
+    XCTAssertEqual(req.body, #"{"password":"pw 1"}"#)
+  }
+
+  func testDeleteAccountOwnerRefusalCarriesTheHubText() async {
+    Stub.reset([(409, #"{"ok":false,"code":"owner_cannot_delete","error":"Proprietarul șterge casa resetând hubul"}"#)])
+    let c = HubClient(baseUrl: url, token: "vmd_x", session: Stub.session)
+    let r = await c.deleteAccount(password: "pw")
+    XCTAssertEqual(r, .refused(status: 409, code: "owner_cannot_delete", message: "Proprietarul șterge casa resetând hubul"))
+    Stub.reset([(403, #"{"ok":false,"code":"wrong_password","error":"Wrong password"}"#)])
+    let w = await c.deleteAccount(password: "x")
+    XCTAssertEqual(w, .refused(status: 403, code: "wrong_password", message: "Wrong password"))
+  }
+
   func testClientMapsOfflineAndTooOld() async {
     Stub.reset([(200, me.replacingOccurrences(of: #""minClient":1"#, with: #""minClient":5"#))])
     let c = HubClient(baseUrl: url, token: "vmd_x", session: Stub.session)

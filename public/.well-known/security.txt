@@ -1,0 +1,7 @@
+# Vatra hub — RFC 9116 security contact. security@ is a placeholder the publisher may change.
+# Served by every hub; the canonical copy is the one on the publisher's site.
+Contact: mailto:security@dragoscatalin.ro
+Expires: 2027-11-07T00:00:00.000Z
+Policy: https://github.com/dragoscatalin/vatra/blob/main/SECURITY.md
+Preferred-Languages: en, ro
+Canonical: https://vatra.dragoscatalin.ro/.well-known/security.txt

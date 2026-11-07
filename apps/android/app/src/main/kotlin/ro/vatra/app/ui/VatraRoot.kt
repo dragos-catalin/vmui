@@ -39,6 +39,7 @@ private enum class Tab(val label: Int) { Home(R.string.tab_home), Lights(R.strin
 fun VatraRoot(model: HomeModel, invite: PairLink?, onInviteUsed: () -> Unit) {
     val ui by model.ui.collectAsStateWithLifecycle()
     var adding by rememberSaveable { mutableStateOf(false) }
+    var deleting by rememberSaveable { mutableStateOf(false) }
     var tab by rememberSaveable { mutableStateOf(Tab.Home) }
     val snack = remember { SnackbarHostState() }
 
@@ -58,6 +59,24 @@ fun VatraRoot(model: HomeModel, invite: PairLink?, onInviteUsed: () -> Unit) {
                 onInviteUsed()
             },
         )
+        return
+    }
+
+    val activeHub = ui.hub
+    if (deleting && activeHub != null) {
+        Scaffold { pad ->
+            Box(Modifier.fillMaxSize().padding(pad)) {
+                DeleteAccountScreen(
+                    hub = activeHub,
+                    onCancel = { deleting = false },
+                    onDeleted = {
+                        deleting = false
+                        tab = Tab.Home
+                        adding = true
+                    },
+                )
+            }
+        }
         return
     }
 
@@ -97,7 +116,7 @@ fun VatraRoot(model: HomeModel, invite: PairLink?, onInviteUsed: () -> Unit) {
                     Tab.Home -> HomeScreen(ui, model)
                     Tab.Lights -> LightsScreen(ui, model)
                     Tab.Alerts -> AlertsScreen(ui, model)
-                    Tab.Settings -> SettingsScreen(ui, onAddHub = { adding = true })
+                    Tab.Settings -> SettingsScreen(ui, onAddHub = { adding = true }, onDeleteAccount = { deleting = true })
                 }
             }
         }

@@ -131,10 +131,30 @@ final class AppModel {
       let c = VatraEnv.client(h)
       Task { _ = await c.registerPush(.none) }
     }
+    dropLocally(id)
+  }
+
+  private func dropLocally(_ id: String) {
     hubs = VatraEnv.store.update { $0.remove(id) }
     VatraEnv.pushKeys.remove(hub: id)
     resetHubState()
     start()
+  }
+
+  /// Deletes this member's account on the active hub. On success the hub is forgotten here (token, push key)
+  /// and the add-hub screen opens; on refusal returns the hub's localised text.
+  func deleteAccount(password: String) async -> String? {
+    guard let h = hub else { return nil }
+    switch await VatraEnv.client(h).deleteAccount(password: password) {
+    case .ok:
+      dropLocally(h.id)
+      adding = true
+      Task { await Push.refresh() }
+      return nil
+    case .refused(_, let code, let m): return m.isEmpty ? code : m
+    case .offline: return L("hub_offline")
+    case .tooOld: return L("account_delete_failed")
+    }
   }
 
   private func resetHubState() {

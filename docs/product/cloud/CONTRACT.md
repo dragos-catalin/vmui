@@ -5,13 +5,13 @@ hub in `src/lib/cloud/`, Android, iOS) follows this file; change it here first.
 
 ## Names and config
 
-| Value | Default | Where |
-| ----- | ------- | ----- |
-| `VATRA_CLOUD_DOMAIN` | `vatra.dragoscatalin.ro` | hub + every service. Hub public name = `<hubId>.<domain>` |
-| `VATRA_CLOUD_API` | `https://push.<domain>` | hub: push relay + relay-token issuer |
-| `VATRA_CLOUD_ACME` | `https://acme.<domain>` | hub: ACME DNS-01 proxy |
-| `VATRA_CLOUD_RELAY` | `relay.<domain>:8443` | hub: SNI relay control channel |
-| `VATRA_CLOUD_RELAY_PIN` | (set by the service) | sha256 of the relay's TLS SPKI, base64url; the hub pins it |
+| Value                   | Default                  | Where                                                      |
+| ----------------------- | ------------------------ | ---------------------------------------------------------- |
+| `VATRA_CLOUD_DOMAIN`    | `vatra.dragoscatalin.ro` | hub + every service. Hub public name = `<hubId>.<domain>`  |
+| `VATRA_CLOUD_API`       | `https://push.<domain>`  | hub: push relay + relay-token issuer                       |
+| `VATRA_CLOUD_ACME`      | `https://acme.<domain>`  | hub: ACME DNS-01 proxy                                     |
+| `VATRA_CLOUD_RELAY`     | `relay.<domain>:8443`    | hub: SNI relay control channel                             |
+| `VATRA_CLOUD_RELAY_PIN` | (set by the service)     | sha256 of the relay's TLS SPKI, base64url; the hub pins it |
 
 Until DNS names exist the services also answer on their `*.run.app` / static IP; the hub only needs the
 four values above (all overridable by env or the encrypted integrations store).

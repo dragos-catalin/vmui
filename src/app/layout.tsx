@@ -26,6 +26,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { ensureBackupSchedulerRunning } from "@/lib/backups";
 import { ensureComplianceScanRunning } from "@/lib/compliance-scheduler";
 import { ensureGitopsSchedulerRunning } from "@/lib/gitops";
+import { isLegalPath } from "@/lib/legal/paths";
 import { currentHomeActor } from "@/lib/home/access";
 import { ensureSchedulerRunning } from "@/lib/scheduler";
 import { startWebhookDispatcher } from "@/lib/webhook-dispatcher";
@@ -94,11 +95,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const familyOnly = await currentHomeActor().then((a) => !!a && a.role !== "owner").catch(() => false);
   if (familyOnly) {
     const path = (await headers()).get("x-vmui-path") ?? "";
-    if (path && !path.startsWith("/home") && !path.startsWith("/sign-") && !path.startsWith("/invite")) redirect("/home");
+    if (path && !path.startsWith("/home") && !path.startsWith("/sign-") && !path.startsWith("/invite") && !isLegalPath(path)) redirect("/home");
   }
-  // Auth-ish pages (sign-in, invitation acceptance) have no shell: nothing to navigate to yet.
+  // Auth-ish pages (sign-in, invitation acceptance) and the public legal pages have no shell: the
+  // shell's incident banner reads the audit log, which an anonymous visitor must not see.
   const path = (await headers()).get("x-vmui-path") ?? "";
-  const bare = path.startsWith("/invite/") || path.startsWith("/sign-in") || path.startsWith("/sign-up");
+  const bare = path.startsWith("/invite/") || path.startsWith("/sign-in") || path.startsWith("/sign-up") || isLegalPath(path);
   const appearance = await resolveAppearance();
   const { style: _accentStyle, ...htmlAttrs } = appearanceAttributes(appearance);
   const railCookie = (await cookies()).get("vmui_sidebar")?.value;

@@ -40,6 +40,7 @@ const handlers: Record<string, Handler> = {
   vmui_send: async ({ method, path, body }) => { const p = String(path); const r = await fetch(`${VMUI}${p}`, { method: String(method), headers: { "content-type": "application/json", "x-esp-token": K }, body: JSON.stringify(body) }); if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json().catch(() => ({ ok: true })); },
   app_info: () => ({ root: "E:\\gh\\vmui", vmui: VMUI, haUrl: "", displayUrl: `${VMUI}/api/display/session?code=mock`, version: "mock" }),
   lang_get: () => lang,
+  account_delete: () => { throw new Error("The house owner cannot delete their account from the app."); },
   app_ready: () => true,
   lang_set: ({ lang: l }) => { lang = l === "en" ? "en" : "ro"; },
   lights_get: () => lights,

@@ -22,6 +22,11 @@ const PUBLIC_PREFIXES = [
   "/api/hooks", // inbound webhooks (Tailscale Funnel): HMAC-signed, checked per route
   "/api/backup/restore", // unclaimed hub: setup code; claimed: owner session, checked in the route
   "/setup/restore", // fresh hub: restore instead of claim; the page redirects once claimed
+  "/privacy", // P11-01 legal pages: stores and visitors must read them without an account
+  "/legal",
+  "/licenses",
+  "/account/delete",
+  "/.well-known/security.txt", // RFC 9116
   "/_next",
   "/icons",
   "/favicon",

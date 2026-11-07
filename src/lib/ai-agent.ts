@@ -4,8 +4,8 @@ import { instances, auditLog, pricingCache } from "@/lib/db/schema";
 import { desc } from "drizzle-orm";
 import { generateCostRecommendations } from "@/lib/cost-optimizer";
 
-const OLLAMA_URL = process.env.VMUI_OLLAMA_URL ?? "http://127.0.0.1:11434";
-const OLLAMA_MODEL = process.env.VMUI_OLLAMA_MODEL ?? "llama3.2";
+export const OLLAMA_URL = process.env.VMUI_OLLAMA_URL ?? "http://127.0.0.1:11434";
+export const OLLAMA_MODEL = process.env.VMUI_OLLAMA_MODEL ?? "llama3.2";
 
 export interface ChatMessage {
   role: "system" | "user" | "assistant" | "tool";

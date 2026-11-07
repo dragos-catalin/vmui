@@ -12,9 +12,14 @@ install -d -m 0755 /var/lib/vatra
 until docker info >/dev/null 2>&1; do sleep 2; done
 
 shopt -s nullglob
+# On the A/B image (P5-04) /opt is the read-only system slot and deletions vanish at reboot, so a
+# loaded tarball is remembered in /var/lib/vatra (data partition) instead of only being removed.
+install -d -m 0755 /var/lib/vatra/loaded
 for f in /opt/vatra/images/*.tar.zst; do
+  stamp="/var/lib/vatra/loaded/$(basename "$f").$(stat -c %s "$f")"
+  [ -e "$stamp" ] && continue
   say "loading $(basename "$f")"
-  if zstd -dc "$f" | docker load; then rm -f "$f"; else say "load failed: $(basename "$f")"; fi
+  if zstd -dc "$f" | docker load; then touch "$stamp"; rm -f "$f" 2>/dev/null || true; else say "load failed: $(basename "$f")"; fi
 done
 
 systemctl start vatra-bootnote.service || true

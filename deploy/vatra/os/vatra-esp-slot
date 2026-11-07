@@ -1,0 +1,14 @@
+#!/bin/sh
+# Rugix custom slot handler (P5-04, x86): write the payload on stdin to <relative path> on the ESP.
+# The ESP is Rugix's config partition, mounted read-only at /run/rugix/mounts/config; it is made
+# writable only for this write, and the file is replaced atomically (write .new, sync, rename).
+#   vatra-esp-slot vatra/b/vmlinuz < payload
+set -eu
+M=/run/rugix/mounts/config
+case "$1" in vatra/[ab]/vmlinuz|vatra/[ab]/initrd.img) ;; *) echo "vatra-esp-slot: refusing $1" >&2; exit 2 ;; esac
+mount -o remount,rw "$M"
+trap 'sync; mount -o remount,ro "$M" || true' EXIT
+mkdir -p "$M/$(dirname "$1")"
+cat > "$M/$1.new"
+sync
+mv -f "$M/$1.new" "$M/$1"

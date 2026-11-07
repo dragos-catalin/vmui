@@ -7,6 +7,7 @@ struct SettingsScreen: View {
   @AppStorage("push.on", store: VatraEnv.group) private var pushOn = true
   @State private var presence = Presence.shared
   @State private var nfcSheet = false
+  @State private var deleteSheet = false
 
   var body: some View {
     NavigationStack {
@@ -57,6 +58,22 @@ struct SettingsScreen: View {
           }
         }
 
+        if let h = model.hub {
+          Section {
+            if let me = model.me {
+              if me.member.role == "owner" {
+                Text(L("account_delete_owner")).font(.callout).foregroundStyle(c.fgMuted)
+              } else {
+                Button(L("account_delete"), role: .destructive) { deleteSheet = true }
+              }
+            }
+            if let u = URL(string: h.baseUrl + "/privacy") { Link(L("privacy_policy"), destination: u) }
+            if let u = URL(string: h.baseUrl + "/account/delete") { Link(L("account_delete_page"), destination: u) }
+          } header: {
+            Text(L("account_title"))
+          }
+        }
+
         Section {
           Button(L("language")) {
             if let u = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(u) }
@@ -66,7 +83,54 @@ struct SettingsScreen: View {
       }
       .navigationTitle(L("tab_settings"))
       .sheet(isPresented: $nfcSheet) { NFCWriteSheet() }
+      .sheet(isPresented: $deleteSheet) { DeleteAccountSheet(hubName: model.hub?.name ?? "") }
     }
+  }
+}
+
+/// Confirms deleting this member's account on the hub with the password (App Store 5.1.1(v)).
+struct DeleteAccountSheet: View {
+  let hubName: String
+  @Environment(AppModel.self) private var model
+  @Environment(\.dismiss) private var dismiss
+  @Environment(\.vatra) private var c
+  @State private var password = ""
+  @State private var busy = false
+  @State private var error: String?
+
+  var body: some View {
+    NavigationStack {
+      Form {
+        Section {
+          Text(L("account_delete_warning", hubName))
+        }
+        Section {
+          SecureField(L("account_delete_password"), text: $password)
+            .textContentType(.password)
+            .submitLabel(.done)
+          if let error { Text(error).font(.caption).foregroundStyle(c.danger) }
+        }
+        Section {
+          Button(role: .destructive) {
+            Task { await submit() }
+          } label: {
+            if busy { ProgressView() } else { Text(L("account_delete_confirm")) }
+          }
+          .disabled(password.isEmpty || busy)
+        }
+      }
+      .navigationTitle(L("account_delete"))
+      .toolbar { Button(L("cancel")) { dismiss() }.disabled(busy) }
+      .interactiveDismissDisabled(busy)
+    }
+  }
+
+  private func submit() async {
+    busy = true
+    error = nil
+    let e = await model.deleteAccount(password: password)
+    busy = false
+    if let e { error = e } else { dismiss() }
   }
 }
 

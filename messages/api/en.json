@@ -14,6 +14,9 @@
     "backup_weak_passphrase": "The passphrase needs at least 12 characters",
     "backup_passphrase": "Wrong passphrase, or the file was changed",
     "backup_format": "This is not a Vatra backup, or it is damaged",
-    "setup_code_wrong": "Wrong setup code"
+    "setup_code_wrong": "Wrong setup code",
+    "demo_readonly": "Not available on the demo home",
+    "wrong_password": "Wrong password",
+    "owner_cannot_delete": "The household owner cannot delete the account from the app. Transfer ownership or reset the hub."
   }
 }

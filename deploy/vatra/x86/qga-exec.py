@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Run a shell command inside a QEMU guest through qemu-guest-agent (smoke diagnostics).
-  python3 qga-exec.py <qga unix socket> '<command>'"""
+  python3 qga-exec.py <qga unix socket> '<command>' [timeout seconds, default 120]"""
 import base64
 import json
 import socket
@@ -25,7 +25,7 @@ def call(cmd, **a):
 call("guest-sync", id=4242)
 pid = call("guest-exec", path="/bin/sh", arg=["-c", sys.argv[2]], **{"capture-output": True})["return"]["pid"]
 st = {}
-for _ in range(120):
+for _ in range(int(sys.argv[3]) if len(sys.argv) > 3 else 120):
     st = call("guest-exec-status", pid=pid)["return"]
     if st.get("exited"):
         break

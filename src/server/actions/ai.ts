@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { requireRole } from "@/lib/auth";
 import { runAgent, checkOllama, type ChatMessage } from "@/lib/ai-agent";
+import { hasAiConsent } from "@/lib/ai/consent";
 import { db } from "@/lib/db";
 import { auditLog } from "@/lib/db/schema";
 
@@ -16,7 +17,9 @@ const schema = z.object({
 });
 
 export async function askAgentAction(input: { message: string; history?: ChatMessage[] }) {
-  await requireRole("viewer");
+  const me = await requireRole("viewer");
+  // AI Act art. 50(1) + GDPR: nothing reaches the model before this user accepted the disclosure.
+  if (!(await hasAiConsent(me?.id))) return { ok: false as const, error: "ai_consent_required" };
   const parsed = schema.safeParse(input);
   if (!parsed.success) return { ok: false as const, error: parsed.error.issues[0]?.message ?? "invalid" };
   try {

@@ -1,6 +1,9 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { createHash } from "node:crypto";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 
 // P4-02: the channel manifest only ever carries digest-pinned images.
 
@@ -21,6 +24,51 @@ describe("channel manifest", () => {
 
   it("refuses an unknown channel", () => {
     expect(() => run("--channel", "latest", "--version", "0.4.0", "--image", `ghcr.io/o/vatra@${D}`)).toThrow();
+  });
+
+  describe("os block (P5-04)", () => {
+    const dirs: string[] = [];
+    afterEach(() => {
+      for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
+    });
+    const H = `sha512-256:${"b".repeat(64)}`;
+    const index = (platforms: Record<string, unknown>, version = "1.2.0") => {
+      const d = mkdtempSync(join(tmpdir(), "os-index-"));
+      dirs.push(d);
+      writeFileSync(join(d, "vatra-os-x86-1.2.0.rugixb"), "x86 bundle");
+      writeFileSync(join(d, "vatra-os-pi5-1.2.0.rugixb"), "pi5 bundle!");
+      const p = join(d, "os-index.json");
+      writeFileSync(p, JSON.stringify({ version, platforms }));
+      return p;
+    };
+    const base = ["--channel", "stable", "--version", "0.6.0", "--image", `ghcr.io/o/vatra@${D}`];
+    const url = "https://github.com/o/vmui/releases/download/v0.6.0/";
+
+    it("carries url, sha256 and size of every bundle so the signature covers them", () => {
+      const p = index({ x86: { file: "vatra-os-x86-1.2.0.rugixb", bundleHash: H }, pi5: { file: "vatra-os-pi5-1.2.0.rugixb", bundleHash: H } });
+      const m = JSON.parse(run(...base, "--os-index", p, "--os-base-url", url)) as { os: { version: string; platforms: Record<string, { url: string; sha256: string; size: number; bundleHash: string }> } };
+      expect(m.os.version).toBe("1.2.0");
+      expect(Object.keys(m.os.platforms).sort()).toEqual(["pi5", "x86"]);
+      expect(m.os.platforms.x86).toEqual({
+        url: `${url}vatra-os-x86-1.2.0.rugixb`,
+        sha256: createHash("sha256").update("x86 bundle").digest("hex"),
+        size: 10,
+        bundleHash: H,
+      });
+      expect(m.os.platforms.pi5?.size).toBe(11);
+    });
+
+    it("is absent without --os-index", () => {
+      expect(JSON.parse(run(...base))).not.toHaveProperty("os");
+    });
+
+    it("refuses unknown platforms, path tricks, bad hashes and plain http", () => {
+      expect(() => run(...base, "--os-index", index({ riscv: { file: "vatra-os-x86-1.2.0.rugixb", bundleHash: H } }), "--os-base-url", url)).toThrow();
+      expect(() => run(...base, "--os-index", index({ x86: { file: "../vatra-os-x86-1.2.0.rugixb", bundleHash: H } }), "--os-base-url", url)).toThrow();
+      expect(() => run(...base, "--os-index", index({ x86: { file: "vatra-os-x86-1.2.0.rugixb", bundleHash: "nope" } }), "--os-base-url", url)).toThrow();
+      expect(() => run(...base, "--os-index", index({ x86: { file: "vatra-os-x86-1.2.0.rugixb", bundleHash: H } }), "--os-base-url", "http://x/")).toThrow();
+      expect(() => run(...base, "--os-index", index({ x86: { file: "vatra-os-x86-1.2.0.rugixb", bundleHash: H } }, "1.2"), "--os-base-url", url)).toThrow();
+    });
   });
 
   it("compose refuses to start without pins", () => {

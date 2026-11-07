@@ -1,5 +1,6 @@
 import "server-only";
 
+import { hasAiConsent } from "@/lib/ai/consent";
 import { journalUserId, ownerActor } from "@/lib/home/access";
 import { credential } from "@/lib/home/credentials";
 import { msg, type Text } from "@/lib/notify/i18n";
@@ -62,9 +63,9 @@ function inWindow(from: string, to: string, now = new Date()): boolean {
 }
 
 /** One sentence from codai in the household language; falls back to the canned message ref. */
-async function phrase(d: CoachDecision, s: NutritionSummary, language: string): Promise<Text> {
+async function phrase(d: CoachDecision, s: NutritionSummary, language: string, aiAllowed: boolean): Promise<Text> {
   const key = credential("CODAI_API_KEY");
-  if (!key) return d.fallback;
+  if (!key || !aiAllowed) return d.fallback;
   try {
     const r = await fetch("https://ai.codai.ro/v1/chat/completions", {
       method: "POST",
@@ -101,7 +102,8 @@ export async function runCoach(s: NutritionSummary, now = new Date()): Promise<{
   if (!d) return { sent: false, reason: "nothing worth saying" };
   const [{ notify }, { render }, { loadNotifySettings }] = await Promise.all([import("@/lib/notify"), import("@/lib/notify/i18n"), import("@/lib/notify/settings")]);
   const { language } = await loadNotifySettings();
-  const text = await phrase(d, s, language);
+  // the facts leave the hub only after the owner accepted the AI disclosure (/ai, docs/legal/AI-DISCLOSURE.md)
+  const text = await phrase(d, s, language, await hasAiConsent(o?.userId).catch(() => false));
   // the journal keeps one rendered line (the household language); the card itself stays language-neutral
   await recordCoachMessage(d.kind, await render(text, language), d.facts);
   await notify({

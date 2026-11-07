@@ -46,6 +46,13 @@ host, setup code on the boot partition), boot 2 with no NIC and two `mac80211_hw
 weak password refused, hub back after reboot). The Pi firmware/boot chain itself is real-hardware
 QA. Unit tests: `python -m unittest deploy/vatra/pi-image/test_vatra_netsetup.py`.
 
+## A/B system images (P5-04)
+
+`VATRA_AB=1 bash deploy/vatra/x86/build.sh` builds the x86 A/B disk (EROFS slots A/B, ext4 data,
+systemd-boot ESP, Rugix Ctrl v1.4.0 as init) plus its `.rugixb` bundle and runs the A/B smoke;
+`pi-image/ab.sh` turns a classic Pi card into the tryboot A/B card. Layout, update flow, status
+fields and the real-board QA runbook: [docs/product/os-ab.md](../../../docs/product/os-ab.md).
+
 ## Raspberry Pi Imager
 
 `os_list.json` (built per release) is a custom repository: Imager → _App options_ → _Content

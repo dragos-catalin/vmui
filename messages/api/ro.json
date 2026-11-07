@@ -14,6 +14,9 @@
     "backup_weak_passphrase": "Fraza de acces trebuie să aibă cel puțin 12 caractere",
     "backup_passphrase": "Frază de acces greșită sau fișier modificat",
     "backup_format": "Nu e o copie de siguranță Vatra sau e deteriorată",
-    "setup_code_wrong": "Cod de configurare greșit"
+    "setup_code_wrong": "Cod de configurare greșit",
+    "demo_readonly": "Indisponibil în casa demo",
+    "wrong_password": "Parolă greșită",
+    "owner_cannot_delete": "Proprietarul casei nu își poate șterge contul din aplicație. Transferă proprietatea sau resetează hubul."
   }
 }

@@ -1,0 +1,45 @@
+# /etc/rugix/system.toml for the Vatra Raspberry Pi 4 / Pi 5 image (P5-04), Rugix Ctrl v1.4.0.
+# MBR: 1 config (FAT32: autoboot.txt, vatra-setup.txt, vatra-wifi.txt) | 2 boot-a (FAT32) | 3 boot-b
+#      | 4 extended | 5 system-a (EROFS) | 6 system-b (EROFS) | 7 data (ext4)
+# A/B switching = the firmware's tryboot: `reboot "0 tryboot"` boots boot_partition from the
+# [tryboot] section of autoboot.txt once; commit rewrites autoboot.txt. Rugix patches the incoming
+# boot partition's cmdline.txt with root=PARTUUID of its system slot and init=/usr/bin/rugix-ctrl.
+#:schema https://raw.githubusercontent.com/rugix/rugix/refs/tags/v1.4.0/schemas/rugix-ctrl-system.schema.json
+
+# Rugix mounts the config partition read-only at /run/rugix/mounts/config; vatra-boot-firmware
+# .service makes it writable and binds it to /boot/firmware, where vatra_netsetup writes the setup
+# note and reads vatra-wifi.txt (the first FAT partition, the one users see on a PC).
+[config-partition]
+partition = 1
+
+[data-partition]
+partition = 7
+
+[slots.boot-a]
+type = "block"
+partition = 2
+immutable = true
+
+[slots.boot-b]
+type = "block"
+partition = 3
+immutable = true
+
+[slots.system-a]
+type = "block"
+partition = 5
+immutable = true
+
+[slots.system-b]
+type = "block"
+partition = 6
+immutable = true
+
+[boot-groups.a]
+slots = { boot = "boot-a", system = "system-a" }
+
+[boot-groups.b]
+slots = { boot = "boot-b", system = "system-b" }
+
+[boot-flow]
+type = "rpi-tryboot"

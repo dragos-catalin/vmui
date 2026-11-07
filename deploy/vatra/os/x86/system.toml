@@ -1,0 +1,54 @@
+# /etc/rugix/system.toml for the Vatra x86 appliance (P5-04), Rugix Ctrl v1.4.0.
+# GPT: 1 vatra-esp (vfat, systemd-boot, kernels) | 2 vatra-system-a (EROFS) | 3 vatra-system-b (EROFS)
+#      | 4 vatra-data (ext4: /srv/vatra, docker, persisted /etc bits, journal; see state/vatra.toml)
+# Kernel + initrd of each slot live on the ESP so systemd-boot can read them; the loader entries
+# vatra-a.conf / vatra-b.conf on the ESP point at them and at the slot's PARTUUID.
+# A/B switching = systemd-boot's LoaderEntryOneShot (try once) / LoaderEntryDefault (commit).
+#:schema https://raw.githubusercontent.com/rugix/rugix/refs/tags/v1.4.0/schemas/rugix-ctrl-system.schema.json
+
+# Rugix init needs a config partition: the ESP. It is mounted read-only at
+# /run/rugix/mounts/config; vatra-esp-slot makes it writable only while it writes a kernel/initrd.
+[config-partition]
+partition = 1
+
+[data-partition]
+partition = 4
+
+[slots.kernel-a]
+type = "custom"
+handler = ["/opt/vatra/bin/vatra-esp-slot", "vatra/a/vmlinuz"]
+
+[slots.initrd-a]
+type = "custom"
+handler = ["/opt/vatra/bin/vatra-esp-slot", "vatra/a/initrd.img"]
+
+[slots.system-a]
+type = "block"
+partition = 2
+immutable = true
+
+[slots.kernel-b]
+type = "custom"
+handler = ["/opt/vatra/bin/vatra-esp-slot", "vatra/b/vmlinuz"]
+
+[slots.initrd-b]
+type = "custom"
+handler = ["/opt/vatra/bin/vatra-esp-slot", "vatra/b/initrd.img"]
+
+[slots.system-b]
+type = "block"
+partition = 3
+immutable = true
+
+[boot-groups.a]
+slots = { kernel = "kernel-a", initrd = "initrd-a", system = "system-a" }
+
+[boot-groups.b]
+slots = { kernel = "kernel-b", initrd = "initrd-b", system = "system-b" }
+
+[boot-flow]
+type = "systemd-boot"
+
+[boot-flow.entries]
+a = "vatra-a.conf"
+b = "vatra-b.conf"

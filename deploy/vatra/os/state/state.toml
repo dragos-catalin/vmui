@@ -1,0 +1,5 @@
+# /etc/rugix/state.toml (P5-04): the root is the read-only EROFS slot under a writable overlay that
+# is thrown away at every boot, so nothing undeclared drifts. What must survive is listed in
+# /etc/rugix/state/vatra.toml and bind-mounted from the data partition.
+#:schema https://raw.githubusercontent.com/rugix/rugix/refs/tags/v1.4.0/schemas/rugix-ctrl-state.schema.json
+overlay = "discard"

@@ -23,6 +23,11 @@ import { endpointAllowed } from "@/lib/notify/unifiedpush";
 import { relayEnabled } from "@/lib/notify/relay";
 import { cloudEndpoints, hubIdentity } from "@/lib/cloud/identity";
 import { encrypt } from "@/lib/crypto";
+import { deletionRefusal, eraseAccount } from "@/lib/account/delete";
+import { verifyUserPassword } from "@/lib/auth";
+import { isDemo } from "@/lib/demo/mode";
+import { rateLimit } from "@/lib/rate-limit";
+import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
@@ -485,6 +490,39 @@ export const presenceRoute = defineRoute({
 });
 
 /** Every /api/v1/app operation, in a stable order (OpenAPI, tests, route files). */
+// ---------------------------------------------------------------- account deletion (P11-01)
+
+export const accountDeleteRoute = defineRoute({
+  id: "accountDelete",
+  method: "POST",
+  path: "/api/v1/app/account/delete",
+  summary: "Delete this member's account (in-app deletion required by the app stores)",
+  description:
+    "Needs the member's password. Erases the account, sessions, passkeys, membership, nutrition journal and AI consent and revokes every paired device of the member (this one included). The household owner and the last admin are refused (code owner_cannot_delete): deleting them means resetting the hub. A device not bound to a member gets not_bound.",
+  auth: "member",
+  input: z.object({ password: z.string().min(1).max(200) }),
+  output: okSchema,
+  handler: async ({ actor, input }) => {
+    if (isDemo()) throw new RouteError("demo_readonly", 403);
+    if (!actor.deviceId || !actor.userId) throw new RouteError("not_bound", 403);
+    if (!rateLimit(`account-delete:${actor.userId}`, 5, 15 * 60).ok) throw new RouteError("rate_limited", 429);
+    const refusal = await deletionRefusal(actor.userId);
+    if (refusal === "notFound") throw new RouteError("not_bound", 403);
+    if (refusal) {
+      await db.insert(auditLog).values({ action: "auth.account.delete", target: actor.userId, status: "error", message: `refused: ${refusal} (app ${actor.deviceId})` });
+      throw new RouteError("owner_cannot_delete", 409);
+    }
+    const u = db.select({ email: users.email }).from(users).where(eq(users.id, actor.userId)).get();
+    const check = u ? await verifyUserPassword(u.email, input.password) : { ok: false };
+    if (!check.ok) {
+      await db.insert(auditLog).values({ action: "auth.account.delete", target: actor.userId, status: "error", message: `wrong password (app ${actor.deviceId})` });
+      throw new RouteError("wrong_password", 403);
+    }
+    await eraseAccount(actor.userId);
+    return { ok: true as const };
+  },
+});
+
 export const APP_ROUTES: readonly AppRoute[] = [
   meRoute,
   stateRoute,
@@ -502,4 +540,5 @@ export const APP_ROUTES: readonly AppRoute[] = [
   pushConfigRoute,
   pushRegisterRoute,
   presenceRoute,
+  accountDeleteRoute,
 ] as unknown as readonly AppRoute[];

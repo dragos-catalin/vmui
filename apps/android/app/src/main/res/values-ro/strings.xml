@@ -78,4 +78,14 @@
     <string name="widget_label">Casa Vatra</string>
     <string name="widget_lights">%1$d lumini aprinse</string>
     <string name="tile_label">Lumini de film</string>
+    <string name="account_title">Cont și confidențialitate</string>
+    <string name="privacy_policy">Politica de confidențialitate</string>
+    <string name="account_delete_info">Informații despre ștergerea contului</string>
+    <string name="account_delete">Șterge-mi contul</string>
+    <string name="account_owner_note">Ești proprietarul acestei case. Proprietarul șterge gospodăria resetând hubul.</string>
+    <string name="account_delete_title">Îți ștergi contul?</string>
+    <string name="account_delete_warning">Contul tău de pe hubul acestei case va fi șters. Hubul șterge:</string>
+    <string name="account_delete_items">• contul tău și datele de autentificare\n• jurnalul de nutriție (mese, apă, obiective)\n• consimțământul pentru AI\n• toate dispozitivele asociate ție: acest telefon, ceasul, televizorul și orice alt telefon</string>
+    <string name="account_delete_irreversible">Acțiunea nu poate fi anulată. Ca să revii în această casă vei avea nevoie de o invitație nouă.</string>
+    <string name="account_delete_confirm">Șterge-mi contul</string>
 </resources>

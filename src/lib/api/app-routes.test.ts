@@ -9,7 +9,11 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 
 const calls: Array<{ domain: string; service: string; data: Record<string, unknown> }> = [];
 const events: Array<{ type: string; data: Record<string, unknown> }> = [];
-vi.mock("@/lib/auth", () => ({ authEnabled: async () => true, getCurrentUser: async () => null }));
+vi.mock("@/lib/auth", () => ({
+  authEnabled: async () => true,
+  getCurrentUser: async () => null,
+  verifyUserPassword: async (_email: string, password: string) => (password === "right-password" ? { ok: true } : { ok: false, error: "bad" }),
+}));
 vi.mock("@/lib/home/ha-client", () => ({
   ha: {
     states: async () => [{ entity_id: "light.kid_lamp", state: "on", attributes: { brightness: 200 }, last_changed: "", last_updated: "" }],
@@ -245,5 +249,35 @@ describe("presence (P7-05)", () => {
 
   it("rejects unknown states", async () => {
     expect((await call(R.presenceRoute, "vmd_kid", { body: { state: "everywhere" } })).status).toBe(400);
+  });
+});
+
+describe("account deletion (P11-01)", () => {
+  it("refuses the household owner and keeps the account", async () => {
+    const r = await call(R.accountDeleteRoute, "vmd_owner", { body: { password: "right-password" } });
+    expect(r.status).toBe(409);
+    expect(r.body).toMatchObject({ code: "owner_cannot_delete" });
+    expect((await call(R.meRoute, "vmd_owner")).status).toBe(200);
+  });
+
+  it("refuses a wrong password", async () => {
+    const r = await call(R.accountDeleteRoute, "vmd_guest", { body: { password: "nope" } });
+    expect(r.body).toMatchObject({ code: "wrong_password" });
+    expect((await call(R.meRoute, "vmd_guest")).status).toBe(200);
+  });
+
+  it("refuses an unbound device", async () => {
+    expect((await call(R.accountDeleteRoute, "vmd_free", { body: { password: "right-password" } })).body).toMatchObject({ code: "not_bound" });
+  });
+
+  it("erases a member and revokes the calling device", async () => {
+    const r = await call(R.accountDeleteRoute, "vmd_guest", { body: { password: "right-password" } });
+    expect(r).toEqual({ status: 200, body: { ok: true } });
+    expect([401, 403]).toContain((await call(R.meRoute, "vmd_guest")).status);
+    const { db } = await import("@/lib/db");
+    const s = await import("@/lib/db/schema");
+    const { eq } = await import("drizzle-orm");
+    expect(db.select().from(s.users).where(eq(s.users.id, "guest")).get()).toBeUndefined();
+    expect(db.select().from(s.pairedDevices).where(eq(s.pairedDevices.id, "d-guest")).get()).toMatchObject({ status: "revoked", userId: null });
   });
 });

@@ -48,6 +48,7 @@ final class ContractTests: XCTestCase {
     "pushRegister": { _ = try $0.response($1, RelayRegistered.self) },
     "pushCard": { _ = try $0.response($1, PushCard.self) },
     "presence": { _ = try $0.response($1, PresenceResult.self) },
+    "accountDelete": { _ = try $0.response($1, Ok.self) },
   ]
 
   func testEveryFixtureHasAModel() throws {
@@ -78,6 +79,7 @@ final class ContractTests: XCTestCase {
     try assertRequest("intercomAct", IntercomAct(action: "arm", minutes: 30))
     try assertRequest("waterAct", WaterAct(op: "drink", ml: 250))
     try assertRequest("presence", PresenceReport(state: "home", source: "geofence"))
+    try assertRequest("accountDelete", AccountDelete(password: "correct horse battery staple"))
     try assertRequest("pushRegister", PushRegistration.relay(platform: "apns", handle: "h1.Zm9vYmFyYmF6cXV4cXV1eGNvcmdlZ3JhdWx0", activityHandle: nil))
   }
 

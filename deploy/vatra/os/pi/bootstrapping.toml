@@ -1,0 +1,3 @@
+# /etc/rugix/bootstrapping.toml (Pi): the card image carries all seven partitions with a small
+# data partition; vatra-firstboot grows it to the card. Nothing is created at boot.
+disabled = true

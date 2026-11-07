@@ -226,6 +226,12 @@ public struct Ok: Codable, Sendable, Equatable {
 
 public struct CardAct: Codable, Sendable, Equatable { public let id: String; public let action: String }
 
+/// POST /api/v1/app/account/delete: a non-owner member deletes their own account (App Store 5.1.1(v)).
+public struct AccountDelete: Codable, Sendable, Equatable {
+  public let password: String
+  public init(password: String) { self.password = password }
+}
+
 /// POST /api/v1/app/presence.
 public struct PresenceReport: Codable, Sendable, Equatable {
   public let state: String

@@ -408,6 +408,20 @@ async fn conn_clear(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// Delete the paired member's account on the hub, then forget the pairing (same as conn_clear).
+/// Only a real pairing (vmd_ token) can do this, never the developer fallback.
+#[tauri::command]
+async fn account_delete(app: AppHandle, password: String) -> Result<(), String> {
+    if password.is_empty() || password.chars().count() > crate::pairing::MAX_PASSWORD {
+        return Err("invalid_password".into());
+    }
+    let c = crate::hub::paired().ok_or("not_bound")?;
+    let lang = crate::i18n::lang();
+    blocking(move || crate::pairing::delete_account(&c.url, &c.token, &password, &lang)).await?;
+    stack::log("account deleted on hub; pairing cleared");
+    conn_clear(app).await
+}
+
 /// The `vatra://pair` link this process was started with (or last handed by a second instance); consumed once.
 #[tauri::command]
 fn pending_pair(app: AppHandle) -> Option<crate::pairing::PairLink> {
@@ -934,6 +948,7 @@ pub fn run() {
             pair_redeem,
             pair_wait,
             conn_clear,
+            account_delete,
             pending_pair,
             lights_get,
             lights_op,

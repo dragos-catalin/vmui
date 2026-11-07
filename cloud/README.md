@@ -4,11 +4,11 @@ Go module `vatra.cloud` (Go 1.24, standard library only) implementing
 [docs/product/cloud/CONTRACT.md](../docs/product/cloud/CONTRACT.md). The hub side lives in
 `src/lib/cloud/`.
 
-| Binary | Where | What |
-| ------ | ----- | ---- |
-| `cmd/push` → `vatra-push` | Cloud Run (min 1, max 1: limits are in memory) | push handles, APNs / FCM send, relay-token issuer |
-| `cmd/acme` → `vatra-acme` | Cloud Run | ACME DNS-01 proxy to Brivio for `_acme-challenge.<hubId>.<domain>` |
-| `cmd/relay` → `vatra-relay` | e2-micro VM (Debian 12, systemd) | SNI relay: `:443` passthrough, `:8443` hub control/data, `127.0.0.1:9090` admin |
+| Binary                      | Where                                          | What                                                                            |
+| --------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------- |
+| `cmd/push` → `vatra-push`   | Cloud Run (min 1, max 1: limits are in memory) | push handles, APNs / FCM send, relay-token issuer                               |
+| `cmd/acme` → `vatra-acme`   | Cloud Run                                      | ACME DNS-01 proxy to Brivio for `_acme-challenge.<hubId>.<domain>`              |
+| `cmd/relay` → `vatra-relay` | e2-micro VM (Debian 12, systemd)               | SNI relay: `:443` passthrough, `:8443` hub control/data, `127.0.0.1:9090` admin |
 
 Shared packages: `internal/hubauth` (hub id + hub JWT verifier, jti replay cache, allow/deny lists),
 `internal/relaytoken` (`rt1.` tokens), `internal/httpx` (JSON, `*_FILE` env, fixed-window limits),
@@ -23,25 +23,25 @@ $env:GOOS='linux'; $env:GOARCH='amd64'; $env:CGO_ENABLED='0'; go build -o vatra-
 
 Every service: `VATRA_CLOUD_DOMAIN` (default `vatra.dragoscatalin.ro`), `VATRA_CLOUD_DENY_HUBS`.
 `VATRA_CLOUD_ALLOW_HUBS` gates ACME and relay tokens only (empty = everyone, `*` = everyone).
-Variables marked *file* may instead be given as `<NAME>_FILE` (path to a mounted secret).
+Variables marked _file_ may instead be given as `<NAME>_FILE` (path to a mounted secret).
 
 ### vatra-push
 
-| Variable | Notes |
-| -------- | ----- |
-| `PORT` | default 8080 |
-| `VATRA_PUSH_HANDLE_KEY` *file* | 32 bytes, base64 (std or url). Missing → handles/push answer 503 |
-| `APNS_KEY` *file* | `.p8` PEM text; with `APNS_KEY_ID` *file*, `APNS_TEAM_ID` *file* |
-| `APNS_TOPIC` | default `ro.vatra.app` |
-| `FCM_SERVICE_ACCOUNT_JSON` *file* | service account JSON with `firebase.messaging` rights |
-| `VATRA_CLOUD_SIGNING_KEY` *file* | Ed25519 PKCS8 PEM; signs relay tokens |
-| `VATRA_CLOUD_RELAY` | returned to hubs; default `relay.<domain>:8443` |
-| `VATRA_CLOUD_RELAY_PIN` | relay SPKI pin, printed by `vatra-relay` at start / `GET 127.0.0.1:9090/pin` |
-| `VATRA_CLOUD_ALLOW_HUBS`, `VATRA_CLOUD_DENY_HUBS`, `VATRA_CLOUD_DOMAIN` | see above |
+| Variable                                                                | Notes                                                                        |
+| ----------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `PORT`                                                                  | default 8080                                                                 |
+| `VATRA_PUSH_HANDLE_KEY` _file_                                          | 32 bytes, base64 (std or url). Missing → handles/push answer 503             |
+| `APNS_KEY` _file_                                                       | `.p8` PEM text; with `APNS_KEY_ID` _file_, `APNS_TEAM_ID` _file_             |
+| `APNS_TOPIC`                                                            | default `ro.vatra.app`                                                       |
+| `FCM_SERVICE_ACCOUNT_JSON` _file_                                       | service account JSON with `firebase.messaging` rights                        |
+| `VATRA_CLOUD_SIGNING_KEY` _file_                                        | Ed25519 PKCS8 PEM; signs relay tokens                                        |
+| `VATRA_CLOUD_RELAY`                                                     | returned to hubs; default `relay.<domain>:8443`                              |
+| `VATRA_CLOUD_RELAY_PIN`                                                 | relay SPKI pin, printed by `vatra-relay` at start / `GET 127.0.0.1:9090/pin` |
+| `VATRA_CLOUD_ALLOW_HUBS`, `VATRA_CLOUD_DENY_HUBS`, `VATRA_CLOUD_DOMAIN` | see above                                                                    |
 
 ### vatra-acme
 
-`PORT`, `BRIVIO_ACME_URL` (default `https://brivio.ro/api/dns/acme`), `BRIVIO_ACME_TOKEN` *file*
+`PORT`, `BRIVIO_ACME_URL` (default `https://brivio.ro/api/dns/acme`), `BRIVIO_ACME_TOKEN` _file_
 (the `brv_dns_` token, never logged), `VATRA_CLOUD_DOMAIN`, `VATRA_CLOUD_ALLOW_HUBS`,
 `VATRA_CLOUD_DENY_HUBS`.
 
@@ -56,15 +56,15 @@ the pin every hub trusts.
 
 ## Secrets (Secret Manager)
 
-| Secret | Consumer → variable |
-| ------ | ------------------- |
-| `vatra-acme-dns-token` | vatra-acme → `BRIVIO_ACME_TOKEN` |
+| Secret                    | Consumer → variable                                                                       |
+| ------------------------- | ----------------------------------------------------------------------------------------- |
+| `vatra-acme-dns-token`    | vatra-acme → `BRIVIO_ACME_TOKEN`                                                          |
 | `vatra-cloud-signing-key` | vatra-push → `VATRA_CLOUD_SIGNING_KEY`; its public half → relay `VATRA_CLOUD_SIGNING_PUB` |
-| `vatra-push-handle-key` | vatra-push → `VATRA_PUSH_HANDLE_KEY` |
-| `apns-auth-key-p8` | vatra-push → `APNS_KEY` |
-| `apns-key-id` | vatra-push → `APNS_KEY_ID` |
-| `apple-team-id` | vatra-push → `APNS_TEAM_ID` |
-| `vatra-relay-admin-token` | relay VM `/etc/vatra-relay.env` → `VATRA_RELAY_ADMIN_TOKEN` |
+| `vatra-push-handle-key`   | vatra-push → `VATRA_PUSH_HANDLE_KEY`                                                      |
+| `apns-auth-key-p8`        | vatra-push → `APNS_KEY`                                                                   |
+| `apns-key-id`             | vatra-push → `APNS_KEY_ID`                                                                |
+| `apple-team-id`           | vatra-push → `APNS_TEAM_ID`                                                               |
+| `vatra-relay-admin-token` | relay VM `/etc/vatra-relay.env` → `VATRA_RELAY_ADMIN_TOKEN`                               |
 
 FCM uses a service account JSON (`FCM_SERVICE_ACCOUNT_JSON`), mounted from its own secret.
 

@@ -92,7 +92,7 @@ fun AlertsScreen(ui: HomeUi, model: HomeModel) {
 }
 
 @Composable
-fun SettingsScreen(ui: HomeUi, onAddHub: () -> Unit) {
+fun SettingsScreen(ui: HomeUi, onAddHub: () -> Unit, onDeleteAccount: () -> Unit) {
     val ctx = LocalContext.current
     val app = VatraApp.from(ctx)
     val scope = rememberCoroutineScope()
@@ -162,6 +162,7 @@ fun SettingsScreen(ui: HomeUi, onAddHub: () -> Unit) {
         TextButton(onClick = { ctx.startActivity(Intent(Settings.ACTION_APP_LOCALE_SETTINGS).setData(android.net.Uri.parse("package:${ctx.packageName}"))) }) {
             Text(stringResource(R.string.language))
         }
+        AccountSection(ui, onDelete = onDeleteAccount)
         Text("Vatra ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodySmall, color = c.fgMuted, modifier = Modifier.padding(top = 16.dp))
     }
 }

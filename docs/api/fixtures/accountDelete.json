@@ -1,0 +1,8 @@
+{
+  "request": {
+    "password": "correct horse battery staple"
+  },
+  "response": {
+    "ok": true
+  }
+}

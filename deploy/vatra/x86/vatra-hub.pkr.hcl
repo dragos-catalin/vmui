@@ -28,6 +28,12 @@ variable "accel" {
   type    = string
   default = "kvm"
 }
+# 1 = A/B image (P5-04): provision.sh also runs deploy/vatra/os/rootfs-ab.sh; ab-image.sh then
+# turns the qcow2's rootfs into EROFS slots + data partition + systemd-boot ESP
+variable "ab" {
+  type    = string
+  default = "0"
+}
 
 source "qemu" "vatra" {
   iso_url          = var.base_url
@@ -62,7 +68,9 @@ build {
     destination = "/tmp/vatra-payload.tar"
   }
   provisioner "shell" {
-    execute_command = "sudo -E bash '{{ .Path }}'"
-    script          = "${path.root}/provision.sh"
+    # environment_vars reach the script only through {{ .Vars }}
+    execute_command  = "sudo -E env {{ .Vars }} bash '{{ .Path }}'"
+    environment_vars = ["VATRA_AB=${var.ab}", "VATRA_VERSION=${var.version}"]
+    script           = "${path.root}/provision.sh"
   }
 }

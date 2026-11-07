@@ -129,6 +129,13 @@ class HubClient(
     /** Mints an invite bound to this device's member, for the watch / TV / another phone. */
     suspend fun invite(): ApiResult<ro.vatra.core.model.Invite> = send("POST", "/api/devices/pair/invite", "{}", ro.vatra.core.model.Invite.serializer())
 
+    /**
+     * Erases this device's member (account, nutrition journal, AI consent, every paired device).
+     * Refusals: owner_cannot_delete 409, wrong_password 403, not_bound 403, rate_limited 429, demo_readonly 403.
+     */
+    suspend fun deleteAccount(password: String): ApiResult<Ok> =
+        post("/api/v1/app/account/delete", WireJson.encodeToString(ro.vatra.core.model.AccountDeleteRequest.serializer(), ro.vatra.core.model.AccountDeleteRequest(password)), Ok.serializer())
+
     private fun checkVersion(r: ApiResult<Me>): ApiResult<Me> =
         if (r is ApiResult.Ok && r.value.minClient > CLIENT_API) ApiResult.TooOld(r.value.minClient) else r
 
