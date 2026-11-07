@@ -50,6 +50,11 @@ export function fcmConfigured(): boolean {
   return account() !== null;
 }
 
+/** The Firebase project the hub sends through (FCM_PROJECT_ID overrides the service account's). */
+export function fcmProjectId(): string | null {
+  return credential("FCM_PROJECT_ID") ?? account()?.project_id ?? null;
+}
+
 /** Sends the card to every token; returns tokens FCM says are gone (UNREGISTERED) so the caller can drop them. */
 export async function sendFcm(tokens: string[], card: LocalizedCard): Promise<string[]> {
   const a = account();

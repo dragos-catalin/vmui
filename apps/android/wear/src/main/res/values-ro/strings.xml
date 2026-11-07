@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tile_label">Acasă</string>
+    <string name="tile_empty">Deschide Vatra pe ceas ca să intri în casa ta.</string>
+    <string name="open">Deschide</string>
+    <string name="lights_on">%1$d lumini aprinse</string>
+    <string name="lights_short">Lumini</string>
+    <string name="water_short">Apă %1$d / %2$d ml</string>
+    <string name="complication_water">Apă azi</string>
+    <string name="complication_lights">Lumini aprinse</string>
+    <string name="pair_title">Intră într-o casă</string>
+    <string name="pair_body">Introdu adresa hubului, apoi aprobă codul pe hub sau în aplicația de pe telefon.</string>
+    <string name="pair_address">Adresa hubului</string>
+    <string name="pair_request">Cere aprobare</string>
+    <string name="pair_code">Codul de pe hub: %1$s</string>
+    <string name="pair_failed">Nu am putut intra (%1$s).</string>
+    <string name="offline">Hubul nu răspunde.</string>
+</resources>

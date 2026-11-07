@@ -1,0 +1,11 @@
+{
+  "request": {
+    "kind": "unifiedpush",
+    "endpoint": "https://ntfy.sh/upAbCdEfGhIjKl?up=1",
+    "p256dh": "BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM",
+    "auth": "tBHItJI5svbpez7KI4CCXg"
+  },
+  "response": {
+    "ok": true
+  }
+}

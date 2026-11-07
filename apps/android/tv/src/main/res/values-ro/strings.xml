@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pair_title">Intră într-o casă</string>
+    <string name="pair_body">Introdu adresa hubului, apoi aprobă codul afișat aici pe hub sau în aplicația de pe telefon.</string>
+    <string name="pair_address">Adresa hubului (vatra.local)</string>
+    <string name="pair_request">Cere aprobare</string>
+    <string name="pair_code">Cod: %1$s</string>
+    <string name="pair_failed">Nu am putut intra (%1$s).</string>
+    <string name="scenes">Scene</string>
+    <string name="state_on">Pornit</string>
+    <string name="state_off">Oprit</string>
+    <string name="state_unavailable">Indisponibil</string>
+    <string name="offline">Hubul nu răspunde.</string>
+</resources>

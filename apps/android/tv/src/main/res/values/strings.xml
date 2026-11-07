@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">Vatra</string>
+    <string name="pair_title">Join a home</string>
+    <string name="pair_body">Enter the hub address, then approve the code shown here on the hub or in the phone app.</string>
+    <string name="pair_address">Hub address (vatra.local)</string>
+    <string name="pair_request">Ask for approval</string>
+    <string name="pair_code">Code: %1$s</string>
+    <string name="pair_failed">Couldn\'t join (%1$s).</string>
+    <string name="scenes">Scenes</string>
+    <string name="state_on">On</string>
+    <string name="state_off">Off</string>
+    <string name="state_unavailable">Unavailable</string>
+    <string name="offline">Can\'t reach the hub.</string>
+</resources>

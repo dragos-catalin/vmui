@@ -1,0 +1,12 @@
+{
+  "response": {
+    "fcm": {
+      "projectId": "vatra-demo",
+      "applicationId": "1:000000000000:android:0000000000000000000000",
+      "apiKey": "AIzaSyDemoDemoDemoDemoDemoDemoDemoDemo0",
+      "senderId": "000000000000"
+    },
+    "webPush": true,
+    "vapidKey": null
+  }
+}

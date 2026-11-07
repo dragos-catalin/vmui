@@ -1332,6 +1332,11 @@ export const pairedDevices = sqliteTable("paired_devices", {
   lastIp: text("last_ip"),
   /** FCM registration token (Android) — wakes the app for a notification */
   pushToken: text("push_token"),
+  /** How pushToken is delivered: null/"fcm" = FCM registration token, "unifiedpush" = Web Push endpoint URL (RFC 8030/8291). */
+  pushKind: text("push_kind"),
+  /** UnifiedPush / Web Push receiver keys (base64url P-256 public key + 16-byte auth secret). */
+  pushP256dh: text("push_p256dh"),
+  pushAuth: text("push_auth"),
   /** UI language the device asked for (`en` | `ro`); notifications render in it */
   language: text("language"),
   /** Family member this device acts as; its room permissions apply to every call the device makes. */

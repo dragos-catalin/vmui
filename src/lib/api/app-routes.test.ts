@@ -8,12 +8,14 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 // output validated against the declared schema.
 
 const calls: Array<{ domain: string; service: string; data: Record<string, unknown> }> = [];
+const events: Array<{ type: string; data: Record<string, unknown> }> = [];
 vi.mock("@/lib/auth", () => ({ authEnabled: async () => true, getCurrentUser: async () => null }));
 vi.mock("@/lib/home/ha-client", () => ({
   ha: {
     states: async () => [{ entity_id: "light.kid_lamp", state: "on", attributes: { brightness: 200 }, last_changed: "", last_updated: "" }],
     callService: async (domain: string, service: string, data: Record<string, unknown>) => void calls.push({ domain, service, data }),
     runScript: async () => undefined,
+    fireEvent: async (type: string, data: Record<string, unknown>) => void events.push({ type, data }),
   },
 }));
 vi.mock("@/lib/notify", () => ({ notify: async () => null, dismissByTag: async () => undefined, listCards: async () => [], localizeCards: async () => [], localizeCard: async () => null, markRead: async () => undefined, ack: async () => undefined, dismiss: async () => null, getCard: async () => null, visibleToRole: () => true }));
@@ -109,5 +111,60 @@ describe("family model", () => {
   it("only owners and adults open the door", async () => {
     expect((await call(R.intercomActRoute, "vmd_kid", { body: { action: "open" } })).status).toBe(403);
     expect((await call(R.intercomActRoute, "vmd_kid", { body: { action: "ignore" } })).body).toMatchObject({ ok: true, canOpen: false });
+  });
+});
+
+describe("push registration (P7-03)", () => {
+  const P256 = "BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM";
+  const row = async (id: string) => {
+    const { db } = await import("@/lib/db");
+    const s = await import("@/lib/db/schema");
+    const { eq } = await import("drizzle-orm");
+    return db.select().from(s.pairedDevices).where(eq(s.pairedDevices.id, id)).get();
+  };
+
+  it("stores a UnifiedPush endpoint with its keys on the calling device only", async () => {
+    const r = await call(R.pushRegisterRoute, "vmd_kid", { body: { kind: "unifiedpush", endpoint: "https://ntfy.sh/upKid?up=1", p256dh: P256, auth: "tBHItJI5svbpez7KI4CCXg" } });
+    expect(r.body).toEqual({ ok: true });
+    expect(await row("d-kid")).toMatchObject({ pushKind: "unifiedpush", pushToken: "https://ntfy.sh/upKid?up=1", pushP256dh: P256 });
+    expect((await row("d-owner"))?.pushToken ?? null).toBeNull();
+  });
+
+  it("refuses endpoints inside the house network", async () => {
+    for (const endpoint of ["http://ntfy.sh/x", "https://192.168.1.10/up", "https://homeassistant.local/up", "https://10.0.0.2/up"]) {
+      const r = await call(R.pushRegisterRoute, "vmd_kid", { body: { kind: "unifiedpush", endpoint, p256dh: P256, auth: "tBHItJI5svbpez7KI4CCXg" } });
+      expect(r.status, endpoint).toBe(400);
+    }
+    expect((await row("d-kid"))?.pushToken).toBe("https://ntfy.sh/upKid?up=1");
+  });
+
+  it("switching to FCM clears the Web Push keys, none clears everything", async () => {
+    await call(R.pushRegisterRoute, "vmd_kid", { body: { kind: "fcm", token: "f".repeat(40) } });
+    expect(await row("d-kid")).toMatchObject({ pushKind: "fcm", pushToken: "f".repeat(40), pushP256dh: null, pushAuth: null });
+    await call(R.pushRegisterRoute, "vmd_kid", { body: { kind: "none" } });
+    expect(await row("d-kid")).toMatchObject({ pushKind: null, pushToken: null });
+  });
+
+  it("config always offers Web Push and hides FCM when the hub has no Firebase app", async () => {
+    const r = await call(R.pushConfigRoute, "vmd_guest");
+    expect(r.body).toMatchObject({ webPush: true });
+    expect(r.body.fcm === null || typeof r.body.fcm === "object").toBe(true);
+  });
+});
+
+describe("presence (P7-05)", () => {
+  it("fires vatra_presence once per state change, as the calling member", async () => {
+    events.length = 0;
+    expect((await call(R.presenceRoute, "vmd_kid", { body: { state: "home" } })).body).toEqual({ ok: true, fired: true });
+    expect((await call(R.presenceRoute, "vmd_kid", { body: { state: "home", source: "nfc" } })).body).toEqual({ ok: true, fired: false });
+    expect((await call(R.presenceRoute, "vmd_kid", { body: { state: "away" } })).body).toEqual({ ok: true, fired: true });
+    expect(events).toEqual([
+      { type: "vatra_presence", data: { user: "kid", member: "kid", state: "home", source: "geofence" } },
+      { type: "vatra_presence", data: { user: "kid", member: "kid", state: "away", source: "geofence" } },
+    ]);
+  });
+
+  it("rejects unknown states", async () => {
+    expect((await call(R.presenceRoute, "vmd_kid", { body: { state: "everywhere" } })).status).toBe(400);
   });
 });

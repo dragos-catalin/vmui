@@ -2,6 +2,8 @@
 # but scripts/*.sh run inside WSL/Linux, where a CRLF shebang produces
 # "bad interpreter: /bin/bash^M". Pin every Linux-executed file to LF.
 * text=auto
+apps/android/gradlew text eol=lf
+apps/android/gradlew.bat text eol=crlf
 
 *.sh   text eol=lf
 *.bash text eol=lf

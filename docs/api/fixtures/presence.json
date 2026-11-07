@@ -1,0 +1,10 @@
+{
+  "request": {
+    "state": "home",
+    "source": "geofence"
+  },
+  "response": {
+    "ok": true,
+    "fired": true
+  }
+}

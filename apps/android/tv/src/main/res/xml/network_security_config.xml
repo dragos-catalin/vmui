@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A self-hosted hub on the LAN speaks plain HTTP (http://vatra.local, 192.168.x.x:3737); a hub behind
+  Tailscale or the relay speaks HTTPS. The config cannot express IP ranges, so cleartext is allowed;
+  PairLink.normaliseHub refuses non-http(s) schemes, credentials and paths before any request.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

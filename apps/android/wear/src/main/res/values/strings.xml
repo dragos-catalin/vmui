@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">Vatra</string>
+    <string name="tile_label">Home</string>
+    <string name="tile_empty">Open Vatra on the watch to join your home.</string>
+    <string name="open">Open</string>
+    <string name="lights_on">%1$d lights on</string>
+    <string name="lights_short">Lights</string>
+    <string name="water_short">Water %1$d / %2$d ml</string>
+    <string name="complication_water">Water today</string>
+    <string name="complication_lights">Lights on</string>
+    <string name="pair_title">Join a home</string>
+    <string name="pair_body">Enter the hub address, then approve the code on the hub or in the phone app.</string>
+    <string name="pair_address">Hub address</string>
+    <string name="pair_request">Ask for approval</string>
+    <string name="pair_code">Code on the hub: %1$s</string>
+    <string name="pair_failed">Couldn\'t join (%1$s).</string>
+    <string name="offline">Can\'t reach the hub.</string>
+</resources>

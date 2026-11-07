@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Vatra app API",
-    "version": "1.0.0",
-    "description": "Contract between the Vatra hub and its native apps. apiVersion 1, minClient 1 (GET /api/discover). Errors are { ok:false, code, error } with `error` in the device language (Accept-Language or x-vatra-locale)."
+    "version": "2.0.0",
+    "description": "Contract between the Vatra hub and its native apps. apiVersion 2, minClient 1 (GET /api/discover). Errors are { ok:false, code, error } with `error` in the device language (Accept-Language or x-vatra-locale)."
   },
   "servers": [
     {
@@ -1805,6 +1805,367 @@
           },
           "403": {
             "description": "not_bound / forbidden / no_room_access",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/app/push": {
+      "get": {
+        "operationId": "push",
+        "summary": "How this hub can wake the app: FCM client options and/or Web Push (UnifiedPush)",
+        "description": "fcm is null when the hub has no Firebase project configured; the app then offers UnifiedPush only. webPush is always true (UnifiedPush needs no hub account).\n\nAny household member's paired device; room grants apply.",
+        "tags": [
+          "app"
+        ],
+        "security": [
+          {
+            "deviceAuth": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "fcm": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "projectId": {
+                              "type": "string"
+                            },
+                            "applicationId": {
+                              "type": "string"
+                            },
+                            "apiKey": {
+                              "type": "string"
+                            },
+                            "senderId": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "projectId",
+                            "applicationId",
+                            "apiKey",
+                            "senderId"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "webPush": {
+                      "type": "boolean"
+                    },
+                    "vapidKey": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "fcm",
+                    "webPush",
+                    "vapidKey"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "unauthorized: no `Authorization: Bearer vmd_…` header",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "not_bound / forbidden / no_room_access",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "pushRegister",
+        "summary": "Register (or clear) how this device is woken",
+        "description": "kind fcm: an FCM registration token. kind unifiedpush: the distributor's https endpoint plus the RFC 8291 receiver keys; private-network endpoints are refused. kind none: stop pushing.\n\nAny household member's paired device; room grants apply.",
+        "tags": [
+          "app"
+        ],
+        "security": [
+          {
+            "deviceAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "fcm"
+                      },
+                      "token": {
+                        "type": "string",
+                        "minLength": 20,
+                        "maxLength": 4096
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "token"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "unifiedpush"
+                      },
+                      "endpoint": {
+                        "type": "string",
+                        "maxLength": 2048,
+                        "format": "uri"
+                      },
+                      "p256dh": {
+                        "type": "string",
+                        "minLength": 80,
+                        "maxLength": 100,
+                        "pattern": "^[A-Za-z0-9_-]+$"
+                      },
+                      "auth": {
+                        "type": "string",
+                        "minLength": 16,
+                        "maxLength": 32,
+                        "pattern": "^[A-Za-z0-9_-]+$"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "endpoint",
+                      "p256dh",
+                      "auth"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "none"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request: the body does not match the schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "unauthorized: no `Authorization: Bearer vmd_…` header",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "not_bound / forbidden / no_room_access",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "upstream_failed: Home Assistant did not carry out the command",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/app/presence": {
+      "post": {
+        "operationId": "presence",
+        "summary": "This member arrived home / left (phone geofence), or tapped a Vatra NFC tag",
+        "description": "Fires the Home Assistant event vatra_presence {user, member, state, source} so automations can react (lights on when the first person arrives, all off when the last leaves). A repeat of the same state within 2 minutes is accepted but not re-fired.\n\nAny household member's paired device; room grants apply.",
+        "tags": [
+          "app"
+        ],
+        "security": [
+          {
+            "deviceAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "home",
+                      "away"
+                    ]
+                  },
+                  "source": {
+                    "default": "geofence",
+                    "type": "string",
+                    "enum": [
+                      "geofence",
+                      "nfc",
+                      "manual"
+                    ]
+                  }
+                },
+                "required": [
+                  "state"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "fired": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "fired"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request: the body does not match the schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "unauthorized: no `Authorization: Bearer vmd_…` header",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "not_bound / forbidden / no_room_access",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "upstream_failed: Home Assistant did not carry out the command",
             "content": {
               "application/json": {
                 "schema": {

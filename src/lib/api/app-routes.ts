@@ -14,6 +14,12 @@ import { nutritionSummary } from "@/lib/nutrition/summary";
 import { drinkGlass, undoGlass } from "@/lib/nutrition/water-actions";
 import { isLocale, type Locale } from "@/i18n/config";
 import { requestLocale } from "@/lib/api-error";
+import { db } from "@/lib/db";
+import { auditLog, pairedDevices } from "@/lib/db/schema";
+import { credential } from "@/lib/home/credentials";
+import { fcmProjectId } from "@/lib/notify/fcm";
+import { endpointAllowed } from "@/lib/notify/unifiedpush";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { defineRoute, RouteError, type AppRoute } from "./define-route";
 
@@ -346,6 +352,90 @@ export const nutritionTodayRoute = defineRoute({
   },
 });
 
+// ---------------------------------------------------------------- push (P7-03)
+
+/** Client-side FirebaseOptions for the hub's Firebase project; all four are public identifiers (no secret),
+ *  configured on the hub so the app ships without a google-services.json and works with any self-hosted hub. */
+function fcmClientOptions() {
+  const projectId = fcmProjectId();
+  const applicationId = credential("FCM_ANDROID_APP_ID");
+  const apiKey = credential("FCM_ANDROID_API_KEY");
+  const senderId = credential("FCM_SENDER_ID");
+  return projectId && applicationId && apiKey && senderId ? { projectId, applicationId, apiKey, senderId } : null;
+}
+
+const b64url = (min: number, max: number) => z.string().regex(/^[A-Za-z0-9_-]+$/).min(min).max(max);
+
+export const pushConfigRoute = defineRoute({
+  id: "push",
+  method: "GET",
+  path: "/api/v1/app/push",
+  summary: "How this hub can wake the app: FCM client options and/or Web Push (UnifiedPush)",
+  description: "fcm is null when the hub has no Firebase project configured; the app then offers UnifiedPush only. webPush is always true (UnifiedPush needs no hub account).",
+  auth: "member",
+  output: z.object({
+    fcm: z.object({ projectId: z.string(), applicationId: z.string(), apiKey: z.string(), senderId: z.string() }).nullable(),
+    webPush: z.boolean(),
+    vapidKey: z.string().nullable(),
+  }),
+  handler: async () => ({ fcm: fcmClientOptions(), webPush: true, vapidKey: process.env.VAPID_PUBLIC_KEY ?? null }),
+});
+
+export const pushRegisterRoute = defineRoute({
+  id: "pushRegister",
+  method: "PUT",
+  path: "/api/v1/app/push",
+  summary: "Register (or clear) how this device is woken",
+  description: "kind fcm: an FCM registration token. kind unifiedpush: the distributor's https endpoint plus the RFC 8291 receiver keys; private-network endpoints are refused. kind none: stop pushing.",
+  auth: "member",
+  input: z.discriminatedUnion("kind", [
+    z.object({ kind: z.literal("fcm"), token: z.string().min(20).max(4096) }),
+    z.object({ kind: z.literal("unifiedpush"), endpoint: z.string().url().max(2048), p256dh: b64url(80, 100), auth: b64url(16, 32) }),
+    z.object({ kind: z.literal("none") }),
+  ]),
+  output: okSchema,
+  handler: async ({ actor, input }) => {
+    if (!actor.deviceId) throw new RouteError("not_bound", 403);
+    const set =
+      input.kind === "fcm"
+        ? { pushToken: input.token, pushKind: "fcm", pushP256dh: null, pushAuth: null }
+        : input.kind === "unifiedpush"
+          ? (() => {
+              if (!endpointAllowed(input.endpoint)) throw new RouteError("invalid_request", 400);
+              return { pushToken: input.endpoint, pushKind: "unifiedpush", pushP256dh: input.p256dh, pushAuth: input.auth };
+            })()
+          : { pushToken: null, pushKind: null, pushP256dh: null, pushAuth: null };
+    await db.update(pairedDevices).set(set).where(eq(pairedDevices.id, actor.deviceId));
+    return { ok: true as const };
+  },
+});
+
+// ---------------------------------------------------------------- presence (P7-05)
+
+/** In-process last state per member, so a geofence that re-fires "home" every few minutes does not spam HA. */
+const lastPresence: Map<string, { state: string; at: number }> = ((globalThis as { __vatraPresence__?: Map<string, { state: string; at: number }> }).__vatraPresence__ ??= new Map());
+
+export const presenceRoute = defineRoute({
+  id: "presence",
+  method: "POST",
+  path: "/api/v1/app/presence",
+  summary: "This member arrived home / left (phone geofence), or tapped a Vatra NFC tag",
+  description:
+    "Fires the Home Assistant event vatra_presence {user, member, state, source} so automations can react (lights on when the first person arrives, all off when the last leaves). A repeat of the same state within 2 minutes is accepted but not re-fired.",
+  auth: "member",
+  input: z.object({ state: z.enum(["home", "away"]), source: z.enum(["geofence", "nfc", "manual"]).default("geofence") }),
+  output: z.object({ ok: z.literal(true), fired: z.boolean() }),
+  handler: async ({ actor, input }) => {
+    const prev = lastPresence.get(actor.userId);
+    const now = Date.now();
+    if (prev && prev.state === input.state && now - prev.at < 120_000) return { ok: true as const, fired: false };
+    lastPresence.set(actor.userId, { state: input.state, at: now });
+    await ha.fireEvent("vatra_presence", { user: actor.userId, member: actor.displayName, state: input.state, source: input.source });
+    await db.insert(auditLog).values({ accountId: "home", action: `presence.${input.state}`, target: actor.userId, status: "ok", message: `${actor.displayName} via ${input.source}${actor.deviceId ? ` (${actor.deviceId})` : ""}` });
+    return { ok: true as const, fired: true };
+  },
+});
+
 /** Every /api/v1/app operation, in a stable order (OpenAPI, tests, route files). */
 export const APP_ROUTES: readonly AppRoute[] = [
   meRoute,
@@ -360,4 +450,7 @@ export const APP_ROUTES: readonly AppRoute[] = [
   waterGetRoute,
   waterActRoute,
   nutritionTodayRoute,
+  pushConfigRoute,
+  pushRegisterRoute,
+  presenceRoute,
 ] as unknown as readonly AppRoute[];

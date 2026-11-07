@@ -999,6 +999,10 @@ sqlite.exec(`CREATE TABLE IF NOT EXISTS paired_devices (
   if (!cols.has("user_id")) alterAddColumn("ALTER TABLE paired_devices ADD COLUMN user_id TEXT");
   // appliance tokens (P3-03): JSON array of API path prefixes; NULL = a paired app (member rooms apply)
   if (!cols.has("scopes")) alterAddColumn("ALTER TABLE paired_devices ADD COLUMN scopes TEXT");
+  // P7-03: UnifiedPush devices are woken over Web Push instead of FCM
+  if (!cols.has("push_kind")) alterAddColumn("ALTER TABLE paired_devices ADD COLUMN push_kind TEXT");
+  if (!cols.has("push_p256dh")) alterAddColumn("ALTER TABLE paired_devices ADD COLUMN push_p256dh TEXT");
+  if (!cols.has("push_auth")) alterAddColumn("ALTER TABLE paired_devices ADD COLUMN push_auth TEXT");
 }
 sqlite.exec(`CREATE TABLE IF NOT EXISTS meals (
   id TEXT PRIMARY KEY,
