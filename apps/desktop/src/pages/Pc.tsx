@@ -9,7 +9,7 @@ import { useDisplayState } from "./display-state";
 export function Pc() {
   const { t } = useTranslation();
   const { busy, run } = useAction();
-  const { mobile, version } = usePlatform();
+  const { mobile, version, dev } = usePlatform();
   const [vol, setVol] = React.useState(30);
   // vmui_get targets homepi, so this is what the Pi's turzx agent reports for every PC
   const metrics = useDisplayState(5000);
@@ -35,7 +35,7 @@ export function Pc() {
           <button type="button" className="tile" onClick={() => act("lock")} disabled={!!busy}><Lock className="size-5 text-primary-text" /><div className="min-w-0"><div className="font-medium break-words">{t("pc.lock")}</div><div className="text-xs text-muted">Win+L</div></div></button>
           <button type="button" className="tile" onClick={() => act("display_off")} disabled={!!busy}><MonitorOff className="size-5 text-primary-text" /><div className="min-w-0"><div className="font-medium break-words">{t("pc.displayOff")}</div><div className="text-xs text-muted">{t("pc.displayOffHint")}</div></div></button>
           <button type="button" className="tile" onClick={() => void sleep()} disabled={!!busy}><Moon className="size-5 text-warning-text" /><div className="min-w-0"><div className="font-medium break-words">{t("pc.sleep")}</div><div className="text-xs text-muted">{t("pc.sleepHint")}</div></div></button>
-          <button type="button" className="tile" onClick={() => act("unfreeze_vscode", t("pc.unfrozen"))} disabled={!!busy}><Snowflake className="size-5 text-info" /><div className="min-w-0"><div className="font-medium break-words">{t("pc.unfreeze")}</div><div className="text-xs text-muted">{t("pc.unfreezeHint")}</div></div></button>
+          {(dev || mobile) && <button type="button" className="tile" onClick={() => act("unfreeze_vscode", t("pc.unfrozen"))} disabled={!!busy}><Snowflake className="size-5 text-info" /><div className="min-w-0"><div className="font-medium break-words">{t("pc.unfreeze")}</div><div className="text-xs text-muted">{t("pc.unfreezeHint")}</div></div></button>}
         </div>
       </div>
 
@@ -47,11 +47,11 @@ export function Pc() {
             <button type="button" className="btn" onClick={() => act("unmute", t("pc.unmuted"))} disabled={!!busy}><Volume2 className="size-4" />{t("pc.unmute")}</button>
           </div>
         </Card>
-        <Card title={t("pc.maintenance")}>
+        {(dev || mobile) && <Card title={t("pc.maintenance")}>
           <div className="flex flex-wrap gap-2">
             {maint.map(([a, k, icon]) => <button key={a} type="button" className="btn" onClick={() => act(a, t("common.done"))} disabled={!!busy}>{icon}{t(k as "pc.restartTunnel")}</button>)}
           </div>
-        </Card>
+        </Card>}
       </div>
 
       <Card title={t("pc.running")} sub={t("pc.runningSub")} right={<div className="flex items-center gap-2">{metrics.stale && <StaleBadge error={metrics.error} />}<button type="button" className="btn ghost sm" aria-label={t("common.refresh")} onClick={() => void metrics.refresh()}><RefreshCw className="size-3.5" /></button></div>}>

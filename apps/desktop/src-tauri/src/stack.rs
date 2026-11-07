@@ -1,6 +1,7 @@
-//! Everything the window and the tray talk to: the repo on disk (credentials,
-//! ambilight/settings.json, scripts), Task Scheduler, HyperHDR's JSON-API over
-//! WebSocket, Home Assistant REST and the local vmui HTTP API.
+//! Everything the window and the tray talk to: the paired hub (crate::hub), HyperHDR's
+//! JSON-API over WebSocket on this PC and, in a developer checkout only, the repo on disk
+//! (credentials, ambilight/settings.json, scripts) and its Task Scheduler stack.
+//! An installed copy (P9) reads nothing outside its own app-data and log folders.
 //!
 //! All calls are blocking and short; Tauri runs commands on a thread pool.
 
@@ -14,9 +15,8 @@ use std::sync::OnceLock;
 use std::time::Duration;
 
 pub const HYPER_WS: &str = "ws://127.0.0.1:8090";
+/// The developer PC's own vmui (Hyper-V provider); only probed in a checkout.
 pub const VMUI: &str = "http://127.0.0.1:3737";
-/// The house's vmui (homepi). Pairing requests from phones land there.
-pub const VMUI_PI: &str = "http://192.168.100.232:3737";
 pub const TASKS: [&str; 6] = [
     "vmui-ambilight-hyperhdr",
     "vmui-ambilight-openrgb",
@@ -33,34 +33,46 @@ const NO_WINDOW: u32 = 0x0800_0000;
 
 // ---------------------------------------------------------------- repo + creds
 
-/// The vmui checkout. Walk up from the executable (dev: target/debug, prod:
-/// wherever it is installed) until a directory holds `ambilight/tray.py`;
-/// fall back to VMUI_ROOT then E:\gh\vmui.
-pub fn root() -> &'static Path {
-    static ROOT: OnceLock<PathBuf> = OnceLock::new();
+/// The vmui checkout, when this binary runs from one: VMUI_ROOT, or a parent of the executable
+/// that holds `ambilight/tray.py` (target/release inside the repo). None for an installed copy,
+/// which then never touches a repo path (P9-01).
+pub fn root() -> Option<&'static Path> {
+    static ROOT: OnceLock<Option<PathBuf>> = OnceLock::new();
     ROOT.get_or_init(|| {
         if let Ok(r) = std::env::var("VMUI_ROOT") {
-            return PathBuf::from(r);
+            let p = PathBuf::from(r);
+            return p.join("ambilight").join("tray.py").exists().then_some(p);
         }
         let mut p = std::env::current_exe().ok();
         while let Some(dir) = p.as_ref().and_then(|x| x.parent()).map(Path::to_path_buf) {
             if dir.join("ambilight").join("tray.py").exists() {
-                return dir;
+                return Some(dir);
             }
             if dir.parent().is_none() {
                 break;
             }
             p = Some(dir);
         }
-        PathBuf::from(r"E:\gh\vmui")
+        None
     })
+    .as_deref()
 }
 
+pub fn dev() -> bool {
+    root().is_some()
+}
+
+fn need_root() -> Result<&'static Path> {
+    root().ok_or_else(|| anyhow!("dev_only"))
+}
+
+/// Developer checkout credentials (+ the same keys from the environment). Empty for an installed copy.
 pub fn creds() -> &'static HashMap<String, String> {
     static C: OnceLock<HashMap<String, String>> = OnceLock::new();
     C.get_or_init(|| {
         let mut out = HashMap::new();
-        if let Ok(text) = std::fs::read_to_string(root().join(".private").join("credentials.env")) {
+        let Some(root) = root() else { return out };
+        if let Ok(text) = std::fs::read_to_string(root.join(".private").join("credentials.env")) {
             for line in text.lines() {
                 let line = line.trim_end_matches('\r');
                 if line.is_empty() || line.starts_with('#') {
@@ -84,9 +96,23 @@ fn cred(k: &str) -> String {
     creds().get(k).cloned().unwrap_or_default()
 }
 
-/// Append one line to .copilot-tmp/service-logs/desktop.log (the Servicii page tails it).
+static LOG_DIR: OnceLock<PathBuf> = OnceLock::new();
+
+/// The app's own log folder (Tauri app_log_dir); set once at startup.
+pub fn set_log_dir(dir: PathBuf) {
+    let _ = LOG_DIR.set(dir);
+}
+
+fn log_dir() -> PathBuf {
+    match root() {
+        Some(r) => r.join(".copilot-tmp").join("service-logs"),
+        None => LOG_DIR.get().cloned().unwrap_or_else(|| std::env::temp_dir().join("vatra")),
+    }
+}
+
+/// Append one line to desktop.log (the Sistem page tails it).
 pub fn log(msg: &str) {
-    let dir = root().join(".copilot-tmp").join("service-logs");
+    let dir = log_dir();
     let _ = std::fs::create_dir_all(&dir);
     if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(dir.join("desktop.log")) {
         use std::io::Write;
@@ -97,24 +123,25 @@ pub fn log(msg: &str) {
 
 // ---------------------------------------------------------------- settings.json
 
-pub fn settings_path() -> PathBuf {
-    root().join("ambilight").join("settings.json")
+pub fn settings_path() -> Result<PathBuf> {
+    Ok(need_root()?.join("ambilight").join("settings.json"))
 }
 
 pub fn read_settings() -> Result<Value> {
-    let t = std::fs::read_to_string(settings_path()).context("ambilight/settings.json")?;
+    let t = std::fs::read_to_string(settings_path()?).context("ambilight/settings.json")?;
     Ok(serde_json::from_str(&t)?)
 }
 
 /// Merge `patch` into settings.json (top-level keys) and write it back pretty.
 pub fn write_settings(patch: Value) -> Result<Value> {
+    let path = settings_path()?;
     let mut cur = read_settings().unwrap_or_else(|_| json!({}));
     if let (Some(c), Some(p)) = (cur.as_object_mut(), patch.as_object()) {
         for (k, v) in p {
             c.insert(k.clone(), v.clone());
         }
     }
-    std::fs::write(settings_path(), serde_json::to_string_pretty(&cur)? + "\n")?;
+    std::fs::write(path, serde_json::to_string_pretty(&cur)? + "\n")?;
     Ok(cur)
 }
 
@@ -138,7 +165,11 @@ pub struct TaskState {
 }
 
 /// One `schtasks /query` for every task (was one process per task, 6 per tick).
+/// The Task Scheduler stack is the developer house's; an installed copy has none.
 pub fn task_states() -> Vec<TaskState> {
+    if !dev() {
+        return Vec::new();
+    }
     let text = cmd("schtasks").args(["/query", "/fo", "csv", "/nh"]).output().map(|o| String::from_utf8_lossy(&o.stdout).to_string()).unwrap_or_default();
     let mut found: HashMap<String, String> = HashMap::new();
     for line in text.lines() {
@@ -160,6 +191,7 @@ pub fn task_states() -> Vec<TaskState> {
 }
 
 pub fn task_start(name: &str) -> Result<()> {
+    need_root()?;
     if !TASKS.contains(&name) {
         return Err(anyhow!("unknown task"));
     }
@@ -168,6 +200,7 @@ pub fn task_start(name: &str) -> Result<()> {
 }
 
 pub fn task_stop(name: &str) -> Result<()> {
+    need_root()?;
     if !TASKS.contains(&name) {
         return Err(anyhow!("unknown task"));
     }
@@ -195,11 +228,18 @@ pub const PC_ACTIONS: [&str; 12] = [
     "lock", "sleep", "display_off", "volume", "mute", "unmute", "restart_tunnel", "unfreeze_vscode", "kill_runaway_renderer", "restart_ambilight", "restart_turzx", "restart_vmui",
 ];
 
+/// Verbs every installed copy can do itself (Win32, no script); the rest drive the developer
+/// house's scheduled tasks and need the checkout.
+pub const NATIVE_PC_ACTIONS: [&str; 6] = ["lock", "sleep", "display_off", "volume", "mute", "unmute"];
+
 pub fn pc_action(action: &str, value: Option<i64>) -> Result<String> {
     if !PC_ACTIONS.contains(&action) {
         return Err(anyhow!("unknown pc action"));
     }
-    let script = root().join("scripts").join("pc-action.ps1");
+    if NATIVE_PC_ACTIONS.contains(&action) {
+        return native_pc(action, value).map(|_| format!("ok {action}"));
+    }
+    let script = need_root()?.join("scripts").join("pc-action.ps1");
     let mut c = cmd("pwsh");
     c.args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-File"]).arg(&script).args(["-Action", action]);
     if let Some(v) = value {
@@ -214,9 +254,54 @@ pub fn pc_action(action: &str, value: Option<i64>) -> Result<String> {
     }
 }
 
+/// Same effects as scripts/pc-action.ps1, through Win32 directly.
+#[cfg(windows)]
+fn native_pc(action: &str, value: Option<i64>) -> Result<()> {
+    use windows_sys::Win32::System::Power::SetSuspendState;
+    use windows_sys::Win32::System::Shutdown::LockWorkStation;
+    use windows_sys::Win32::UI::Input::KeyboardAndMouse::{keybd_event, KEYEVENTF_KEYUP, VK_VOLUME_DOWN, VK_VOLUME_MUTE, VK_VOLUME_UP};
+    use windows_sys::Win32::UI::WindowsAndMessaging::{SendMessageW, HWND_BROADCAST, SC_MONITORPOWER, WM_SYSCOMMAND};
+    let key = |vk: u16| unsafe {
+        keybd_event(vk as u8, 0, 0, 0);
+        keybd_event(vk as u8, 0, KEYEVENTF_KEYUP, 0);
+    };
+    // SAFETY: plain Win32 calls with constant arguments; none keeps a pointer.
+    match action {
+        "lock" => {
+            if unsafe { LockWorkStation() } == 0 {
+                return Err(anyhow!("LockWorkStation failed"));
+            }
+        }
+        "sleep" => {
+            unsafe { SetSuspendState(false, false, false) };
+        }
+        "display_off" => {
+            unsafe { SendMessageW(HWND_BROADCAST, WM_SYSCOMMAND, SC_MONITORPOWER as usize, 2) };
+        }
+        "mute" | "unmute" => key(VK_VOLUME_MUTE),
+        "volume" => {
+            let v = value.filter(|v| (0..=100).contains(v)).ok_or_else(|| anyhow!("volume needs 0..100"))?;
+            // media keys move 2 % per press: drive to 0, then up
+            for _ in 0..50 {
+                key(VK_VOLUME_DOWN);
+            }
+            for _ in 0..((v as f64 / 2.0).round() as i64) {
+                key(VK_VOLUME_UP);
+            }
+        }
+        _ => return Err(anyhow!("unknown pc action")),
+    }
+    Ok(())
+}
+
+#[cfg(not(windows))]
+fn native_pc(_action: &str, _value: Option<i64>) -> Result<()> {
+    Err(anyhow!("unsupported on this OS"))
+}
+
 /// Re-push settings.json into HyperHDR (layouts, smoothing, wall compensation).
 pub fn ambilight_configure() -> Result<String> {
-    let script = root().join("scripts").join("ambilight.ps1");
+    let script = need_root()?.join("scripts").join("ambilight.ps1");
     let out = cmd("pwsh").args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-File"]).arg(&script).arg("-Configure").output()?;
     let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
     if out.status.success() {
@@ -228,10 +313,11 @@ pub fn ambilight_configure() -> Result<String> {
 
 pub fn tail_log(name: &str, lines: usize) -> Result<String> {
     let file = match name {
-        "tray" | "turzx" | "bridges" | "hyperhdr" | "openrgb" | "vmui" | "desktop" => format!("{name}.log"),
+        "desktop" => format!("{name}.log"),
+        "tray" | "turzx" | "bridges" | "hyperhdr" | "openrgb" | "vmui" if dev() => format!("{name}.log"),
         _ => return Err(anyhow!("unknown log")),
     };
-    let p = root().join(".copilot-tmp").join("service-logs").join(file);
+    let p = log_dir().join(file);
     let t = std::fs::read_to_string(&p).unwrap_or_default();
     let v: Vec<&str> = t.lines().collect();
     let start = v.len().saturating_sub(lines);
@@ -240,9 +326,13 @@ pub fn tail_log(name: &str, lines: usize) -> Result<String> {
 
 pub fn open_path(p: &str) -> Result<()> {
     let target = match p {
-        "settings" => settings_path(),
-        "logs" => root().join(".copilot-tmp").join("service-logs"),
-        "root" => root().to_path_buf(),
+        "settings" => settings_path()?,
+        "logs" => {
+            let d = log_dir();
+            std::fs::create_dir_all(&d)?;
+            d
+        }
+        "root" => need_root()?.to_path_buf(),
         _ => return Err(anyhow!("unknown path")),
     };
     cmd("explorer").arg(target).spawn()?;
@@ -349,11 +439,17 @@ fn agent() -> ureq::Agent {
     ureq::Agent::config_builder().timeout_global(Some(Duration::from_secs(6))).build().into()
 }
 
+/// Direct Home Assistant access exists only in a developer checkout with its own HA token;
+/// an installed copy goes through the hub (`/api/desktop/agent`).
+fn ha_direct() -> bool {
+    !cred("HA_URL").is_empty() && !cred("HA_TOKEN").is_empty()
+}
+
 pub fn ha_post(path: &str, body: Value) -> Result<Value> {
     let url = cred("HA_URL").trim_end_matches('/').to_string();
     let tok = cred("HA_TOKEN");
     if url.is_empty() || tok.is_empty() {
-        return Err(anyhow!("HA_URL / HA_TOKEN missing"));
+        return Err(anyhow!("dev_only"));
     }
     let r = agent().post(&format!("{url}/api/{path}")).header("Authorization", &format!("Bearer {tok}")).send_json(body)?;
     Ok(r.into_body().read_json::<Value>().unwrap_or(json!(null)))
@@ -363,28 +459,33 @@ pub fn ha_get(path: &str) -> Result<Value> {
     let url = cred("HA_URL").trim_end_matches('/').to_string();
     let tok = cred("HA_TOKEN");
     if url.is_empty() || tok.is_empty() {
-        return Err(anyhow!("HA_URL / HA_TOKEN missing"));
+        return Err(anyhow!("dev_only"));
     }
     Ok(agent().get(&format!("{url}/api/{path}")).header("Authorization", &format!("Bearer {tok}")).call()?.into_body().read_json()?)
 }
 
-pub fn vmui_token() -> String {
-    // the owner's control window reaches every owner route; it moves to a paired-device token in P9
-    cred("ESP_DISPLAY_TOKEN")
-}
-
-/// Auth header for the house vmui; never put the token in a URL (P0-06).
-pub fn vmui_auth() -> (&'static str, String) {
-    let t = vmui_token();
-    if t.starts_with("vmd_") { ("Authorization", format!("Bearer {t}")) } else { ("x-esp-token", t) }
+/// HA reachable: directly in a checkout, else as the hub sees it.
+pub fn ha_online() -> bool {
+    if ha_direct() {
+        return ha_get("").is_ok();
+    }
+    pi_get("/api/desktop/agent", 8).ok().and_then(|v| v["haOnline"].as_bool()).unwrap_or(false)
 }
 
 /// Start an HA script without waiting for it: `script.turn_on` returns at once,
 /// whereas `script/<name>` blocks for the script's whole run (movie_mode_off
 /// has a 7 s delay, longer than the 6 s agent timeout).
 pub fn ha_script(name: &str, variables: Value) -> Result<()> {
+    let has_vars = variables.as_object().is_some_and(|o| !o.is_empty());
+    if !ha_direct() {
+        let mut body = json!({"script": name});
+        if has_vars {
+            body["variables"] = variables;
+        }
+        return pi_post("/api/desktop/agent", body).map(|_| ());
+    }
     let mut body = json!({"entity_id": format!("script.{name}")});
-    if variables.as_object().is_some_and(|o| !o.is_empty()) {
+    if has_vars {
         body["variables"] = variables;
     }
     ha_post("services/script/turn_on", body).map(|_| ())
@@ -400,11 +501,11 @@ pub fn vmui_send(method: &str, path: &str, body: Value) -> Result<Value> {
     pi_send(method, path, body)
 }
 
-/// GET against the Pi with an explicit timeout (long-poll endpoints use 40 s).
+/// GET against the paired hub with an explicit timeout (long-poll endpoints use 40 s).
 pub fn pi_get(path: &str, timeout_secs: u64) -> Result<Value> {
     let a: ureq::Agent = ureq::Agent::config_builder().timeout_global(Some(Duration::from_secs(timeout_secs))).build().into();
-    let (h, v) = vmui_auth();
-    match a.get(&format!("{VMUI_PI}{path}")).header(h, &v).call() {
+    let (h, v) = crate::hub::auth()?;
+    match a.get(&format!("{}{path}", crate::hub::url())).header(h, &v).call() {
         Ok(r) => Ok(r.into_body().read_json()?),
         Err(ureq::Error::StatusCode(c)) => Err(anyhow!("HTTP {c}")),
         Err(e) => Err(e.into()),
@@ -416,8 +517,8 @@ pub fn pi_post(path: &str, body: Value) -> Result<Value> {
 }
 
 pub fn pi_send(method: &str, path: &str, body: Value) -> Result<Value> {
-    let u = format!("{VMUI_PI}{path}");
-    let (h, v) = vmui_auth();
+    let u = format!("{}{path}", crate::hub::url());
+    let (h, v) = crate::hub::auth()?;
     let r = match method {
         "PUT" => agent().put(&u).header(h, &v).send_json(body),
         _ => agent().post(&u).header(h, &v).send_json(body),
@@ -429,8 +530,13 @@ pub fn pi_send(method: &str, path: &str, body: Value) -> Result<Value> {
     }
 }
 
+/// The checkout probes its local vmui (Hyper-V provider); an installed copy probes its hub.
 pub fn vmui_ok() -> bool {
-    match agent().get(&format!("{VMUI}/api/health")).call() {
+    let base = if dev() { VMUI.to_string() } else { crate::hub::url() };
+    if base.is_empty() {
+        return false;
+    }
+    match agent().get(&format!("{base}/api/health")).call() {
         Ok(_) => true,
         // 307 -> sign-in still means the server is up
         Err(ureq::Error::StatusCode(c)) => matches!(c, 301 | 302 | 307 | 401 | 403),
@@ -454,9 +560,12 @@ pub struct Health {
 }
 
 pub fn health() -> Health {
+    if !dev() {
+        return product_health();
+    }
     let tasks = task_states();
     let vm = vmui_ok();
-    let ha = ha_get("").is_ok();
+    let ha = ha_online();
     let mut h = Health { vmui: vm, ha, tasks: tasks.clone(), ..Default::default() };
     match hyper_info() {
         Err(_) => {
@@ -484,6 +593,39 @@ pub fn health() -> Health {
             } else {
                 h.state = "ok".into();
                 h.detail = format!("{} · {}", h.source, crate::i18n::t(if h.grabber == Some(true) { "captureOn" } else { "captureOff" }));
+            }
+        }
+    }
+    h
+}
+
+/// Installed copy: the hub decides health; HyperHDR on this PC is optional (ambilight is an extra).
+fn product_health() -> Health {
+    let mut h = Health::default();
+    if crate::hub::paired().is_none() {
+        h.state = "down".into();
+        h.detail = crate::i18n::t("notPaired");
+        return h;
+    }
+    match pi_get("/api/desktop/agent", 8) {
+        Err(_) => {
+            h.state = "down".into();
+            h.detail = crate::i18n::t("hubDown");
+        }
+        Ok(v) => {
+            h.vmui = true;
+            h.ha = v["haOnline"].as_bool().unwrap_or(false);
+            if let Ok(info) = hyper_info() {
+                h.hyper = true;
+                h.grabber = info["components"].as_array().and_then(|c| c.iter().find(|x| x["name"] == "SYSTEMGRABBER")).and_then(|x| x["enabled"].as_bool());
+                h.source = info["priorities"].as_array().and_then(|p| p.iter().find(|x| x["visible"] == json!(true))).and_then(|x| x["componentId"].as_str()).unwrap_or("idle").to_lowercase();
+            }
+            if h.ha {
+                h.state = "ok".into();
+                h.detail = if h.hyper { format!("{} · {}", h.source, crate::i18n::t(if h.grabber == Some(true) { "captureOn" } else { "captureOff" })) } else { crate::i18n::t("connected") };
+            } else {
+                h.state = "warn".into();
+                h.detail = crate::i18n::t("haDown");
             }
         }
     }

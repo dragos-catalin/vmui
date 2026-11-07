@@ -295,7 +295,12 @@
     "themeDark": "Întunecată",
     "themeLight": "Luminoasă",
     "unavailable": "indisponibil",
-    "ambilightFile": "Setări Ambilight"
+    "ambilightFile": "Setări Ambilight",
+    "hub": "Serverul casei",
+    "hubNone": "neconectat",
+    "disconnect": "Deconectează",
+    "disconnectConfirm": "Deconectezi acest PC de la casă? Va trebui asociat din nou.",
+    "disconnected": "Deconectat"
   },
   "pi": {
     "sub": "homepi · serverul casei",
@@ -481,7 +486,11 @@
     "checking": "Se verifică…",
     "connect": "Conectează",
     "rejected": "Cerere respinsă",
-    "timedOut": "Nimeni n-a aprobat în 5 minute. Încearcă din nou."
+    "timedOut": "Nimeni n-a aprobat în 5 minute. Încearcă din nou.",
+    "subDesktop": "Vatra găsește serverul în rețea; aprobă acest PC din web sau de pe un telefon, ori autentifică-te.",
+    "waitTextDesktop": "Aprobă acest PC din <b>Vatra web → Dispozitive</b> sau de pe un telefon deja conectat. Codul trebuie să fie același:",
+    "redeeming": "Mă conectez la {{url}}…",
+    "inviteInvalid": "Invitația nu mai e valabilă. Fă una nouă din pagina Adaugă dispozitiv."
   },
   "update": {
     "available": "Vatra {{version}} disponibil",

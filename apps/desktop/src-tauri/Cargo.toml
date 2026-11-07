@@ -39,7 +39,7 @@ tauri-plugin-global-shortcut = "~2.3" # 2.4 requires tauri 2.12; npm @tauri-apps
 [target."cfg(windows)".dependencies]
 tauri-winrt-notification = "0.8"
 winreg = "0.56"
-windows-sys = { version = "0.61", features = ["Win32_UI_Shell"] }
+windows-sys = { version = "0.61", features = ["Win32_UI_Shell", "Win32_Foundation", "Win32_Security_Cryptography", "Win32_System_Power", "Win32_System_Shutdown", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
 
 [profile.release]
 codegen-units = 1

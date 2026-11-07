@@ -971,7 +971,7 @@ by `lib/notify/actions.ts` — the only place that knows what `add250` or
    /home Notifications tab (`components/home/notify-card.tsx`), the desktop tray
    (`apps/desktop/src-tauri/src/notify.rs` → Windows toast with up to 3
    buttons via `tauri-winrt-notification`, AUMID registered under
-   `HKCU\Software\Classes\AppUserModelId\ro.dragoscatalin.vmui` at start —
+   `HKCU\Software\Classes\AppUserModelId\ro.vatra.desktop` at start —
    unpackaged exes get no toasts without it) and any open app.
 2. FCM **data-only** message to every approved device with a `push_token`
    (`lib/notify/fcm.ts`, HTTP v1, service account
@@ -1046,7 +1046,7 @@ curl.exe -s -X POST http://192.168.100.232:3737/api/hooks/contact -H 'content-ty
   has `add_button`/`on_activated`/hero/progress but no remove-by-tag.
 - With Windows Focus Assist / DND on, toasts go straight to the notification
   centre (Win+N) — `LastNotificationAddedTime` under
-  `HKCU\…\Notifications\Settings\ro.dragoscatalin.vmui` proves delivery.
+  `HKCU\…\Notifications\Settings\ro.vatra.desktop` proves delivery.
 - `adb shell am broadcast` cannot reach `NotifyActionReceiver`
   (`exported=false`); test buttons by expanding the shade and tapping.
 - Firebase: enabling `firebasecloudmessaging.googleapis.com` fails (not a

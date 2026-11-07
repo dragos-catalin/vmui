@@ -1,0 +1,9 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "windows": {
+      "webviewInstallMode": { "type": "offlineInstaller" },
+      "signCommand": { "cmd": "pwsh", "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "sign.ps1", "%1"] }
+    }
+  }
+}

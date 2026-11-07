@@ -29,6 +29,44 @@ The same crate is the **Android app** (`ro.dragoscatalin.vmui`, 2026-09-19):
 everything proxied to the Pi's vmui with a per-device token. Same React UI,
 bottom tabs under 768 px.
 
+## Installed copy vs developer checkout (P9)
+
+Bundle id **`ro.vatra.desktop`** (= the toast AppUserModelID in `notify.rs`;
+the legacy Tauri Android build keeps `ro.dragoscatalin.vmui` through
+`tauri.android.conf.json`). The exe decides its mode at start:
+
+- **Developer checkout** — `VMUI_ROOT` or a parent of the exe holds
+  `ambilight/tray.py`. Everything above still applies: credentials.env,
+  settings.json, the Task Scheduler stack, its logs under `.copilot-tmp/service-logs`.
+- **Installed copy** — no repo path is ever read. State lives in the app's own
+  folders: `%APPDATA%\ro.vatra.desktop\hub.json` (hub URL + its own `vmd_`
+  token, DPAPI-protected for the Windows user), `lang.txt`, and
+  `%LOCALAPPDATA%\ro.vatra.desktop\logs\desktop.log`. First start shows the
+  pairing screen: discovery (`_vatra._tcp` / `_vmui._tcp` mDNS, `vatra.local`,
+  `homepi`), then a 4-digit code approved from the web / a phone, or a sign-in
+  (`POST /api/devices/pair`). A **`vatra://pair?h=<hub>&c=<invite>`** link (QR on
+  the hub's Add device page) is redeemed at once; the app registers the scheme
+  under `HKCU\Software\Classes\vatra` on every start and a second launch hands
+  the link to the running instance. Home Assistant is reached only through the
+  hub (`/api/desktop/agent`: HA reachability, house scripts, and — for the
+  owner's PC only — the MQTT login of the PC agent). Lock / display off / sleep /
+  volume / mute are native Win32; the maintenance verbs, ambilight
+  settings.json and the Task Scheduler page appear only in a checkout.
+  Settings → Home server → Disconnect forgets the pairing.
+
+## Microsoft Store / signed NSIS (P9-02)
+
+```powershell
+$env:VATRA_SIGN_THUMBPRINT = '<sha1 of the owner code-signing cert>'
+pnpm --filter @vmui/desktop exec tauri build --config src-tauri/tauri.store.conf.json
+```
+
+`tauri.store.conf.json` adds the offline WebView2 installer (Store rule) and
+signs the exe + installer through `src-tauri/sign.ps1` (signtool, SHA-256,
+RFC 3161 timestamp; refuses to run without a thumbprint). Partner Center
+fields, listings (en/ro), IARC answers and certification notes:
+`store/partner-center.json`. Silent install is `/S`.
+
 ## Android
 
 ```powershell

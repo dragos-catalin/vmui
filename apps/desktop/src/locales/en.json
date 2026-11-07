@@ -295,7 +295,12 @@
     "themeDark": "Dark",
     "themeLight": "Light",
     "unavailable": "unavailable",
-    "ambilightFile": "Ambilight settings"
+    "ambilightFile": "Ambilight settings",
+    "hub": "Home server",
+    "hubNone": "not connected",
+    "disconnect": "Disconnect",
+    "disconnectConfirm": "Disconnect this PC from the house? You will need to pair it again.",
+    "disconnected": "Disconnected"
   },
   "pi": {
     "sub": "homepi · the house server",
@@ -481,7 +486,11 @@
     "checking": "Checking…",
     "connect": "Connect",
     "rejected": "Request rejected",
-    "timedOut": "Nobody approved within 5 minutes. Try again."
+    "timedOut": "Nobody approved within 5 minutes. Try again.",
+    "subDesktop": "Vatra finds the server on your network; approve this PC from the web or a phone, or sign in.",
+    "waitTextDesktop": "Approve this PC from <b>Vatra web → Devices</b> or from a phone that is already connected. The code must match:",
+    "redeeming": "Connecting to {{url}}…",
+    "inviteInvalid": "This invite is no longer valid. Make a new one from the Add device page."
   },
   "update": {
     "available": "Vatra {{version}} available",

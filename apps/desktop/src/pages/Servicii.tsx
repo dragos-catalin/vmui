@@ -8,6 +8,7 @@ import { Card, Loading, PageHeader, Stat } from "../ui";
 import { Pi } from "./Pi";
 
 const LOGS = ["turzx", "bridges", "hyperhdr", "openrgb", "vmui", "desktop"];
+const PRODUCT_LOGS = ["desktop"];
 
 const LABEL: Record<string, { key: "hyperhdr" | "openrgb" | "bridges" | "vmui" | "turzx" | "tray"; log?: string; self?: boolean }> = {
   "vmui-ambilight-hyperhdr": { key: "hyperhdr", log: "hyperhdr" },
@@ -32,11 +33,14 @@ export function Servicii() {
 
 function ServiciiDesktop() {
   const { t } = useTranslation();
+  // the Task Scheduler stack and its logs exist only in the developer checkout
+  const { dev } = usePlatform();
+  const logs = dev ? LOGS : PRODUCT_LOGS;
   const health = React.useContext(HealthCtx);
   // task states come with the tray loop's `health` event (one schtasks call for everything, DK-02)
   const { refresh, busy: checking } = React.useContext(HealthRefreshCtx);
   const { busy, run } = useAction();
-  const [log, setLog] = React.useState<string>("turzx");
+  const [log, setLog] = React.useState<string>(dev ? "turzx" : "desktop");
   const [text, setText] = React.useState("");
   const tail = React.useCallback(() => api.tailLog(log, 200).then(setText).catch((e) => setText(String(e))), [log]);
   useInterval(() => void tail(), 4000);
@@ -50,13 +54,13 @@ function ServiciiDesktop() {
       <PageHeader title={t("nav.sistem")} sub={t("sistem.sub")} />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Stat k={t("sistem.activeTasks")} v={`${running} / ${list.length}`} tone={running === list.length ? "ok" : "warn"} />
+        {dev && <Stat k={t("sistem.activeTasks")} v={`${running} / ${list.length}`} tone={running === list.length ? "ok" : "warn"} />}
         <Stat k="HyperHDR" v={health?.hyper ? health.source : t("sistem.down")} tone={health?.hyper ? "ok" : "down"} />
         <Stat k="vmui" v={health?.vmui ? t("sistem.responds") : t("common.off")} tone={health?.vmui ? "ok" : "warn"} />
         <Stat k="Home Assistant" v={health?.ha ? t("sistem.connected") : t("common.unavailable")} tone={health?.ha ? "ok" : "down"} />
       </div>
 
-      <Card title={t("sistem.tasks")} right={<button type="button" className="btn ghost sm" aria-label={t("common.refresh")} disabled={checking} onClick={refresh}><RefreshCw className={cn("size-3.5", checking && "motion-safe:animate-spin")} /></button>}>
+      {dev && <Card title={t("sistem.tasks")} right={<button type="button" className="btn ghost sm" aria-label={t("common.refresh")} disabled={checking} onClick={refresh}><RefreshCw className={cn("size-3.5", checking && "motion-safe:animate-spin")} /></button>}>
         {!health ? <Loading /> : (
         <div className="grid gap-2">
           {list.map((task) => {
@@ -83,12 +87,12 @@ function ServiciiDesktop() {
           })}
         </div>
         )}
-      </Card>
+      </Card>}
 
       <Card title={t("sistem.logTitle", { name: log })} sub={t("sistem.logSub")}
         right={<div className="flex items-center gap-1">
           <select className="input py-1.5 text-xs" value={log} onChange={(e) => setLog(e.target.value)} aria-label={t("sistem.logPick")}>
-            {LOGS.map((l) => <option key={l} value={l}>{l}</option>)}
+            {logs.map((l) => <option key={l} value={l}>{l}</option>)}
           </select>
           <button type="button" className="btn ghost sm" onClick={() => void api.openPath("logs")} aria-label={t("sistem.openLogs")}><FolderOpen className="size-3.5" /></button>
         </div>}>

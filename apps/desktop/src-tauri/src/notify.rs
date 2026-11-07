@@ -25,6 +25,10 @@ pub fn run(app: AppHandle) {
         stack::log(&format!("notify: aumid: {e}"));
     }
     loop {
+        if crate::hub::current().is_none() {
+            std::thread::sleep(Duration::from_secs(15));
+            continue;
+        }
         let gen = GEN.fetch_add(1, Ordering::SeqCst) + 1;
         let seen = Arc::new(Mutex::new(Instant::now()));
         let (a, s) = (app.clone(), seen.clone());
@@ -50,8 +54,8 @@ pub fn run(app: AppHandle) {
 
 fn follow(app: &AppHandle, gen: u64, seen: &Mutex<Instant>) -> anyhow::Result<()> {
     let a: ureq::Agent = ureq::Agent::config_builder().timeout_connect(Some(Duration::from_secs(10))).timeout_recv_response(Some(Duration::from_secs(20))).build().into();
-    let url = format!("{}/api/notify/stream", stack::VMUI_PI);
-    let (h, v) = stack::vmui_auth();
+    let url = format!("{}/api/notify/stream", crate::hub::url());
+    let (h, v) = crate::hub::auth()?;
     let r = a.get(&url).header(h, &v).call()?;
     *seen.lock().unwrap() = Instant::now();
     let mut rd = BufReader::new(r.into_body().into_reader());
@@ -144,8 +148,9 @@ fn show(app: &AppHandle, c: &Value) {
     }
 }
 
+/// = tauri.conf.json `identifier`, so toasts and the installer agree on one AppUserModelID.
 #[cfg(windows)]
-const APP_ID: &str = "ro.dragoscatalin.vmui";
+pub const APP_ID: &str = "ro.vatra.desktop";
 
 /// Unpackaged exes have no AppUserModelID, and Windows silently drops toasts
 /// for an unknown one. Register it under HKCU and tag the process so buttons

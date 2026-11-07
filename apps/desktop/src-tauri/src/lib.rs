@@ -9,6 +9,8 @@ mod desktop;
 #[cfg(desktop)]
 mod devices;
 #[cfg(desktop)]
+mod hub;
+#[cfg(desktop)]
 mod i18n;
 #[cfg(desktop)]
 mod lights;
@@ -16,7 +18,6 @@ mod lights;
 mod mobile;
 #[cfg(desktop)]
 mod notify;
-#[cfg(mobile)]
 mod pairing;
 #[cfg(desktop)]
 mod stack;

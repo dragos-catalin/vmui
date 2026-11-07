@@ -35,7 +35,9 @@ function normalize(j: Partial<Settings> | Record<string, unknown>): Settings {
 export function Ambilight() {
   const { t } = useTranslation();
   const health = React.useContext(HealthCtx);
-  const { mobile } = usePlatform();
+  const { mobile: phone, dev } = usePlatform();
+  // settings.json + the HyperHDR configure script live in the developer checkout only
+  const mobile = phone || !dev;
   const { busy, run } = useAction();
   const [s, setS] = React.useState<Settings>(DEF);
   const [saved, setSaved] = React.useState<Settings>(DEF);
@@ -70,7 +72,7 @@ export function Ambilight() {
   return (
     <div className="grid gap-5">
       <PageHeader title={t("nav.ambilight")}
-        sub={!health ? t("ambilight.connecting") : health.hyper ? t("ambilight.status", { source: health.source, capture: grabber ? t("ambilight.captureOn") : t("ambilight.captureOff") }) : mobile ? t("ambilight.pcOffline") : t("ambilight.hyperDown")}
+        sub={!health ? t("ambilight.connecting") : health.hyper ? t("ambilight.status", { source: health.source, capture: grabber ? t("ambilight.captureOn") : t("ambilight.captureOff") }) : phone ? t("ambilight.pcOffline") : t("ambilight.hyperDown")}
         actions={<Seg value={mode} onChange={(m) => run("mode", () => api.ambilightMode(m as "movie" | "music" | "off"))}
           options={[{ id: "movie", label: t("common.movie"), icon: <Clapperboard className="size-4" /> }, { id: "music", label: t("common.music"), icon: <Music className="size-4" /> }, { id: "off", label: t("ambilight.modeOff"), icon: <Power className="size-4" /> }]} />} />
 
@@ -83,10 +85,10 @@ export function Ambilight() {
           <Eraser className="size-5 text-primary-text" />
           <div className="min-w-0"><div className="font-medium">{t("ambilight.clear")}</div><div className="text-xs text-muted">{t("ambilight.clearHint")}</div></div>
         </button>
-        <button type="button" className="tile" onClick={() => run("restart", () => mobile ? api.pcAction("restart_ambilight") : (async () => { for (const n of ["vmui-ambilight-hyperhdr", "vmui-ambilight-openrgb", "vmui-ambilight-bridges"]) await api.taskAction(n, "restart"); })(), t("ambilight.restarted"))} disabled={busy === "restart"}>
+        {(dev || phone) && <button type="button" className="tile" onClick={() => run("restart", () => mobile ? api.pcAction("restart_ambilight") : (async () => { for (const n of ["vmui-ambilight-hyperhdr", "vmui-ambilight-openrgb", "vmui-ambilight-bridges"]) await api.taskAction(n, "restart"); })(), t("ambilight.restarted"))} disabled={busy === "restart"}>
           <RefreshCw className="size-5 text-warning-text" />
           <div className="min-w-0"><div className="font-medium">{t("ambilight.restart")}</div><div className="text-xs text-muted">{t("ambilight.restartHint")}</div></div>
-        </button>
+        </button>}
       </div>
 
       <Card title={t("ambilight.instances")} sub={t("ambilight.instancesSub")} right={<div className="flex items-center gap-2">{inst.stale && <StaleBadge error={inst.error} />}<button type="button" className="btn ghost sm" aria-label={t("common.refresh")} onClick={() => void inst.refresh()}><RefreshCw className="size-3.5" /></button></div>}>

@@ -1,0 +1,113 @@
+{
+  "$comment": "Microsoft Store (Partner Center) submission for the Vatra desktop app (P9-02). Win32 app via an NSIS installer URL. Fields map 1:1 to Partner Center > Apps and games > Vatra. The reserved app name, the publisher display name and the HTTPS installer URL are owner actions; everything else is ready.",
+  "product": {
+    "reservedName": "Vatra",
+    "type": "EXE",
+    "category": "Utilities & tools",
+    "subcategory": null,
+    "ageRating": "IARC: questionnaire answers below",
+    "pricing": "free",
+    "markets": "all"
+  },
+  "package": {
+    "installerUrl": "https://<product-domain>/download/windows/Vatra_${version}_x64-setup.exe",
+    "installerUrlNote": "versioned, immutable HTTPS URL; Partner Center re-downloads it for every certification",
+    "architecture": [
+      "x64"
+    ],
+    "silentInstallArgs": "/S",
+    "installerLanguages": [
+      "en-us",
+      "ro-ro"
+    ],
+    "appType": "Win32",
+    "requiresElevation": false,
+    "installScope": "user",
+    "webviewInstallMode": "offlineInstaller (tauri.store.conf.json)",
+    "signing": "Authenticode SHA-256 via src-tauri/sign.ps1 + VATRA_SIGN_THUMBPRINT (owner certificate from a CA in the Microsoft Trusted Root Program); timestamped",
+    "returnCodes": {
+      "0": "success",
+      "1": "cancelled by user",
+      "2": "aborted (disk full / already running)"
+    }
+  },
+  "build": {
+    "command": "pnpm --filter @vmui/desktop exec tauri build --config src-tauri/tauri.store.conf.json",
+    "output": "apps/desktop/src-tauri/target/release/bundle/nsis/Vatra_${version}_x64-setup.exe"
+  },
+  "properties": {
+    "privacyPolicyUrl": "https://<product-domain>/privacy",
+    "supportUrl": "https://<product-domain>/support",
+    "website": "https://<product-domain>",
+    "supportEmail": "support@<product-domain>",
+    "systemRequirements": {
+      "os": "Windows 10 1809+ / Windows 11",
+      "network": "a Vatra hub on the same network or reachable over the internet"
+    },
+    "productDeclarations": {
+      "collectsPersonalInformation": "no data leaves the user's own hub; the app talks only to the hub it is paired with",
+      "dependsOnNonMicrosoftDrivers": false,
+      "accessibilitySupport": true,
+      "penAndInk": false,
+      "generativeAi": "none in the desktop app (policy 11.16 not triggered); the hub's optional AI assistant is disclosed on the hub and in the phone apps"
+    },
+    "capabilities": "none (no restricted capabilities: Win32 full trust, user-scope install)"
+  },
+  "listings": {
+    "en-us": {
+      "title": "Vatra",
+      "shortDescription": "Your home, from the Windows tray.",
+      "description": "Requires a Vatra hub (a Raspberry Pi, a mini PC or the Home Assistant add-on) on your network or reachable over the internet.\n\nVatra puts your home in the Windows tray: lights, rooms and scenes, ambilight modes, the house notification centre with action buttons, and quick PC controls you can also reach from your phone.\n\nPair once — scan the QR code from the hub, enter the 4-digit code, or sign in — and the app reads nothing else on your computer.\n\n• Lights and scenes per room, undo the last change\n• Movie / music / off ambilight modes and live effects\n• Notifications from the house as Windows toasts, with their buttons\n• Approve new phones and screens from the tray\n• Lock, display off, sleep and volume from your phone\n• Romanian and English, light and dark theme, starts with Windows if you want",
+      "features": [
+        "Lights, rooms and scenes from the tray",
+        "House notifications as Windows toasts with action buttons",
+        "Ambilight modes and effects",
+        "Approve new devices from the tray",
+        "Remote lock, sleep and volume from your phone",
+        "Romanian and English"
+      ],
+      "keywords": [
+        "smart home",
+        "home assistant",
+        "lights",
+        "ambilight",
+        "tray"
+      ],
+      "whatsNew": "First Store release.",
+      "screenshots": "1366x768 or larger PNG, 4-6 images: Casă, Lumini, Notificări, Ambilight, Setup (pairing)",
+      "storeLogo": "apps/desktop/src-tauri/icons/StoreLogo.png (+ 1:1 300x300 and 2:3 posters from brand/)"
+    },
+    "ro-ro": {
+      "title": "Vatra",
+      "shortDescription": "Casa ta, din bara de sistem Windows.",
+      "description": "Necesită un hub Vatra (un Raspberry Pi, un mini PC sau add-on-ul Home Assistant) în rețeaua ta sau accesibil prin internet.\n\nVatra îți pune casa în bara de sistem Windows: lumini, camere și scene, modurile ambilight, centrul de notificări al casei cu butoane de acțiune și comenzi rapide pentru PC pe care le ajungi și de pe telefon.\n\nAsociezi o singură dată — scanezi codul QR din hub, introduci codul din 4 cifre sau te autentifici — iar aplicația nu mai citește nimic altceva de pe calculator.\n\n• Lumini și scene pe camere, anulează ultima schimbare\n• Moduri ambilight film / muzică / oprit și efecte live\n• Notificările casei ca notificări Windows, cu butoanele lor\n• Aprobi telefoane și ecrane noi din bara de sistem\n• Blocare, ecran stins, somn și volum de pe telefon\n• Română și engleză, temă luminoasă și întunecată, pornește cu Windows dacă vrei",
+      "features": [
+        "Lumini, camere și scene din bara de sistem",
+        "Notificările casei ca notificări Windows cu butoane",
+        "Moduri și efecte ambilight",
+        "Aprobi dispozitive noi din bara de sistem",
+        "Blocare, somn și volum de pe telefon",
+        "Română și engleză"
+      ],
+      "keywords": [
+        "casă inteligentă",
+        "home assistant",
+        "lumini",
+        "ambilight",
+        "bară de sistem"
+      ],
+      "whatsNew": "Prima versiune în Microsoft Store."
+    }
+  },
+  "iarc": {
+    "violence": false,
+    "sexualContent": false,
+    "language": false,
+    "controlledSubstances": false,
+    "gambling": false,
+    "userInteraction": "no chat or user-generated content shared with strangers; only the user's own household",
+    "sharesLocation": false,
+    "digitalPurchases": false
+  },
+  "certificationNotes": "Vatra needs a Vatra hub. Reviewer demo hub: https://demo.<product-domain> (resets nightly, P10-04). On first start choose 'I have a Vatra account' and sign in with the reviewer credentials given in the submission notes; or open the QR invite link from the demo hub's Add device page. Silent install: /S. The app runs in the tray; Ctrl+Alt+V opens the window."
+}

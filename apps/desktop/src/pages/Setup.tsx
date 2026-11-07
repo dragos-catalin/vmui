@@ -3,17 +3,21 @@ import { KeyRound, RadioTower, RefreshCw, Smartphone } from "lucide-react";
 import * as React from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { cn, toast, type Health } from "../lib";
+import { usePlatform } from "../platform";
 
 type Found = { url: string; host: string; via: string };
 type Ticket = { id: string; token: string; code: string; status: string };
-type Step = { kind: "scan" } | { kind: "pick"; found: Found[] } | { kind: "wait"; url: string; t: Ticket } | { kind: "login"; url: string };
+type Step = { kind: "scan" } | { kind: "pick"; found: Found[] } | { kind: "wait"; url: string; t: Ticket } | { kind: "login"; url: string } | { kind: "redeem"; url: string };
+export type Invite = { hub: string; invite: string };
 
-/** First run on the phone. Finds vmui by itself (mDNS on the LAN, `homepi`
- *  over Tailscale), then either asks for approval — the code shows here and
- *  in the web / desktop / other phones — or signs in with the vmui account. */
-export function Setup({ onDone, canCancel, onCancel }: { onDone: () => void; canCancel: boolean; onCancel: () => void }) {
+/** First run (phone, or an installed desktop copy). Finds the hub by itself (mDNS on the LAN,
+ *  well-known names), then either asks for approval — the code shows here and in the web /
+ *  desktop / other phones — or signs in with the Vatra account. A `vatra://pair` invite
+ *  (QR / link from the hub's Add device page) is redeemed straight away. */
+export function Setup({ onDone, canCancel, onCancel, invite }: { onDone: () => void; canCancel: boolean; onCancel: () => void; invite?: Invite | null }) {
   const { t } = useTranslation();
-  const [step, setStep] = React.useState<Step>({ kind: "scan" });
+  const { mobile } = usePlatform();
+  const [step, setStep] = React.useState<Step>(invite ? { kind: "redeem", url: invite.hub } : { kind: "scan" });
   const [manual, setManual] = React.useState("");
   const [busy, setBusy] = React.useState(false);
 
@@ -22,7 +26,19 @@ export function Setup({ onDone, canCancel, onCancel }: { onDone: () => void; can
     const found = await invoke<Found[]>("discover").catch(() => [] as Found[]);
     setStep({ kind: "pick", found });
   }, []);
-  React.useEffect(() => void scan(), [scan]);
+  React.useEffect(() => {
+    if (!invite) { void scan(); return; }
+    setStep({ kind: "redeem", url: invite.hub });
+    void invoke<Health>("pair_redeem", { url: invite.hub, invite: invite.invite })
+      .then((h) => { toast("ok", t("setup.connected", { detail: h.detail })); onDone(); })
+      .catch((e) => {
+        const code = String(e).replace(/^Error:\s*/, "");
+        toast("error", code === "invite_invalid" ? t("setup.inviteInvalid") : code);
+        setStep({ kind: "pick", found: [{ url: invite.hub, host: "", via: "manual" }] });
+      });
+    // one redemption per invite; onDone/t are stable enough for this screen's lifetime
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invite, scan]);
 
   const request = async (url: string) => {
     setBusy(true);
@@ -48,9 +64,13 @@ export function Setup({ onDone, canCancel, onCancel }: { onDone: () => void; can
           <Smartphone className="size-7 shrink-0 text-primary-text" aria-hidden />
           <div>
             <h1 className="text-lg font-semibold">{t("setup.title")}</h1>
-            <p className="text-xs text-muted">{t("setup.sub")}</p>
+            <p className="text-xs text-muted">{t(mobile ? "setup.sub" : "setup.subDesktop")}</p>
           </div>
         </div>
+
+        {step.kind === "redeem" && (
+          <div className="flex items-center gap-3 text-sm text-muted py-6 justify-center" role="status"><RadioTower className="size-5 motion-safe:animate-pulse text-primary-text" aria-hidden />{t("setup.redeeming", { url: step.url })}</div>
+        )}
 
         {step.kind === "scan" && (
           <div className="flex items-center gap-3 text-sm text-muted py-6 justify-center"><RadioTower className="size-5 motion-safe:animate-pulse text-primary-text" aria-hidden />{t("setup.scanning")}</div>
@@ -78,7 +98,7 @@ export function Setup({ onDone, canCancel, onCancel }: { onDone: () => void; can
 
         {step.kind === "wait" && (
           <div className="grid gap-4 text-center py-2">
-            <p className="text-sm text-muted"><Trans i18nKey="setup.waitText" components={{ b: <b /> }} /></p>
+            <p className="text-sm text-muted"><Trans i18nKey={mobile ? "setup.waitText" : "setup.waitTextDesktop"} components={{ b: <b /> }} /></p>
             <div className="font-mono text-5xl tabular-nums tracking-[0.35em] text-primary-text">{step.t.code}</div>
             <p className="text-xs text-muted">{step.url} · {t("setup.expires")}</p>
             <button type="button" className="btn ghost sm justify-self-center" onClick={() => setStep({ kind: "login", url: step.url })}><KeyRound className="size-3.5" />{t("setup.orLogin")}</button>
@@ -87,7 +107,7 @@ export function Setup({ onDone, canCancel, onCancel }: { onDone: () => void; can
 
         {step.kind === "login" && <Login url={step.url} onBack={() => void scan()} onDone={onDone} />}
 
-        {canCancel && step.kind !== "wait" && <button type="button" className="btn ghost sm justify-self-end" onClick={onCancel}>{t("common.back")}</button>}
+        {canCancel && step.kind !== "wait" && step.kind !== "redeem" && <button type="button" className="btn ghost sm justify-self-end" onClick={onCancel}>{t("common.back")}</button>}
       </div>
     </div>
   );

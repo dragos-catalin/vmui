@@ -29,8 +29,8 @@ fn tables() -> &'static Tables {
 /// Strings the tray needs that are not part of the shared contract list.
 fn extra(key: &str, en: bool) -> Option<&'static str> {
     Some(match (key, en) {
-        ("accessRequestTitle", false) => "vmui: {name} cere acces",
-        ("accessRequestTitle", true) => "vmui: {name} requests access",
+        ("accessRequestTitle", false) => "Vatra: {name} cere acces",
+        ("accessRequestTitle", true) => "Vatra: {name} requests access",
         ("accessRequestBody", false) => "Cod {code} — aprobă din tray sau din fereastră",
         ("accessRequestBody", true) => "Code {code} — approve from the tray or the window",
         ("phoneAction", false) => "telefon: {action}",
@@ -39,6 +39,14 @@ fn extra(key: &str, en: bool) -> Option<&'static str> {
         ("hyperDown", true) => "HyperHDR is not responding",
         ("haDown", false) => "HA indisponibil",
         ("haDown", true) => "HA unavailable",
+        ("notPaired", false) => "neconectat la o casă",
+        ("notPaired", true) => "not connected to a home",
+        ("hubDown", false) => "serverul Vatra nu răspunde",
+        ("hubDown", true) => "the Vatra server is not responding",
+        ("connected", false) => "conectat",
+        ("connected", true) => "connected",
+        ("paired", false) => "Conectat la {url}",
+        ("paired", true) => "Connected to {url}",
         ("stopped", false) => "{name} oprit",
         ("stopped", true) => "{name} stopped",
         ("turnOn", false) => "Aprinde",

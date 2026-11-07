@@ -102,7 +102,9 @@ function Pane({ active, className, children }: { active: boolean; className?: st
 
 function Shell({ onConfigured }: { onConfigured: () => void }) {
   const { t } = useTranslation();
-  const { mobile, vmui } = usePlatform();
+  const { mobile, vmui, dev, paired } = usePlatform();
+  // an installed desktop copy has no hub until it pairs; a developer checkout falls back to the house Pi
+  const needsHub = mobile ? !vmui : !dev && !paired;
   const pages = mobile ? MOBILE : ALL;
   const [page, setPageRaw] = React.useState<PageId>(() => {
     const p = normalize(localStorage.getItem("vmui:page"));
@@ -110,6 +112,7 @@ function Shell({ onConfigured }: { onConfigured: () => void }) {
   });
   const setPage = React.useCallback((p: PageId) => setPageRaw(mobile && !MOBILE.includes(p) && p !== "notificari" ? "casa" : p), [mobile]);
   const [setup, setSetup] = React.useState(false);
+  const [invite, setInvite] = React.useState<{ hub: string; invite: string } | null>(null);
   const [health, setHealth] = React.useState<Health | null>(null);
   const [checking, setChecking] = React.useState(false);
   useEvent<Health>("health", setHealth);
@@ -147,7 +150,14 @@ function Shell({ onConfigured }: { onConfigured: () => void }) {
     return () => document.removeEventListener("visibilitychange", on);
   }, [mobile, openNotif, setPage]);
 
-  if (mobile && (!vmui || setup)) return <Setup onDone={() => { setSetup(false); onConfigured(); void poll(true); }} canCancel={!!vmui} onCancel={() => setSetup(false)} />;
+  // a vatra://pair link (QR from the hub's Add device page) opens the add-hub screen with the invite
+  useEvent<{ hub: string; invite: string }>("pair-link", (l) => { setInvite(l); setSetup(true); });
+  React.useEffect(() => {
+    if (mobile) return;
+    void invoke<{ hub: string; invite: string } | null>("pending_pair").then((l) => { if (l) { setInvite(l); setSetup(true); } }).catch(() => undefined);
+  }, [mobile]);
+
+  if (needsHub || setup) return <Setup invite={invite} onDone={() => { setSetup(false); setInvite(null); onConfigured(); void poll(true); }} canCancel={!needsHub} onCancel={() => { setSetup(false); setInvite(null); }} />;
 
   const label = (p: PageId) => t(`nav.${p}`);
   const detail = health?.detail ?? t("app.connecting");

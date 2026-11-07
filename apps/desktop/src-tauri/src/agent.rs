@@ -104,23 +104,53 @@ fn handle(app: &AppHandle, cmd: Value, seen: &Mutex<HashSet<String>>) {
     }
 }
 
-/// Runs forever on its own thread; reconnects with backoff. No-op if MQTT creds are missing.
-pub fn run(app: AppHandle) {
+struct Broker {
+    host: String,
+    port: u16,
+    user: String,
+    pass: String,
+}
+
+/// Host part of the hub URL (`http://vatra.local:3737` -> `vatra.local`); the broker runs beside the hub.
+fn hub_host() -> Option<String> {
+    let u = crate::hub::url();
+    let rest = u.split_once("://").map(|(_, r)| r)?;
+    let host = if let Some(v6) = rest.strip_prefix('[') { v6.split(']').next()? } else { rest.split(':').next()? };
+    (!host.is_empty()).then(|| host.to_string())
+}
+
+/// Developer checkout: credentials.env (the broker is the Pi's Mosquitto beside the hub; MQTT_HOST
+/// there is a stale pre-homepi address). Installed copy: the owner's login from `/api/desktop/agent`.
+fn broker() -> Option<Broker> {
     let c = stack::creds();
-    let (Some(user), Some(pass)) = (c.get("MQTT_USER"), c.get("MQTT_PASS")) else {
-        stack::log("agent: MQTT_USER/PASS missing, PC agent off");
-        return;
+    if let (Some(user), Some(pass)) = (c.get("MQTT_USER"), c.get("MQTT_PASS")) {
+        return Some(Broker { host: hub_host()?, port: 1883, user: user.clone(), pass: pass.clone() });
+    }
+    let v = stack::pi_get("/api/desktop/agent", 8).ok()?;
+    let m = &v["mqtt"];
+    Some(Broker {
+        host: m["host"].as_str().map(str::to_string).or_else(hub_host)?,
+        port: m["port"].as_u64().and_then(|p| u16::try_from(p).ok()).unwrap_or(1883),
+        user: m["user"].as_str()?.to_string(),
+        pass: m["pass"].as_str()?.to_string(),
+    })
+}
+
+/// Runs forever on its own thread; reconnects with backoff. Waits (re-asking every 60 s) while there
+/// is no pairing or no broker login: only the owner's PC acts as the PC agent.
+pub fn run(app: AppHandle) {
+    let Broker { host, port, user, pass } = loop {
+        if let Some(b) = broker() {
+            break b;
+        }
+        std::thread::sleep(Duration::from_secs(60));
     };
-    // the broker is the Pi's Mosquitto (MQTT_HOST in credentials.env is a stale pre-homepi address)
-    let host = stack::VMUI_PI.trim_start_matches("http://").split(':').next().unwrap_or("192.168.100.232").to_string();
-    let user = user.clone();
-    let pass = pass.clone();
     let seen = Arc::new(Mutex::new(HashSet::new()));
     std::thread::spawn(refresh_instances_forever);
     std::thread::spawn(lights::refresh_ble_forever);
     let mut backoff = 5u64;
     loop {
-        let mut opts = MqttOptions::new(format!("vmui-pc-{}", std::env::var("COMPUTERNAME").unwrap_or_else(|_| "pc".into())), &host, 1883);
+        let mut opts = MqttOptions::new(format!("vmui-pc-{}", std::env::var("COMPUTERNAME").unwrap_or_else(|_| "pc".into())), &host, port);
         opts.set_credentials(&user, &pass);
         opts.set_keep_alive(Duration::from_secs(30));
         opts.set_last_will(rumqttc::LastWill::new(STATE, json!({"state":"offline","at":now()}).to_string(), QoS::AtLeastOnce, true));

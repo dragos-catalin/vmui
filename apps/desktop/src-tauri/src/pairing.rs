@@ -23,7 +23,9 @@ pub struct Found {
     pub via: String,
 }
 
-const CANDIDATES: &[&str] = &["http://homepi:3737", "http://homepi.local:3737", "http://192.168.100.232:3737"];
+/// Names a hub answers to without mDNS: the image's generic name, then the original house Pi
+/// over Tailscale MagicDNS. No raw LAN address: an installed copy must not assume this house.
+const CANDIDATES: &[&str] = &["http://vatra.local:3737", "http://homepi:3737", "http://homepi.local:3737"];
 
 fn agent(secs: u64) -> ureq::Agent {
     ureq::Agent::config_builder().timeout_global(Some(Duration::from_secs(secs))).build().into()
@@ -102,6 +104,105 @@ pub fn login(url: &str, name: &str, platform: &str, email: &str, password: &str)
     Ok(Ticket { id: v["id"].as_str().unwrap_or("").into(), token: v["token"].as_str().unwrap_or("").into(), code: String::new(), status: "approved".into() })
 }
 
+/// QR / deep-link pairing: a one-time invite minted by a signed-in member is redeemed for an
+/// approved token straight away (`vatra://pair?h=<hub>&c=<invite>`).
+pub fn redeem(url: &str, name: &str, platform: &str, invite: &str) -> Result<Ticket> {
+    let r = agent(8).post(&format!("{url}/api/devices/pair")).send_json(json!({"name": name, "platform": platform, "invite": invite}));
+    let v: Value = match r {
+        Ok(r) => r.into_body().read_json()?,
+        Err(ureq::Error::StatusCode(401)) => return Err(anyhow!("invite_invalid")),
+        Err(e) => return Err(e.into()),
+    };
+    Ok(Ticket { id: v["id"].as_str().unwrap_or("").into(), token: v["token"].as_str().unwrap_or("").into(), code: String::new(), status: "approved".into() })
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct PairLink {
+    pub hub: String,
+    pub invite: String,
+}
+
+fn pct_decode(s: &str) -> Option<String> {
+    let b = s.as_bytes();
+    let mut out = Vec::with_capacity(b.len());
+    let mut i = 0;
+    while i < b.len() {
+        match b[i] {
+            b'%' => {
+                out.push(u8::from_str_radix(s.get(i + 1..i + 3)?, 16).ok()?);
+                i += 3;
+            }
+            b'+' => {
+                out.push(b' ');
+                i += 1;
+            }
+            c => {
+                out.push(c);
+                i += 1;
+            }
+        }
+    }
+    String::from_utf8(out).ok()
+}
+
+/// Same rules as the Android/iOS PairLink: only `vatra://pair`, an http(s) origin and a
+/// 16-64 char URL-safe invite; anything else (a stray QR, a link with a path) is ignored.
+pub fn parse_link(raw: &str) -> Option<PairLink> {
+    let raw = raw.trim();
+    let (scheme, rest) = raw.split_once("://")?;
+    if !scheme.eq_ignore_ascii_case("vatra") {
+        return None;
+    }
+    let (host, query) = rest.split_once('?')?;
+    if !host.trim_end_matches('/').eq_ignore_ascii_case("pair") {
+        return None;
+    }
+    let (mut h, mut c) = (None, None);
+    for kv in query.split('&') {
+        let (k, v) = kv.split_once('=')?;
+        match k {
+            "h" => h = pct_decode(v),
+            "c" => c = pct_decode(v),
+            _ => {}
+        }
+    }
+    let hub = normalise_hub(&h?)?;
+    let invite = c.filter(|c| (16..=64).contains(&c.len()) && c.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-'))?;
+    Some(PairLink { hub, invite })
+}
+
+/// An http(s) origin only: no credentials, path, query or fragment (a QR must not point the token elsewhere).
+pub fn normalise_hub(raw: &str) -> Option<String> {
+    let raw = raw.trim();
+    let with = if raw.contains("://") { raw.to_string() } else { format!("http://{raw}") };
+    let (scheme, rest) = with.split_once("://")?;
+    let scheme = scheme.to_ascii_lowercase();
+    if scheme != "http" && scheme != "https" {
+        return None;
+    }
+    let authority = rest.strip_suffix('/').unwrap_or(rest);
+    if authority.is_empty() || authority.contains(['/', '?', '#', '@', ' ']) {
+        return None;
+    }
+    let (host, port) = match authority.rsplit_once(':') {
+        Some((h, _)) if !h.ends_with(']') && h.contains(':') => (authority, None), // bare IPv6
+        Some((h, p)) => (h, Some(p)),
+        None => (authority, None),
+    };
+    if host.is_empty() || !host.bytes().all(|b| b.is_ascii_alphanumeric() || b"-._[]:".contains(&b)) {
+        return None;
+    }
+    let port = match port {
+        Some(p) => Some(p.parse::<u16>().ok().filter(|p| *p > 0)?),
+        None => None,
+    };
+    let host = if host.contains(':') && !host.starts_with('[') { format!("[{host}]") } else { host.to_ascii_lowercase() };
+    Some(match port {
+        Some(p) => format!("{scheme}://{host}:{p}"),
+        None => format!("{scheme}://{host}"),
+    })
+}
+
 pub fn status(url: &str, id: &str) -> Result<String> {
     let v: Value = agent(8).get(&format!("{url}/api/devices/pair?id={id}")).call()?.into_body().read_json()?;
     Ok(v["status"].as_str().unwrap_or("rejected").to_string())
@@ -125,4 +226,42 @@ pub fn device_name() -> String {
 
 pub fn platform() -> &'static str {
     if cfg!(target_os = "android") { "android" } else if cfg!(target_os = "ios") { "ios" } else if cfg!(windows) { "windows" } else if cfg!(target_os = "macos") { "macos" } else { "linux" }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // the same cases as apps/android PairingTest.kt and apps/ios PairingTests.swift
+    #[test]
+    fn parses_a_well_formed_invite() {
+        let l = parse_link("vatra://pair?h=http%3A%2F%2F192.168.1.5%3A3737&c=AbCdEfGhIjKlMnOpQrStUv").unwrap();
+        assert_eq!(l.hub, "http://192.168.1.5:3737");
+        assert_eq!(l.invite, "AbCdEfGhIjKlMnOpQrStUv");
+    }
+
+    #[test]
+    fn refuses_anything_else() {
+        for bad in [
+            "vatra://pair?h=http%3A%2F%2Fhub&c=short",
+            "vatra://pair?h=file%3A%2F%2F%2Fetc&c=AbCdEfGhIjKlMnOpQrStUv",
+            "vatra://pair?h=http%3A%2F%2Fu%3Ap%40hub&c=AbCdEfGhIjKlMnOpQrStUv",
+            "vatra://pair?h=http%3A%2F%2Fhub%2Fapi&c=AbCdEfGhIjKlMnOpQrStUv",
+            "vatra://do?a=scene&id=x",
+            "https://pair?h=http%3A%2F%2Fhub&c=AbCdEfGhIjKlMnOpQrStUv",
+            "vatra://pair?h=http%3A%2F%2Fhub&c=AbCdEfGhIjKlMnOp%3BrStUv",
+        ] {
+            assert!(parse_link(bad).is_none(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn normalises_hub_origins() {
+        assert_eq!(normalise_hub("hub.local:3737").as_deref(), Some("http://hub.local:3737"));
+        assert_eq!(normalise_hub("HTTPS://Hub.Example/").as_deref(), Some("https://hub.example"));
+        assert_eq!(normalise_hub("http://[fd00::1]:3737").as_deref(), Some("http://[fd00::1]:3737"));
+        assert!(normalise_hub("http://hub:99999").is_none());
+        assert!(normalise_hub("http://hub/x").is_none());
+        assert!(normalise_hub("ftp://hub").is_none());
+    }
 }

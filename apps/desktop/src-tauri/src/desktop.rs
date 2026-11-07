@@ -64,6 +64,7 @@ struct Tray {
 pub(crate) struct State {
     pub(crate) mode: Mutex<String>,
     pub(crate) last: Mutex<Option<stack::Health>>,
+    pub(crate) pair_link: Mutex<Option<crate::pairing::PairLink>>,
 }
 
 /// Windows taskbar theme (Settings > Personalisation > Colours > "Windows mode").
@@ -320,15 +321,120 @@ async fn devices_op(op: String, id: String, code: Option<String>, name: Option<S
 
 #[tauri::command]
 async fn app_info() -> Value {
+    let hub = crate::hub::url();
     // a one-time kiosk link (5 min) instead of a URL that carries the token
-    let display = blocking(|| stack::pi_post("/api/devices/link", json!({"path": "/display"}))).await.ok().and_then(|v| v["url"].as_str().map(|u| format!("{}{u}", stack::VMUI_PI))).unwrap_or_default();
+    let display = if hub.is_empty() {
+        String::new()
+    } else {
+        let h = hub.clone();
+        blocking(|| stack::pi_post("/api/devices/link", json!({"path": "/display"}))).await.ok().and_then(|v| v["url"].as_str().map(|u| format!("{h}{u}"))).unwrap_or_default()
+    };
     json!({
-        "root": stack::root().to_string_lossy(),
-        "vmui": stack::VMUI,
+        "root": stack::root().map(|r| r.to_string_lossy().to_string()).unwrap_or_default(),
+        "dev": stack::dev(),
+        "paired": crate::hub::paired().is_some(),
+        "vmui": hub,
         "haUrl": stack::creds().get("HA_URL").cloned().unwrap_or_default(),
         "displayUrl": display,
         "version": env!("CARGO_PKG_VERSION"),
     })
+}
+
+// ---------------------------------------------------------------- pairing (P9-01)
+
+#[tauri::command]
+async fn discover() -> Vec<crate::pairing::Found> {
+    tauri::async_runtime::spawn_blocking(crate::pairing::discover).await.unwrap_or_default()
+}
+
+#[tauri::command]
+async fn pair_request(url: String) -> Result<crate::pairing::Ticket, String> {
+    let url = crate::pairing::normalise_hub(&url).ok_or("invalid hub address")?;
+    blocking(move || crate::pairing::request(&url, &crate::pairing::device_name(), crate::pairing::platform())).await
+}
+
+fn paired_now(app: &AppHandle, url: &str, token: &str) -> Result<stack::Health, String> {
+    err(crate::hub::set(url, token))?;
+    stack::log(&tf("paired", &[("url", url)]));
+    let a = app.clone();
+    let _ = tauri::async_runtime::spawn_blocking(move || refresh(&a));
+    Ok(stack::health())
+}
+
+#[tauri::command]
+async fn pair_login(app: AppHandle, url: String, email: String, password: String) -> Result<stack::Health, String> {
+    let url = crate::pairing::normalise_hub(&url).ok_or("invalid hub address")?;
+    let u = url.clone();
+    let t = blocking(move || crate::pairing::login(&u, &crate::pairing::device_name(), crate::pairing::platform(), &email, &password)).await?;
+    blocking(move || paired_now(&app, &url, &t.token).map_err(|e| anyhow::anyhow!(e))).await
+}
+
+/// `vatra://pair` invite: approved at once, no code to compare.
+#[tauri::command]
+async fn pair_redeem(app: AppHandle, url: String, invite: String) -> Result<stack::Health, String> {
+    let url = crate::pairing::normalise_hub(&url).ok_or("invalid hub address")?;
+    let u = url.clone();
+    let t = blocking(move || crate::pairing::redeem(&u, &crate::pairing::device_name(), crate::pairing::platform(), &invite)).await?;
+    blocking(move || paired_now(&app, &url, &t.token).map_err(|e| anyhow::anyhow!(e))).await
+}
+
+/// Polls until approved (returns health), rejected or 5 min pass (Err "rejected" / "expired").
+#[tauri::command]
+async fn pair_wait(app: AppHandle, url: String, id: String, token: String) -> Result<stack::Health, String> {
+    let deadline = Instant::now() + Duration::from_secs(300);
+    loop {
+        let (u, i) = (url.clone(), id.clone());
+        match blocking(move || crate::pairing::status(&u, &i)).await {
+            Ok(s) if s == "approved" => {
+                let (a, u, t) = (app.clone(), url.clone(), token.clone());
+                return blocking(move || paired_now(&a, &u, &t).map_err(|e| anyhow::anyhow!(e))).await;
+            }
+            Ok(s) if s == "pending" => {}
+            Ok(_) => return Err("rejected".into()),
+            Err(e) => return Err(e),
+        }
+        if Instant::now() >= deadline {
+            return Err("expired".into());
+        }
+        tokio::time::sleep(Duration::from_millis(1500)).await;
+    }
+}
+
+#[tauri::command]
+async fn conn_clear(app: AppHandle) -> Result<(), String> {
+    err(crate::hub::clear())?;
+    let a = app.clone();
+    let _ = tauri::async_runtime::spawn_blocking(move || refresh(&a));
+    Ok(())
+}
+
+/// The `vatra://pair` link this process was started with (or last handed by a second instance); consumed once.
+#[tauri::command]
+fn pending_pair(app: AppHandle) -> Option<crate::pairing::PairLink> {
+    app.state::<State>().pair_link.lock().unwrap().take()
+}
+
+fn on_link(app: &AppHandle, raw: &str) {
+    if let Some(l) = crate::pairing::parse_link(raw) {
+        *app.state::<State>().pair_link.lock().unwrap() = Some(l.clone());
+        let _ = app.emit("pair-link", &l);
+        show_main(app);
+    }
+}
+
+/// Register `vatra://` for this exe under HKCU (no admin, no MSIX): QR codes and links from the hub's
+/// "Add device" page open this app with `vatra://pair?h=..&c=..` as the first argument.
+#[cfg(windows)]
+fn register_scheme() -> anyhow::Result<()> {
+    use winreg::enums::HKEY_CURRENT_USER;
+    use winreg::RegKey;
+    let exe = std::env::current_exe()?.to_string_lossy().to_string();
+    let (k, _) = RegKey::predef(HKEY_CURRENT_USER).create_subkey(r"Software\Classes\vatra")?;
+    k.set_value("", &"URL:Vatra")?;
+    k.set_value("URL Protocol", &"")?;
+    let (c, _) = k.create_subkey(r"shell\open\command")?;
+    c.set_value("", &format!("\"{exe}\" \"%1\""))?;
+    Ok(())
 }
 
 // ---------------------------------------------------------------- shared actions (tray + window)
@@ -701,7 +807,12 @@ fn window_visible(app: &AppHandle) -> bool {
 pub fn run() {
     let _ = START.set(Instant::now());
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_main(app)))
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            match args.iter().find(|a| a.starts_with("vatra:")) {
+                Some(l) => on_link(app, l),
+                None => show_main(app),
+            }
+        }))
         .plugin(tauri_plugin_window_state::Builder::default().with_state_flags(tauri_plugin_window_state::StateFlags::all() & !tauri_plugin_window_state::StateFlags::VISIBLE).build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec!["--hidden"])))
@@ -718,7 +829,19 @@ pub fn run() {
         .manage(State::default())
         .manage(Tray::default())
         .setup(|app| {
-            crate::i18n::init(app.path().app_data_dir().unwrap_or_else(|_| std::env::temp_dir()));
+            let data = app.path().app_data_dir().unwrap_or_else(|_| std::env::temp_dir());
+            if let Ok(d) = app.path().app_log_dir() {
+                stack::set_log_dir(d);
+            }
+            crate::i18n::init(data.clone());
+            crate::hub::init(data);
+            #[cfg(windows)]
+            if let Err(e) = register_scheme() {
+                stack::log(&format!("vatra:// scheme: {e}"));
+            }
+            if let Some(l) = std::env::args().find(|a| a.starts_with("vatra:")).and_then(|a| crate::pairing::parse_link(&a)) {
+                *app.state::<State>().pair_link.lock().unwrap() = Some(l);
+            }
             build_tray(app.handle())?;
             if let Err(e) = app.global_shortcut().register(OPEN_SHORTCUT) {
                 stack::log(&format!("global shortcut {OPEN_SHORTCUT}: {e}"));
@@ -805,6 +928,13 @@ pub fn run() {
             vmui_get,
             vmui_send,
             app_info,
+            discover,
+            pair_request,
+            pair_login,
+            pair_redeem,
+            pair_wait,
+            conn_clear,
+            pending_pair,
             lights_get,
             lights_op,
             ble_scan,

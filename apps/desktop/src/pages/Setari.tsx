@@ -1,5 +1,5 @@
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
-import { FolderOpen, Languages, Monitor, Moon, Sun } from "lucide-react";
+import { FolderOpen, Languages, Monitor, Moon, Sun, Unplug } from "lucide-react";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { DevicesCard } from "../components/paired-devices";
@@ -7,12 +7,16 @@ import { setLanguage, type Lang } from "../i18n";
 import { api, toast } from "../lib";
 import { usePlatform } from "../platform";
 import { useThemePref, type ThemePref } from "../theme";
-import { Card, PageHeader, Row, Seg, Switch } from "../ui";
+import { Card, confirmDialog, PageHeader, Row, Seg, Switch } from "../ui";
 
 /** Desktop settings: language (shared with the tray), autostart, paired phones, paths, version. */
 export function Setari() {
   const { t, i18n } = useTranslation();
-  const { root, version } = usePlatform();
+  const { root, version, dev, paired, vmui } = usePlatform();
+  const disconnect = async () => {
+    if (!(await confirmDialog({ title: t("setari.disconnectConfirm"), confirm: t("setari.disconnect") }))) return;
+    await api.connClear().then(() => { toast("ok", t("setari.disconnected")); location.reload(); }).catch((e) => toast("error", String(e)));
+  };
   const [auto, setAuto] = React.useState<boolean | null>(null);
   React.useEffect(() => void isEnabled().then(setAuto).catch(() => setAuto(null)), []);
   const lang: Lang = i18n.language === "en" ? "en" : "ro";
@@ -40,8 +44,11 @@ export function Setari() {
         <Row label={t("setari.autostart")} hint={t("setari.autostartHint")}>
           {auto == null ? <span className="text-xs text-muted">{t("setari.unavailable")}</span> : <Switch checked={auto} onChange={toggleAuto} label={t("setari.autostart")} />}
         </Row>
-        <Row label={t("setari.repo")} hint={root}><button type="button" className="btn ghost sm" onClick={() => void api.openPath("root")}><FolderOpen className="size-3.5" />{t("common.open")}</button></Row>
-        <Row label={t("setari.ambilightFile")} hint="ambilight/settings.json"><button type="button" className="btn ghost sm" onClick={() => void api.openPath("settings")}><FolderOpen className="size-3.5" />{t("common.open")}</button></Row>
+        <Row label={t("setari.hub")} hint={vmui || t("setari.hubNone")}>
+          {paired && <button type="button" className="btn ghost sm" onClick={() => void disconnect()}><Unplug className="size-3.5" />{t("setari.disconnect")}</button>}
+        </Row>
+        {dev && <Row label={t("setari.repo")} hint={root}><button type="button" className="btn ghost sm" onClick={() => void api.openPath("root")}><FolderOpen className="size-3.5" />{t("common.open")}</button></Row>}
+        {dev && <Row label={t("setari.ambilightFile")} hint="ambilight/settings.json"><button type="button" className="btn ghost sm" onClick={() => void api.openPath("settings")}><FolderOpen className="size-3.5" />{t("common.open")}</button></Row>}
         <Row label={t("setari.logs")}><button type="button" className="btn ghost sm" onClick={() => void api.openPath("logs")}><FolderOpen className="size-3.5" />{t("common.open")}</button></Row>
         <Row label={t("setari.version")}><span className="text-xs text-muted tabular-nums">{version || "—"}</span></Row>
       </Card>
