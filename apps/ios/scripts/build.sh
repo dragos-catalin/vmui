@@ -65,8 +65,12 @@ run_build() {
   ls "$app/Watch" 2>/dev/null | sed 's/^/   watch /'
   for p in VatraWidgets.appex VatraNotificationService.appex; do
     [ -d "$app/PlugIns/$p" ] || { echo "missing $p in the app bundle" >&2; exit 1; }
+    [ -f "$app/PlugIns/$p/PrivacyInfo.xcprivacy" ] || { echo "missing privacy manifest in $p" >&2; exit 1; }
   done
   [ -d "$app/Watch/VatraWatch.app" ] || { echo "missing the watch app in the bundle" >&2; exit 1; }
+  [ -f "$app/PrivacyInfo.xcprivacy" ] || { echo "missing privacy manifest in the app" >&2; exit 1; }
+  [ -f "$app/Watch/VatraWatch.app/PrivacyInfo.xcprivacy" ] || { echo "missing privacy manifest in the watch app" >&2; exit 1; }
+  plutil -lint "$app/PrivacyInfo.xcprivacy"
   log "OK: $app"
 }
 
