@@ -15,8 +15,9 @@ param(
   [string]$Region = 'europe-central2',
   [string]$RelayAddr = '34.158.236.161:8443',
   [string]$RelayPin = 'vPdpD1kjdaSNPeYX7TJ9fXq4WOpYi_9B6NBZ6oHR7JM',
-  # beta allow-list for remote access (ACME + relay tokens); 'none' matches no hub, '*' = everyone
-  [string]$AllowHubs = 'none'
+  # beta allow-list for remote access (ACME + relay tokens), comma list of hub ids; 'none' = nobody, '*' = everyone.
+  # 7562iws7anbxe2kd = homepi (owner's hub, first beta hub, 2026-11-08)
+  [string]$AllowHubs = '7562iws7anbxe2kd'
 )
 $ErrorActionPreference = 'Stop'
 $Service = @($Service | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
