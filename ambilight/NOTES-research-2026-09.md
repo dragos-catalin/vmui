@@ -1,7 +1,7 @@
 # Ambilight / multi-target RGB research (2026-09-12, verified via web)
 
 - DX Light wedge `hid_write ... (0x3E5) Overlapped I/O operation is in
-  progress` (only replug fixes): every death sat on a frame BURST (idle->
+progress` (only replug fixes): every death sat on a frame BURST (idle->
   film, movie mode ON) at 60 distinct frames/s x 6 reports = 360 HID
   reports/s -> firmware buffer overflow, endpoint stops ACKing. Fix
   (2026-09-16, 55a75e5): dedupe identical frames, cap 30 fps, 1.5 ms gap
@@ -14,6 +14,7 @@
   setconfig; after any HyperHDR restart re-check SYSTEMGRABBER per instance.
 
 ## Idle flash + white case (2026-09-14, vmui ambilight/)
+
 - Short flash on every idle transition = HyperHDR sends ONE all-black frame
   when it switches the LED device off, then goes silent. Bridges applied it
   (lit→black→20 s→fade red). Fix: `IdleGate` in dxlight_bridge.py drops a
@@ -25,8 +26,8 @@
 - OpenRGB 1.0 breaks D_LED strips on Z790 AORUS ELITE (zones 0 LEDs, strobe);
   stay on 0.9 (`.copilot-tmp/orgb-downgrade.ps1`).
 - Copilot signals: `~/.copilot/hooks/copilot-signal.ps1` → vmui
-  `/api/copilot/event` (needs `/api/copilot` in proxy.ts PUBLIC_PREFIXES) →
-  HA `script.copilot_{ask,clear,done,blocked,failed}` via `script.turn_on`
+  `/api/copilot/event` (needs `/api/copilot` in proxy.ts PUBLIC*PREFIXES) →
+  HA `script.copilot*{ask,clear,done,blocked,failed}`via`script.turn_on`
   (direct service call blocks until the looping script ends → timeout).
 - "Lights flash fast on a Copilot notification, others animate smoothly"
   (2026-10-20). NOT the OpenRGB case path: HA notify_flash on the case
@@ -40,6 +41,7 @@
   frame; old code 254-255 -> red).
 
 ## "Something duplicates the case LEDs" — two DIFFERENT causes (2026-09-14)
+
 1. OpenRGB **Effects Plugin** profile with `AutoStart=true` (found by the
    ambilight agent; `ambilight.ps1 -Configure` disarms it).
 2. OpenRGB **1.0 installer registers a Windows service** "OpenRGB SDK Server"
@@ -48,7 +50,7 @@
    `vmui-ambilight-openrgb` task instance → two writers. Discriminator:
    `Get-Process OpenRGB` shows TWO pids, one with SessionId 0 and parent
    services.exe. Fix (admin): `Stop-Service OpenRGB; Set-Service OpenRGB
-   -StartupType Disabled`. `ambilight.ps1 -Status` now warns.
+-StartupType Disabled`. `ambilight.ps1 -Status` now warns.
 
 - DX Light / QuikLight USB strip = ROBOBLOQ HID VID 1A86 PID FE07. Per-LED
   protocol reverse-engineered in shim80/hypr-quicklight (+ fork
@@ -129,7 +131,7 @@
   frame TWO MONITORS WIDE. hardware=true: Odyssey in left half, right half
   black ("right segment dead"). hardware=false: right half = the OTHER
   monitor ("strip white on a black film"). I wrongly "fixed" the first with
-  hardware=false and created the second. systemGrabber.crop* is INERT in
+  hardware=false and created the second. systemGrabber.crop\* is INERT in
   both modes (test pattern, cropRight 100..3440 -> no change). Real fix:
   hardware=true + every `leds` layout squeezed into h 0..0.5
   (Set-LayoutFrame); video_follow rewrites `leds` per instance (group 7).
@@ -139,8 +141,8 @@
 - PowerShell: `return @($oneHashtable)` unrolls to the hashtable; HyperHDR
   then silently keeps the old leds. Use `return , $arr`.
 - HyperHDR `home_assistant` LED device never sends turn_off (black = rgb 0
-  + brightness 0; Tuya/Calex ignores brightness 0) -> lamps stay WHITE on a
-  black screen. Replaced by ambilight/halamps_bridge.py (udpraw 19449).
+  - brightness 0; Tuya/Calex ignores brightness 0) -> lamps stay WHITE on a
+    black screen. Replaced by ambilight/halamps_bridge.py (udpraw 19449).
 - Calex Moodlight (Tuya dd, pid wrxde31hg9wel0c5) has FROZEN status
   reporting: colour_data reported h=12/v=157 forever (HA + cloud) while the
   bulb visibly follows every command. Never decide from its reported state.
@@ -185,7 +187,7 @@
 - Calex Tuya bulbs (Moodlight/Ambience) are INVISIBLE below ~25 % in a dark
   room (blue at 6/12/25 % read as off, 60 % visible). "Lamp never turns on
   in movie mode" while the log says `on ... bri 16` = linear luma map landed
-  under the threshold. Fix f8a693e: bri = BRI_MIN(64) + luma*(cap-64),
+  under the threshold. Fix f8a693e: bri = BRI_MIN(64) + luma\*(cap-64),
   roomBrightness cap 140. Log values 14-21 are the tell.
 - Room lamps "laggy / off / wrong colour" after video_follow landed
   (68500dd). Three stacked causes; first belief "fit thrash" was only 1/3:

@@ -9,15 +9,15 @@ machines. We take reports seriously and thank everyone who reports responsibly.
 
 ## Supported versions
 
-| Component | Supported |
-| --- | --- |
-| Hub (this repository), latest stable release | Yes |
-| Hub, previous minor release | Security fixes for 90 days after the next minor ships |
-| Hub, beta channel | Best effort |
-| Older releases | No — update via the built-in updater |
-| ESP32 firmware (`firmware/`) | Latest release |
-| Android, iOS and Windows apps | Latest store version |
-| Vatra Cloud services (relay, push, ACME proxy) | Always (we run them) |
+| Component                                      | Supported                                             |
+| ---------------------------------------------- | ----------------------------------------------------- |
+| Hub (this repository), latest stable release   | Yes                                                   |
+| Hub, previous minor release                    | Security fixes for 90 days after the next minor ships |
+| Hub, beta channel                              | Best effort                                           |
+| Older releases                                 | No — update via the built-in updater                  |
+| ESP32 firmware (`firmware/`)                   | Latest release                                        |
+| Android, iOS and Windows apps                  | Latest store version                                  |
+| Vatra Cloud services (relay, push, ACME proxy) | Always (we run them)                                  |
 
 ## Reporting a vulnerability
 

@@ -29,7 +29,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [vatra-display-oled, vatra-display-s3, vatra-button-atom, vatra-button-c3]
+        image:
+          [
+            vatra-display-oled,
+            vatra-display-s3,
+            vatra-button-atom,
+            vatra-button-c3,
+          ]
     steps:
       - uses: actions/checkout@v4
 

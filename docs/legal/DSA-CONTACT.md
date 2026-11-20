@@ -9,14 +9,14 @@
 
 **Provider:** Dragos Catalin Vladulescu, individual developer, Romania.
 **Postal address:** [P.O. box — owner to fill before store launch]
-**Phone:** [P.O. box — owner to fill before store launch] *(placeholder; a phone number is optional
-under DSA, but stores may ask for one)*
+**Phone:** [P.O. box — owner to fill before store launch] _(placeholder; a phone number is optional
+under DSA, but stores may ask for one)_
 
-| Purpose | Contact | Languages |
-| --- | --- | --- |
-| Single point of contact for Member State authorities, the Commission and the Board (Reg. 2022/2065 art. 11) | privacy@dragoscatalin.ro *(placeholder)* | English, Romanian |
-| Single point of contact for recipients of the service (art. 12) | privacy@dragoscatalin.ro *(placeholder)* | English, Romanian |
-| Security vulnerabilities | security@dragoscatalin.ro *(placeholder)* | English, Romanian |
+| Purpose                                                                                                     | Contact                                   | Languages         |
+| ----------------------------------------------------------------------------------------------------------- | ----------------------------------------- | ----------------- |
+| Single point of contact for Member State authorities, the Commission and the Board (Reg. 2022/2065 art. 11) | privacy@dragoscatalin.ro _(placeholder)_  | English, Romanian |
+| Single point of contact for recipients of the service (art. 12)                                             | privacy@dragoscatalin.ro _(placeholder)_  | English, Romanian |
+| Security vulnerabilities                                                                                    | security@dragoscatalin.ro _(placeholder)_ | English, Romanian |
 
 **Legal representative (art. 13):** not required — the provider is established in the EU (Romania).
 
@@ -42,11 +42,11 @@ own services to its household.
 **Furnizor:** Dragos Catalin Vladulescu, dezvoltator persoană fizică, România.
 **Adresă poștală:** [P.O. box — owner to fill before store launch]
 
-| Scop | Contact | Limbi |
-| --- | --- | --- |
-| Punct unic de contact pentru autoritățile statelor membre, Comisie și Comitet (Reg. 2022/2065 art. 11) | privacy@dragoscatalin.ro *(provizoriu)* | engleză, română |
-| Punct unic de contact pentru destinatarii serviciului (art. 12) | privacy@dragoscatalin.ro *(provizoriu)* | engleză, română |
-| Vulnerabilități de securitate | security@dragoscatalin.ro *(provizoriu)* | engleză, română |
+| Scop                                                                                                   | Contact                                  | Limbi           |
+| ------------------------------------------------------------------------------------------------------ | ---------------------------------------- | --------------- |
+| Punct unic de contact pentru autoritățile statelor membre, Comisie și Comitet (Reg. 2022/2065 art. 11) | privacy@dragoscatalin.ro _(provizoriu)_  | engleză, română |
+| Punct unic de contact pentru destinatarii serviciului (art. 12)                                        | privacy@dragoscatalin.ro _(provizoriu)_  | engleză, română |
+| Vulnerabilități de securitate                                                                          | security@dragoscatalin.ro _(provizoriu)_ | engleză, română |
 
 **Reprezentant legal (art. 13):** nu este necesar — furnizorul este stabilit în UE (România).
 

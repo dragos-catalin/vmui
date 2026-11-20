@@ -48,3 +48,6 @@ turzx/fonts/
 
 playwright-report/
 !brand/dist/
+
+# axiom local apply journal/backups (machine state, may contain copies of infra secrets)
+.axiom/

@@ -8,12 +8,12 @@ commits or falls back.
 
 ## Pinned versions
 
-| Component    | Version                     | Source                                                     | sha256 (release asset)                                                                      |
-| ------------ | --------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| Rugix Ctrl   | v1.4.0 (MIT OR Apache-2.0)  | `binaries-x86_64-unknown-linux-musl.tar`                   | `4f90e9d09f1b04374911581131baf9a1c5105300e04e1b4bd18c4a4c65ef01be`                          |
-|              |                             | `binaries-aarch64-unknown-linux-musl.tar`                  | `db5e53d4726ba99f05b9fa990e7067cd80d60ec9a7b3b92b2999c88c8fe3f6b4`                          |
-| Rugix Bundler| v1.4.0 (same tarballs)      | `rugix-bundler` in the tarball above                       | (covered by the tarball hash)                                                               |
-| systemd-boot | Debian 13 `systemd-boot-efi`| copied from the image rootfs into the ESP                  | follows the Debian security archive                                                        |
+| Component     | Version                      | Source                                    | sha256 (release asset)                                             |
+| ------------- | ---------------------------- | ----------------------------------------- | ------------------------------------------------------------------ |
+| Rugix Ctrl    | v1.4.0 (MIT OR Apache-2.0)   | `binaries-x86_64-unknown-linux-musl.tar`  | `4f90e9d09f1b04374911581131baf9a1c5105300e04e1b4bd18c4a4c65ef01be` |
+|               |                              | `binaries-aarch64-unknown-linux-musl.tar` | `db5e53d4726ba99f05b9fa990e7067cd80d60ec9a7b3b92b2999c88c8fe3f6b4` |
+| Rugix Bundler | v1.4.0 (same tarballs)       | `rugix-bundler` in the tarball above      | (covered by the tarball hash)                                      |
+| systemd-boot  | Debian 13 `systemd-boot-efi` | copied from the image rootfs into the ESP | follows the Debian security archive                                |
 
 The pin lives in [deploy/vatra/os/rugix-pin.sh](../../deploy/vatra/os/rugix-pin.sh); every script
 that downloads Rugix verifies the tarball against it. `rugix-ctrl v1.4.0` was confirmed by running
@@ -23,12 +23,12 @@ the binary (cloud run `2611071938-m25f`).
 
 ### x86 (GPT, `deploy/vatra/x86/ab-image.sh`)
 
-| # | Label            | Size    | FS     | Content                                                                                  |
-| - | ---------------- | ------- | ------ | ---------------------------------------------------------------------------------------- |
-| 1 | `vatra-esp`      | 512 MiB | vfat   | `EFI/BOOT/BOOTX64.EFI` (systemd-boot), `loader/entries/vatra-{a,b}.conf`, `vatra/{a,b}/{vmlinuz,initrd.img}`. Rugix's config partition (read-only at `/run/rugix/mounts/config`, bound to `/efi` for `bootctl`) |
-| 2 | `vatra-system-a` | 4 GiB   | EROFS  | rootfs, lz4hc                                                                            |
-| 3 | `vatra-system-b` | 4 GiB   | EROFS  | empty until the first OS update                                                          |
-| 4 | `vatra-data`     | rest    | ext4   | state (below); grown to the disk by `vatra-firstboot`                                    |
+| #   | Label            | Size    | FS    | Content                                                                                                                                                                                                         |
+| --- | ---------------- | ------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `vatra-esp`      | 512 MiB | vfat  | `EFI/BOOT/BOOTX64.EFI` (systemd-boot), `loader/entries/vatra-{a,b}.conf`, `vatra/{a,b}/{vmlinuz,initrd.img}`. Rugix's config partition (read-only at `/run/rugix/mounts/config`, bound to `/efi` for `bootctl`) |
+| 2   | `vatra-system-a` | 4 GiB   | EROFS | rootfs, lz4hc                                                                                                                                                                                                   |
+| 3   | `vatra-system-b` | 4 GiB   | EROFS | empty until the first OS update                                                                                                                                                                                 |
+| 4   | `vatra-data`     | rest    | ext4  | state (below); grown to the disk by `vatra-firstboot`                                                                                                                                                           |
 
 Loader entries: `root=PARTUUID=<slot> rootfstype=erofs ro init=/usr/bin/rugix-ctrl`. The kernel
 and initrd of a slot are Rugix **custom slots** (`vatra-esp-slot`: remount the ESP rw, write
@@ -37,15 +37,15 @@ entry that is booted.
 
 ### Raspberry Pi 4 / Pi 5 (MBR, `deploy/vatra/pi-image/ab.sh`)
 
-| # | Name     | Size    | FS    | Content                                                                         |
-| - | -------- | ------- | ----- | ------------------------------------------------------------------------------- |
-| 1 | config   | 64 MiB  | FAT32 | `autoboot.txt` (`tryboot_a_b=1`, `boot_partition=2`, `[tryboot] boot_partition=3`), `vatra-setup.txt`, `vatra-wifi.txt` |
-| 2 | boot-a   | 256 MiB | FAT32 | firmware, kernel, DTBs, `config.txt` (+`auto_initramfs=1`), `cmdline.txt`        |
-| 3 | boot-b   | 256 MiB | FAT32 | empty until the first update                                                     |
-| 4 | extended |         |       |                                                                                 |
-| 5 | system-a | 4 GiB   | EROFS | rootfs                                                                          |
-| 6 | system-b | 4 GiB   | EROFS | empty                                                                           |
-| 7 | data     | 512 MiB | ext4  | grown to the card by `vatra-firstboot`                                          |
+| #   | Name     | Size    | FS    | Content                                                                                                                 |
+| --- | -------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------- |
+| 1   | config   | 64 MiB  | FAT32 | `autoboot.txt` (`tryboot_a_b=1`, `boot_partition=2`, `[tryboot] boot_partition=3`), `vatra-setup.txt`, `vatra-wifi.txt` |
+| 2   | boot-a   | 256 MiB | FAT32 | firmware, kernel, DTBs, `config.txt` (+`auto_initramfs=1`), `cmdline.txt`                                               |
+| 3   | boot-b   | 256 MiB | FAT32 | empty until the first update                                                                                            |
+| 4   | extended |         |       |                                                                                                                         |
+| 5   | system-a | 4 GiB   | EROFS | rootfs                                                                                                                  |
+| 6   | system-b | 4 GiB   | EROFS | empty                                                                                                                   |
+| 7   | data     | 512 MiB | ext4  | grown to the card by `vatra-firstboot`                                                                                  |
 
 Rugix's `rpi-tryboot` flow patches the incoming boot partition's `cmdline.txt` with
 `root=PARTUUID=<system slot>` and `init=/usr/bin/rugix-ctrl`; `ab.sh` does the same for slot A at
@@ -126,18 +126,18 @@ computes `sha256` + `size` from the bundle files itself (it does not trust the i
 
 ### Status (`/srv/vatra/data/update-status.json`, `os` sub-object)
 
-| `os.result`        | Meaning                                                                 | Updater exit |
-| ------------------ | ----------------------------------------------------------------------- | ------------ |
-| `up-to-date`       | running = manifest version                                              | 0            |
-| `not-ab` / `no-bundle` | classic image, or no bundle for this platform                       | 0            |
-| `refused`          | downgrade, sha256 / size mismatch, bad `os` block                       | 1            |
-| `installed` → `rebooting` | spare written, one-shot set                                      | 0            |
-| `reboot-deferred`  | `/run/vatra/no-reboot` present or outside `os_reboot_window`            | 0            |
-| `install-failed` / `reboot-failed` / `commit-failed` | Rugix error (text in `reason`)         | 3            |
-| `committed`        | health passed on the new slot (`previous` = old version)                | 0            |
-| `health-failed`    | health failed, rebooting uncommitted                                    | 2            |
-| `fell-back`        | back on the committed slot; this version is not retried                 | 2            |
-| `skipped-failed`   | manifest still names a version that fell back here                      | 0            |
+| `os.result`                                          | Meaning                                                      | Updater exit |
+| ---------------------------------------------------- | ------------------------------------------------------------ | ------------ |
+| `up-to-date`                                         | running = manifest version                                   | 0            |
+| `not-ab` / `no-bundle`                               | classic image, or no bundle for this platform                | 0            |
+| `refused`                                            | downgrade, sha256 / size mismatch, bad `os` block            | 1            |
+| `installed` → `rebooting`                            | spare written, one-shot set                                  | 0            |
+| `reboot-deferred`                                    | `/run/vatra/no-reboot` present or outside `os_reboot_window` | 0            |
+| `install-failed` / `reboot-failed` / `commit-failed` | Rugix error (text in `reason`)                               | 3            |
+| `committed`                                          | health passed on the new slot (`previous` = old version)     | 0            |
+| `health-failed`                                      | health failed, rebooting uncommitted                         | 2            |
+| `fell-back`                                          | back on the committed slot; this version is not retried      | 2            |
+| `skipped-failed`                                     | manifest still names a version that fell back here           | 0            |
 
 Config (`/srv/vatra/updater.json`): `os_reboot_window` (`"02:00-06:00"` local, may wrap midnight,
 or `"always"`), `os_health_timeout` (600 s), `os_release`, `no_reboot_flag`, `rugix`.
@@ -170,7 +170,7 @@ server and a throwaway cosign key on the host:
 1. boot slot A: Rugix as init, `rugix-ctrl system info` = `systemd-boot`, active `a`, state
    `Active`; system slot EROFS, data ext4; `/api/discover` answers.
 2. manifest with `os` = version + 1 → `vatra-updater os-apply` → bundle into B, `system reboot
-   --spare` → boots B → `vatra-os-health` commits (active = default = `b`), `/srv/vatra/data`
+--spare` → boots B → `vatra-os-health` commits (active = default = `b`), `/srv/vatra/data`
    survived the switch.
 3. manifest with version + 2 whose system image masks docker → into A, boots A once → health fails
    → reboot uncommitted → systemd-boot boots B again → `os.result = fell-back`, hub serving.
@@ -221,10 +221,10 @@ EROFS image is built with 4K blocks (`mkfs.erofs` default), which both kernels m
 
 ## Smoke runs
 
-| Date | Run id | Result | Notes |
-| ---- | ------ | ------ | ----- |
-| 2026-11-07 | `2611071938-m25f` | probe | Rugix 1.4.0 tarball layout, CLI flags (`--reboot no`, `--bundle-hash`, `system reboot --spare`), bundle hash format `sha512-256:<hex>` |
-| 2026-11-07 | `2611071948-l4ur` | fail | Packer `environment_vars` were not passed to the provision script (needs `{{ .Vars }}` in `execute_command`): image not A/B; fixed |
+| Date       | Run id            | Result   | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ---------- | ----------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-11-07 | `2611071938-m25f` | probe    | Rugix 1.4.0 tarball layout, CLI flags (`--reboot no`, `--bundle-hash`, `system reboot --spare`), bundle hash format `sha512-256:<hex>`                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| 2026-11-07 | `2611071948-l4ur` | fail     | Packer `environment_vars` were not passed to the provision script (needs `{{ .Vars }}` in `execute_command`): image not A/B; fixed                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | 2026-11-07 | `2611071958-zjzp` | **pass** | n2-standard-8 nested KVM, 1191 s total (~0.03 USD): Packer 182 s, ab-image 86 s, smoke 631 s. `system.erofs` 751 MiB, bundle 799 MiB (837 010 819 B), A/B qcow2 708 MiB. Slot A up in 36 s, `/api/discover` in 62 s; `system info` flow `systemd-boot`, slots kernel/initrd/system a+b, state `Active` (`/dev/vda4`). Good update 0.4.0 → 0.4.1: rebooted into B 60 s after `os-apply`, committed at 64 s, data kept. Broken 0.4.2 (docker masked): booted A once at 78 s, health failed (`docker is not running`), back on committed B at 399 s, `os.result` `fell-back`, hub serving 0.4.1 |
 
 `rugix-ctrl system info` (v1.4.0) prints camelCase (`bootFlow`, `activeGroup`, `defaultGroup`,

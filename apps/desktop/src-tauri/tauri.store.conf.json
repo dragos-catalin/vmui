@@ -3,7 +3,17 @@
   "bundle": {
     "windows": {
       "webviewInstallMode": { "type": "offlineInstaller" },
-      "signCommand": { "cmd": "pwsh", "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "sign.ps1", "%1"] }
+      "signCommand": {
+        "cmd": "pwsh",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "sign.ps1",
+          "%1"
+        ]
+      }
     }
   }
 }

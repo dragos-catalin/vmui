@@ -40,7 +40,11 @@
     "longDescription": "Control the lights, scenes, ambilight and notifications of a Vatra home server from the Windows tray. Pairs with the hub on your network; reads nothing else on your PC.",
     "icon": ["icons/icon.ico", "icons/icon.png"],
     "windows": {
-      "nsis": { "installMode": "currentUser", "languages": ["English", "Romanian"], "displayLanguageSelector": false }
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["English", "Romanian"],
+        "displayLanguageSelector": false
+      }
     }
   }
 }

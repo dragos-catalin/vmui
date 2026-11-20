@@ -9,7 +9,7 @@
 
 **1. Parties.** These terms are between you (the owner of a Vatra hub who switches on Vatra Cloud)
 and **Dragos Catalin Vladulescu**, individual, Romania, **[P.O. box — owner to fill before store
-launch]**, privacy@dragoscatalin.ro *(placeholder)* ("we"). ⚖ Trader status of an individual
+launch]**, privacy@dragoscatalin.ro _(placeholder)_ ("we"). ⚖ Trader status of an individual
 publisher (consumer law, DSA art. 30 if a marketplace ever appears).
 
 **2. The service.** Optional remote access (SNI relay), push relay and certificate (ACME DNS)
@@ -55,7 +55,7 @@ protection of their country of residence (Rome I art. 6). Consumers may use ANPC
 
 **1. Părți.** Acești termeni sunt între tine (proprietarul unui hub Vatra care pornește Vatra
 Cloud) și **Dragos Catalin Vladulescu**, persoană fizică, România, **[P.O. box — owner to fill
-before store launch]**, privacy@dragoscatalin.ro *(provizoriu)* („noi").
+before store launch]**, privacy@dragoscatalin.ro _(provizoriu)_ („noi").
 
 **2. Serviciul.** Acces opțional de la distanță (releu SNI), releu de notificări și certificate
 (ACME DNS) pentru hubul tău, conform PRIVACY-CLOUD.md. Software-ul hubului este licențiat separat

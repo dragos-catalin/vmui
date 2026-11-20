@@ -2,14 +2,14 @@
 
 Self-hosted `ducktors/turborepo-remote-cache` 2.14.3 runs on Cloud Run in `dragos-devcloud` / `europe-central2`, with artifacts stored natively in GCS.
 
-| | |
-|---|---|
-| URL | `https://turbo-cache-oouyuce4fq-lm.a.run.app` (service `turbo-cache`) |
-| Team | `dragos` (any string works; it namespaces artifacts in the bucket) |
-| Token | Secret Manager `devcloud-turbo-token` (48 chars, never printed) |
-| Bucket | `gs://dragos-devcloud-turbo-cache`. Lifecycle: delete when customTime > 30 d or age > 45 d |
-| Scaling | 0–4 instances, 2 vCPU / 2 GiB, HTTP/2 end-to-end (`HTTP2=true`), CPU boost |
-| Provision / verify | `pwsh -NoProfile -File infra/devcloud/turbo-cache.ps1 [-Verify]` |
+|                    |                                                                                            |
+| ------------------ | ------------------------------------------------------------------------------------------ |
+| URL                | `https://turbo-cache-oouyuce4fq-lm.a.run.app` (service `turbo-cache`)                      |
+| Team               | `dragos` (any string works; it namespaces artifacts in the bucket)                         |
+| Token              | Secret Manager `devcloud-turbo-token` (48 chars, never printed)                            |
+| Bucket             | `gs://dragos-devcloud-turbo-cache`. Lifecycle: delete when customTime > 30 d or age > 45 d |
+| Scaling            | 0–4 instances, 2 vCPU / 2 GiB, HTTP/2 end-to-end (`HTTP2=true`), CPU boost                 |
+| Provision / verify | `pwsh -NoProfile -File infra/devcloud/turbo-cache.ps1 [-Verify]`                           |
 
 ## Use it
 

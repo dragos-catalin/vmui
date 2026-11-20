@@ -17,8 +17,8 @@ allowBuilds:
   # generates JS, so allowing it is safe and silences a warning every install.
   protobufjs: true
   # Both only download/select a prebuilt binary for the platform.
-  '@parcel/watcher': true
-  '@swc/core': true
+  "@parcel/watcher": true
+  "@swc/core": true
 
 packages:
   - .
@@ -27,18 +27,18 @@ packages:
 # Security pins for transitive deps (G-03 shared security gate, osv >= 7). Remove an entry once
 # its parent ships the fix (Renovate dependency dashboard shows when).
 overrides:
-  'shell-quote': '>=1.9.0'
-  '@grpc/grpc-js@1': '>=1.14.5 <2'
-  'form-data@2': '>=2.5.6 <3'
-  'protobufjs@7': '>=7.6.1 <8'
-  'brace-expansion@1': '>=1.1.20 <2'
-  'brace-expansion@2': '>=2.1.6 <3'
-  'brace-expansion@5': '>=5.0.11 <6'
-  'js-yaml@4': '>=4.3.2 <5'
-  'nanoid@3': '>=3.3.18 <4'
-  'postcss@8': '>=8.5.18 <9'
-  'browserslist@4': '>=4.28.7 <5'
-  'fflate@0': '>=0.8.3 <1'
-  'uuid@<11.1.1': '>=11.1.1'
+  "shell-quote": ">=1.9.0"
+  "@grpc/grpc-js@1": ">=1.14.5 <2"
+  "form-data@2": ">=2.5.6 <3"
+  "protobufjs@7": ">=7.6.1 <8"
+  "brace-expansion@1": ">=1.1.20 <2"
+  "brace-expansion@2": ">=2.1.6 <3"
+  "brace-expansion@5": ">=5.0.11 <6"
+  "js-yaml@4": ">=4.3.2 <5"
+  "nanoid@3": ">=3.3.18 <4"
+  "postcss@8": ">=8.5.18 <9"
+  "browserslist@4": ">=4.28.7 <5"
+  "fflate@0": ">=0.8.3 <1"
+  "uuid@<11.1.1": ">=11.1.1"
   # esp-web-tools 10.4.0 imports @material/web/*/internal/*-styles.js; 2.5.0 renamed them *-styles.cssresult.js
-  'esp-web-tools>@material/web': '2.4.1'
+  "esp-web-tools>@material/web": "2.4.1"

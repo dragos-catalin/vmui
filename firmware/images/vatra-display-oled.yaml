@@ -29,7 +29,7 @@ esp32:
       sram1_as_iram: true
 
 http_request:
-  buffer_size_rx: 1200   # the frame is 1 086 bytes; the default 512 forces re-reads
+  buffer_size_rx: 1200 # the frame is 1 086 bytes; the default 512 forces re-reads
 
 globals:
   - id: frame_ok

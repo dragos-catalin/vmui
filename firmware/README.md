@@ -6,12 +6,12 @@ ESPHome firmware for Vatra displays and buttons. ESPHome is pinned to `2026.10.2
 
 The image id is the contract: the hub serves firmware by id.
 
-| id | board | chipFamily | what it does |
-| --- | --- | --- | --- |
-| `vatra-display-oled` | ideaspark ESP32 + SSD1306 128x64 (I2C 0x3C, SDA 21, SCL 22, BOOT GPIO0) | ESP32 | Shows the hub-rendered 1-bit BMP `GET <hub>/api/esp/display/<node>` every 5 s. BOOT click sends single/double/long. |
-| `vatra-display-s3` | Guition ESP32-S3-4848S040 (480x480 ST7701S, GT911, 16 MB, octal PSRAM) | ESP32-S3 | LVGL screen: clock, lights on, water ml / target with a +250 ml button, ambilight mode and a status line, from `GET <hub>/api/esp/display/<node>/summary` every 10 s. |
-| `vatra-button-atom` | M5Stack Atom Lite (button GPIO39, SK6812 GPIO27) | ESP32 | Desk button (`btn=desk`) and Bluetooth proxy. LED: blue pulse = not adopted, green = hub took the click, red = it did not. |
-| `vatra-button-c3` | ESP32-C3 SuperMini (BOOT GPIO9, LED GPIO8, both active low) | ESP32-C3 | Same as the Atom. LED: slow blink = not adopted, long flash = ok, fast blinks = error. |
+| id                   | board                                                                   | chipFamily | what it does                                                                                                                                                          |
+| -------------------- | ----------------------------------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `vatra-display-oled` | ideaspark ESP32 + SSD1306 128x64 (I2C 0x3C, SDA 21, SCL 22, BOOT GPIO0) | ESP32      | Shows the hub-rendered 1-bit BMP `GET <hub>/api/esp/display/<node>` every 5 s. BOOT click sends single/double/long.                                                   |
+| `vatra-display-s3`   | Guition ESP32-S3-4848S040 (480x480 ST7701S, GT911, 16 MB, octal PSRAM)  | ESP32-S3   | LVGL screen: clock, lights on, water ml / target with a +250 ml button, ambilight mode and a status line, from `GET <hub>/api/esp/display/<node>/summary` every 10 s. |
+| `vatra-button-atom`  | M5Stack Atom Lite (button GPIO39, SK6812 GPIO27)                        | ESP32      | Desk button (`btn=desk`) and Bluetooth proxy. LED: blue pulse = not adopted, green = hub took the click, red = it did not.                                            |
+| `vatra-button-c3`    | ESP32-C3 SuperMini (BOOT GPIO9, LED GPIO8, both active low)             | ESP32-C3   | Same as the Atom. LED: slow blink = not adopted, long flash = ok, fast blinks = error.                                                                                |
 
 `<node>` is the device name: `vatra-display-xxxxxx` or `vatra-button-xxxxxx` (the last 3 bytes of the MAC). Files: [common/vatra-base.yaml](common/vatra-base.yaml) is shared by every image in [images/](images/).
 
@@ -30,14 +30,14 @@ Not adopted yet, the screens show "Vatra", "Devices > Add" and their IP address.
 
 Adoption runs through internal entities. Home Assistant never sees them; the web server exposes them because it is set to `include_internal: true`.
 
-| call | effect |
-| --- | --- |
-| `POST http://<ip>/text/Vatra%20hub/set?value=http%3A%2F%2F<hub>` | Stores the hub base URL (no trailing slash). Accepted only while the unit is not adopted, and only for `http://` or `https://` URLs. |
-| `POST http://<ip>/text/Vatra%20token/set?value=vmd_...` | Stores the token, saves both values to flash and applies them. Accepted only while not adopted, after the hub is set, and when the value starts with `vmd_`. Reading this entity always returns an empty string. |
-| `GET http://<ip>/text_sensor/Vatra%20firmware` | `{"state":"<image id>@<version>"}`, e.g. `vatra-display-oled@0.0.0-dev` |
-| `GET http://<ip>/text_sensor/Vatra%20adopted` | `{"state":"yes"}` or `{"state":"no"}` |
-| `POST http://<ip>/button/Vatra%20update/press` | Runs the update check now. |
-| `GET http://<ip>/text/Vatra%20hub` | The current hub URL. |
+| call                                                             | effect                                                                                                                                                                                                           |
+| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST http://<ip>/text/Vatra%20hub/set?value=http%3A%2F%2F<hub>` | Stores the hub base URL (no trailing slash). Accepted only while the unit is not adopted, and only for `http://` or `https://` URLs.                                                                             |
+| `POST http://<ip>/text/Vatra%20token/set?value=vmd_...`          | Stores the token, saves both values to flash and applies them. Accepted only while not adopted, after the hub is set, and when the value starts with `vmd_`. Reading this entity always returns an empty string. |
+| `GET http://<ip>/text_sensor/Vatra%20firmware`                   | `{"state":"<image id>@<version>"}`, e.g. `vatra-display-oled@0.0.0-dev`                                                                                                                                          |
+| `GET http://<ip>/text_sensor/Vatra%20adopted`                    | `{"state":"yes"}` or `{"state":"no"}`                                                                                                                                                                            |
+| `POST http://<ip>/button/Vatra%20update/press`                   | Runs the update check now.                                                                                                                                                                                       |
+| `GET http://<ip>/text/Vatra%20hub`                               | The current hub URL.                                                                                                                                                                                             |
 
 Order: set the hub, then the token, then poll `Vatra adopted` until it reads `yes`. A wrong value is refused silently, so check the state afterwards. Once adopted, the hub and token cannot be changed over the network.
 

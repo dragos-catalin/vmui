@@ -57,16 +57,16 @@ sudo tailscale funnel status          # must list ONE mount: /hooks/contact (Fun
 # undo: sudo tailscale funnel --https=443 --set-path /hooks/contact off   (or: tailscale funnel reset)
 ```
 
-Verify from OUTSIDE the tailnet (a tailnet client resolves the name to 100.x and skips Funnel, so
-pin the public Funnel address):
+Verify from OUTSIDE the tailnet (a tailnet client resolves the name to 100.x even with
+`Resolve-DnsName -Server 1.1.1.1` — tailscaled intercepts DNS — so fetch the public Funnel
+ingress IPs over DoH and pin one):
 
 ```powershell
-$ip = (Resolve-DnsName homepi.taild1532d.ts.net -Server 1.1.1.1 -Type A).IPAddress | Select-Object -First 1
+$ip = (Invoke-RestMethod 'https://dns.google/resolve?name=homepi.taild1532d.ts.net&type=A').Answer[0].data   # 185.40.234.x
 curl.exe -s -o NUL -w '%{http_code}' --resolve "homepi.taild1532d.ts.net:443:$ip" -X POST https://homepi.taild1532d.ts.net/hooks/contact   # 401
 curl.exe -s -o NUL -w '%{http_code}' --resolve "homepi.taild1532d.ts.net:443:$ip" https://homepi.taild1532d.ts.net/                       # 404
 curl.exe -s -o NUL -w '%{http_code}' --resolve "homepi.taild1532d.ts.net:443:$ip" https://homepi.taild1532d.ts.net/api/notify             # 404
 ```
 
 Secret: `CONTACT_HOOK_SECRET` in `E:\gh\vmui\.private\credentials.env` (PC, source of truth) →
-shipped to `/srv/homepi/vmui/.private/credentials.env` by `pi-deploy.ps1`. Unset = the route answers
-503. Put the same value in the caller's env (Vercel `dragoscatalin`, production) — never in git.
+shipped to `/srv/homepi/vmui/.private/credentials.env` by `pi-deploy.ps1`. Unset = the route answers 503. Put the same value in the caller's env (Vercel `dragoscatalin`, production) — never in git.

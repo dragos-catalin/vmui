@@ -190,7 +190,8 @@ lvgl:
                         text_font: montserrat_24
                         text_color: 0xFFFFFF
                   on_click:
-                    - script.execute: { id: vatra_post_click, click: single, btn: water }
+                    - script.execute:
+                        { id: vatra_post_click, click: single, btn: water }
         - label:
             id: lbl_status
             align: BOTTOM_MID

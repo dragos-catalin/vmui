@@ -73,6 +73,25 @@ corepack disable 2>/dev/null || true
 step chrome
 curl -fsSL -o /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb || fail
 apt-get install -y -qq /tmp/chrome.deb >/dev/null || fail
+
+# Playwright's OS dependencies, baked in (measured 2026-11-20 on brivio e2e-nightly).
+#
+# WHY: the image ships Chrome but not Playwright's own runtime libraries, so every
+# job that runs `playwright install --with-deps chromium` pays for them at run time —
+# and on the brivio nightly that is THREE shards per run. From the run log of shard 2:
+# the browser itself is NOT re-downloaded (its 295 MB cache restores), but `--with-deps`
+# did an `apt-get update` of ~30 MB of indexes and then
+# "6 upgraded, 15 newly installed … Need to get 60.6 MB" — the 15 being fonts and X
+# utilities (fonts-wqy-zenhei, fonts-noto-color-emoji, fonts-unifont, xvfb, xfonts-*,
+# x11-xkb-utils, libfontenc1, libxfont2, xserver-common) and the 6 being mesa/GL.
+# None of that depends on the Playwright version, which is what makes it bakeable.
+#
+# Do NOT drop the FONTS: several are there for CJK/emoji rendering in visual tests, and
+# removing them turns a rendering difference into a test failure.
+apt-get install -y -qq --no-install-recommends \
+  fonts-freefont-ttf fonts-ipafont-gothic fonts-noto-color-emoji fonts-tlwg-loma-otf \
+  fonts-unifont fonts-wqy-zenhei libfontenc1 libxfont2 x11-xkb-utils xfonts-cyrillic \
+  xfonts-encodings xfonts-scalable xfonts-utils xserver-common xvfb >/dev/null || fail
 rm -f /tmp/chrome.deb
 
 step runner
