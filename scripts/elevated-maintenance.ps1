@@ -2,8 +2,7 @@
 <#
 .SYNOPSIS
   Fixed maintenance operations that need elevation, runnable from an
-            Desc = 'Restart the VS Code tunnel service once uptime exceeds 24h. Hygiene only: normalised by time spent, the failure rate does NOT rise with uptime (0.42/h at 0-4h vs 0.00/h at 4-8h). Threshold-guarded, so a run on a fresh tunnel is a no-op.'
-            Daily = '05:00'
+    unelevated session.
 .DESCRIPTION
   The problem: several recurring operations need administrator rights —
   restarting the tunnel service (its task runs S4U, so unelevated
@@ -11,10 +10,11 @@
   Hyper-V VM. Each one costs a UAC prompt, and prompts get refused or missed
   when an agent triggers them.
 
-  The solution: register this as a scheduled task running as SYSTEM with
-  RunLevel Highest. A registered task can be triggered from ANY unelevated
-  session with `schtasks /run` and no prompt. That is the same mechanism the
-  tunnel service itself already uses.
+    The solution: register this as a scheduled task running as the current user
+    (S4U logon -- no stored password, `LogonType S4U`) with RunLevel
+    HighestAvailable. A registered task can be triggered from ANY unelevated
+    session with `schtasks /run` and no prompt. That is the same mechanism the
+    tunnel service itself already uses.
 
   DELIBERATELY NOT a generic "run this command elevated" gate. Such a task is
   a privilege-escalation backdoor: any unelevated process on the machine could
@@ -135,7 +135,7 @@ if ($Register) {
         @{
             Name = 'CodaiMaint-KillRunawayRenderer'
             Op   = 'KillRunawayRenderer'
-            Desc = 'Terminate any VS Code renderer over 4 GB working set. A renderer that reaches ~7 GB stops responding and takes its window down.'
+            Desc = 'Terminate a VS Code renderer that is both over 8 GB working set and no longer responding (and holds no network connection). Size alone is not enough since 2026-11-23: a healthy large window must survive.'
             Daily = $null
         }
         ,
@@ -655,27 +655,39 @@ switch ($Operation) {
     }
 
     'KillRunawayRenderer' {
-        # Only renderers, only over the threshold, and never one holding a
-        # network connection -- that would be the one serving the tunnel.
+        # Kill only a renderer that is BOTH runaway and hung (owner decision
+        # 2026-11-23, threshold stayed 8 GB): size alone must not kill a healthy
+        # window. Never kill one holding a network connection -- that would be
+        # the one serving the tunnel.
         $limitMB = 8192
         $killed = 0
+        $big = 0
         foreach ($proc in @(Get-CimInstance Win32_Process -Filter "Name='Code - Insiders.exe'" -EA SilentlyContinue)) {
             if ($proc.CommandLine -notmatch '--type=renderer') { continue }
             $mb = [int]($proc.WorkingSetSize / 1MB)
             if ($mb -lt $limitMB) { continue }
+            $big++
+
+            $responding = $true
+            $p = Get-Process -Id $proc.ProcessId -EA SilentlyContinue
+            if ($p) { $responding = [bool]$p.Responding }
+            if ($responding) {
+                Write-Log "SKIP renderer pid $($proc.ProcessId) at ${mb}MB - over ${limitMB}MB but still responding"
+                continue
+            }
 
             $conns = @(Get-NetTCPConnection -State Established -EA SilentlyContinue |
                 Where-Object { $_.OwningProcess -eq $proc.ProcessId }).Count
             if ($conns -gt 0) {
-                Write-Log "SKIP renderer pid $($proc.ProcessId) at ${mb}MB - holds $conns connection(s)"
+                Write-Log "SKIP renderer pid $($proc.ProcessId) at ${mb}MB - hung but holds $conns connection(s)"
                 continue
             }
 
             Stop-Process -Id $proc.ProcessId -Force -EA SilentlyContinue
-            Write-Log "killed renderer pid $($proc.ProcessId) at ${mb}MB"
+            Write-Log "killed renderer pid $($proc.ProcessId) at ${mb}MB (was not responding)"
             $killed++
         }
-        if (-not $killed) { Write-Log 'KillRunawayRenderer: nothing over threshold' }
+        if (-not $killed) { Write-Log "KillRunawayRenderer: $big renderer(s) over ${limitMB}MB, none hung and connection-free" }
         exit 0
     }
 
