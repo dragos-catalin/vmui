@@ -122,7 +122,9 @@ if ($Register) {
             Name = 'CodaiMaint-TunnelRefresh'
             Op   = 'TunnelRefresh'
             Desc = 'Restart the VS Code tunnel service once uptime exceeds 40h. Degradation past ~45h causes hourly connection disposals that kill chat sessions.'
-            Daily = '05:00'
+            # 04:00, not 05:00: the live task has run daily at 04:00 since 2026-10 (maintenance.log),
+            # and a re-register must not silently move a task everyone has calibrated against.
+            Daily = '04:00'
         },
         @{
             Name = 'CodaiMaint-TunnelForceRestart'
@@ -655,7 +657,7 @@ switch ($Operation) {
     'KillRunawayRenderer' {
         # Only renderers, only over the threshold, and never one holding a
         # network connection -- that would be the one serving the tunnel.
-        $limitMB = 4096
+        $limitMB = 8192
         $killed = 0
         foreach ($proc in @(Get-CimInstance Win32_Process -Filter "Name='Code - Insiders.exe'" -EA SilentlyContinue)) {
             if ($proc.CommandLine -notmatch '--type=renderer') { continue }
