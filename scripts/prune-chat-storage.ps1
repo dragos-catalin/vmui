@@ -39,7 +39,7 @@ param(
   [int]$MaxAgeDays = 2,
   [int]$MaxEntries = 100,
   [double]$IdleHours = 2,
-  [int]$RepeatMinutes = 30,
+  [int]$RepeatMinutes = 120,
   [string[]]$Edition = @("Code - Insiders", "Code"),
   [switch]$Register,
   [switch]$Force
