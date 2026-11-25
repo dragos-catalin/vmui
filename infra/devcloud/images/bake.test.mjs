@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { chunk, stamp, imagesToDelete, TOOLCHAINS, bakeOs } from './bake.mjs';
 
 test('win-desktop bakes Windows Server 2025 with the ps1 startup key; Linux keeps ubuntu + startup-script', () => {
@@ -53,4 +54,29 @@ test('imagesToDelete keeps the newest N READY/FAILED images and never touches PE
 test('every toolchain has a disk size; store only where node CI runs', () => {
   for (const [k, v] of Object.entries(TOOLCHAINS)) assert.ok(v.diskGb >= 30, k);
   assert.deepEqual(Object.keys(TOOLCHAINS).filter((k) => TOOLCHAINS[k].store), ['node24', 'polyglot']);
+});
+
+// The scheduled rebake (build.json, run weekly by Cloud Scheduler) is a SECOND way an image gets made,
+// and it does not read this file's defaults. A step that omits --android-sdk bakes a Windows Flutter image
+// with no Android toolchain at all, so the weekly job would silently break every Android build on the pool
+// while `-Bake <toolchain>` from a terminal stayed green (found 2026-11-25: the win-flutter step had no
+// --android-sdk). The layers caelia depends on must travel together in both paths.
+test('DC-071 the scheduled rebake asks for the Android layer whenever it bakes Flutter', () => {
+  const cfg = JSON.parse(readFileSync(new URL('./build.json', import.meta.url), 'utf8'));
+  const steps = cfg.steps.filter((s) => s.id);
+  assert.ok(steps.length >= 8, `only ${steps.length} steps in build.json`);
+  for (const s of steps) {
+    const args = s.args.map(String);
+    const tc = args[args.indexOf('--toolchain') + 1];
+    assert.ok(TOOLCHAINS[tc], `step ${s.id} names an unknown toolchain ${tc}`);
+    if (TOOLCHAINS[tc].flutter) {
+      const i = args.indexOf('--android-sdk');
+      assert.ok(i > -1, `step ${s.id} bakes Flutter without --android-sdk`);
+      assert.match(args[i + 1], /\b3[56]\b/, `step ${s.id} asks for an unexpected Android API level: ${args[i + 1]}`);
+    }
+    // A Windows bake that forgets --machine lands on the Linux default VM shape and cannot sysprep.
+    if (TOOLCHAINS[tc].os === 'windows') {
+      assert.equal(args[args.indexOf('--machine') + 1], 'c4d-standard-16', `step ${s.id} Windows VM shape`);
+    }
+  }
 });

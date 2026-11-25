@@ -151,6 +151,8 @@
         "codai-training",
         "--machine",
         "c4d-standard-16",
+        "--android-sdk",
+        "35 36",
         "--max-min",
         "150"
       ],

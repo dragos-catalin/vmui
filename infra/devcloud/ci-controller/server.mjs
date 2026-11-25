@@ -104,6 +104,35 @@ export function imageFamily(profile, project = CFG.imageProject) {
   return `projects/${project}/global/images/family/devcloud-ci-${profile.toolchain}`;
 }
 
+/** GCE label value: lowercase letters/digits/dash/underscore, must start with a letter, max 63. */
+function gceLabel(s) {
+  const l = String(s).toLowerCase().replace(/[^a-z0-9_-]/g, '-').replace(/^[^a-z]+/, '');
+  return l.slice(0, 63) || 'unknown';
+}
+
+/**
+ * Pin the image a VM booted from: the CONCRETE version behind the family, the family name, and whether
+ * it is a baked devcloud image or the stock fallback (which boots with no toolchain at all).
+ * `GET .../images/family/x` answers with the concrete image, so passing the API body as well as the
+ * family selfLink names the bake that actually ran. Recorded on the VM (label + metadata) and in the
+ * job record: without it, a job that booted a months-old bake and a job that booted the stock image
+ * are indistinguishable after the fact.
+ */
+export function imagePin(image) {
+  const selfLink = String((image && image.selfLink) || image || '');
+  const m = /\/(?:projects\/([^/]+)\/global\/)?images\/(?:(family)\/)?([^/]+)$/.exec(selfLink);
+  const isFamilyUrl = !!(m && m[2]);
+  const family = (image && image.family) || (isFamilyUrl ? m[3] : null);
+  const version = (image && image.name) || (m && !isFamilyUrl ? m[3] : null);
+  return {
+    project: (m && m[1]) || null,
+    family,
+    version,
+    stock: /^projects\/(ubuntu-os-cloud|windows-cloud|debian-cloud|cos-cloud)\//.test(selfLink),
+    label: gceLabel(version || family || 'unknown'),
+  };
+}
+
 /** Image to boot when the toolchain family has no READY image yet. */
 export function stockImage(profile) { return osOf(profile) === 'windows' ? STOCK_IMAGE_WIN : STOCK_IMAGE; }
 
@@ -248,6 +277,7 @@ async function createVm(name, profile, jit, job) {
   const img = await gapi(`https://compute.googleapis.com/compute/v1/${fam}`);
   const sourceImage = img.ok ? img.body.selfLink : stockImage(profile);
   const baked = img.ok;
+  const pin = imagePin(img.ok ? img.body : { selfLink: sourceImage });
   for (const model of ['SPOT', 'STANDARD']) {
     for (const zone of CFG.zones) {
       const sched = { provisioningModel: model, instanceTerminationAction: 'DELETE', maxRunDuration: { seconds: String(CFG.maxRunSec) }, automaticRestart: false, onHostMaintenance: 'TERMINATE' };
@@ -259,19 +289,23 @@ async function createVm(name, profile, jit, job) {
         scheduling: sched,
         // No service account: the job VM holds no GCP credentials at all.
         serviceAccounts: [],
-        labels: { purpose: 'ci', owner: 'devcloud', job: String(job.id), repo: job.repo.replace(/[^a-z0-9-]/gi, '-').toLowerCase().slice(0, 60) },
+        labels: { purpose: 'ci', owner: 'devcloud', job: String(job.id), repo: job.repo.replace(/[^a-z0-9-]/gi, '-').toLowerCase().slice(0, 60), image: pin.label },
         metadata: { items: [
           startupItem(profile),
           { key: 'jit-config', value: jit },
           { key: 'idle-minutes', value: String(CFG.idleMin) },
           { key: 'runner-version', value: CFG.runnerVersion },
+          // Which bake this VM boots (DC-071): answerable from the VM itself, not only from the log.
+          ...(pin.family ? [{ key: 'image-family', value: pin.family }] : []),
+          ...(pin.version ? [{ key: 'image-version', value: pin.version }] : []),
+          { key: 'image-stock', value: String(pin.stock) },
         ] },
       };
       const r = await gapi(C(`zones/${zone}/instances`), { method: 'POST', body: JSON.stringify(body) });
-      if (r.status === 409) return { zone, model, existed: true, attempts, image: sourceImage, baked };
+      if (r.status === 409) return { zone, model, existed: true, attempts, image: sourceImage, baked, pin };
       if (!r.ok) { attempts.push(`${zone}/${model}: ${r.status} ${r.body.error?.message || ''}`); continue; }
       const err = await waitOp(zone, r.body.name);
-      if (!err) return { zone, model, attempts, image: sourceImage, baked };
+      if (!err) return { zone, model, attempts, image: sourceImage, baked, pin };
       attempts.push(`${zone}/${model}: ${err}`);
     }
   }
@@ -363,7 +397,7 @@ async function onQueued(p) {
   await noteCapacity(true);
   // Capacity is back: gate-free repos return to devcloud for their next run.
   await setFallbackVar(job.repo, '0').catch((e) => log('ERROR', 'ci.fallback.var.failed', { repo: job.repo, err: String(e.message || e) }));
-  const rec = { vm: name, job: job.id, run: job.run, attempt: job.run_attempt, repo: job.repo, jobName: job.name, label: profile.label, os: osOf(profile), toolchain: profile.toolchain, image: vm.image, baked: vm.baked, machine: profile.machine, zone: vm.zone, model: vm.model, createdAt: new Date().toISOString(), createSec: (Date.now() - t0) / 1000, attempts: vm.attempts };
+  const rec = { vm: name, job: job.id, run: job.run, attempt: job.run_attempt, repo: job.repo, jobName: job.name, label: profile.label, os: osOf(profile), toolchain: profile.toolchain, image: vm.image, baked: vm.baked, imageFamily: vm.pin?.family ?? null, imageVersion: vm.pin?.version ?? null, imageStock: vm.pin?.stock ?? null, machine: profile.machine, zone: vm.zone, model: vm.model, createdAt: new Date().toISOString(), createSec: (Date.now() - t0) / 1000, attempts: vm.attempts };
   await gcs.put(`ci/vms/${name}.json`, rec);
   log('INFO', 'ci.vm.created', rec);
 }
@@ -396,6 +430,7 @@ async function onCompleted(p) {
     attempt: wj.run_attempt ?? null,
     runner, vm: vmRec?.vm ?? null, machine: vmRec?.machine ?? null, zone: vmRec?.zone ?? null, model: vmRec?.model ?? null,
     toolchain: vmRec?.toolchain ?? null, image: vmRec?.image ?? null, baked: vmRec?.baked ?? null,
+    imageFamily: vmRec?.imageFamily ?? null, imageVersion: vmRec?.imageVersion ?? null, imageStock: vmRec?.imageStock ?? null,
     queueSec, jobSec, vmSec, bootSec, preempted, vmDeleted: deleted,
     costUsd: prof ? costUsd(prof, vmRec.model, vmSec) : null, costSource: 'configured-rate',
     recordedAt: now.toISOString(),
