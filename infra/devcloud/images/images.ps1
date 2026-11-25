@@ -7,7 +7,8 @@
   pwsh -NoProfile -File infra/devcloud/images/images.ps1 -RunNow                                     # trigger the scheduled rebake once
   pwsh -NoProfile -File infra/devcloud/images/images.ps1 -VerifySchedule                             # compare the DEPLOYED rebake with build.json (read-only, exit 1 on drift)
   Toolchains: node24 android-jdk21 rust-tauri-linux rust-tauri-win python-uv flutter polyglot (layers: image-setup.sh),
-  win-desktop (DC-051: Windows Server 2025, image-setup-win.ps1; -BootTest win-desktop boots c4d-standard-16 + ps1 probe).
+  win-desktop, win-flutter (DC-051: Windows Server 2025, image-setup-win.ps1; win-flutter adds a pinned Flutter SDK.
+  -BootTest win-desktop|win-flutter boots c4d-standard-16 + ps1 probe).
   Bake VMs have no service account; node24/polyglot warm the pnpm store from the codai lockfile
   (local -Lock, or fetched with the devcloud-runners App = needs Contents: read).
 #>
@@ -36,11 +37,11 @@ if ($List) {
   return
 }
 
-if ($BootTest -eq 'win-desktop') {
+if ($BootTest -in @('win-desktop', 'win-flutter')) {
   # Same shape as a devcloud-win-16 job VM (no SA, Spot, c4d-standard-16, 150 GB); the ps1 probe reports when node,
-  # pnpm, rustc, cargo fmt, cl.exe and the runner are usable, then powers off. Windows first boot (specialize +
-  # GCE agent) is minutes, not seconds: reported, no 60 s gate.
-  $vm = "boot-win-desktop-" + (Get-Date -Format 'MMddHHmmss')
+  # pnpm, rustc, cargo fmt, cl.exe, flutter (if baked) and the runner are usable, then powers off. Windows first
+  # boot (specialize + GCE agent) is minutes, not seconds: reported, no 60 s gate.
+  $vm = "boot-$BootTest-" + (Get-Date -Format 'MMddHHmmss')
   $probe = Join-Path $env:TEMP 'boot-probe.ps1'
   $ps = @'
 $ErrorActionPreference = 'Continue'
@@ -49,6 +50,7 @@ $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine')
 $cl = Get-ChildItem 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC' -Recurse -Filter cl.exe -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match 'Hostx64\\x64' } | Select-Object -First 1
 $v = @((node -v), (pnpm --version), (rustc -V), (cargo fmt --version), $cl.FullName, (Test-Path C:\actions-runner\run.cmd))
 Write-Output "::versions $($v -join ' | ')"
+if (Test-Path C:\flutter\bin\flutter.bat) { Write-Output "::flutter $((& C:\flutter\bin\flutter.bat --version | Select-Object -First 1))" }
 if ($cl -and ($v | Where-Object { -not $_ }).Count -eq 0) {
   $up = [int]((Get-Date) - (Get-CimInstance Win32_OperatingSystem).LastBootUpTime).TotalSeconds
   Write-Output "::runner-ready $($up)s"
@@ -57,7 +59,7 @@ Start-Sleep 2; shutdown.exe /s /t 0 /f
 '@
   [IO.File]::WriteAllText($probe, $ps)
   $t0 = Get-Date
-  G compute instances create $vm --project $Project --zone "$Region-a" --machine-type c4d-standard-16 --image-family devcloud-ci-win-desktop --image-project $Project `
+  G compute instances create $vm --project $Project --zone "$Region-a" --machine-type c4d-standard-16 --image-family "devcloud-ci-$BootTest" --image-project $Project `
     --boot-disk-size 150GB --boot-disk-type hyperdisk-balanced --provisioning-model SPOT --instance-termination-action DELETE --max-run-duration 2400s `
     --no-service-account --no-scopes --metadata-from-file "windows-startup-script-ps1=$probe" --labels 'owner=devcloud,purpose=ci-boottest' | Out-Null
   $created = Get-Date
@@ -68,7 +70,7 @@ Start-Sleep 2; shutdown.exe /s /t 0 /f
       if ($s -match '::versions ([^\r\n]*)') { $vers = $Matches[1] }
       if ($s -match '::runner-ready (\d+)s') {
         $ready = Get-Date
-        "boot-test win-desktop: create call $([math]::Round(($created - $t0).TotalSeconds,1))s, create->ready $([math]::Round(($ready - $t0).TotalSeconds,1))s wall, guest uptime at ready $($Matches[1])s"
+        "boot-test ${BootTest}: create call $([math]::Round(($created - $t0).TotalSeconds,1))s, create->ready $([math]::Round(($ready - $t0).TotalSeconds,1))s wall, guest uptime at ready $($Matches[1])s"
         "versions: $vers"
         'BOOT-TEST OK'; return
       }

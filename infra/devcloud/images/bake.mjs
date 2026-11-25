@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // devcloud DC-042: bake a CI runner image family `devcloud-ci-<toolchain>` in the runner project.
 // DC-051: toolchain win-desktop bakes Windows Server 2025 (image-setup-win.ps1, GCESysprep at the end).
+//   win-flutter = win-desktop + a pinned Flutter SDK (metadata flutter-version) for Flutter apps (caelia):
+//   flutter test / flutter build windows, with goldens still compared on Windows.
 //   node bake.mjs --toolchain node24 [--lock pnpm-lock.yaml --workspace pnpm-workspace.yaml] [--keep 3] [--dry-run]
 // Throwaway bake VM (Spot, no service account) runs image-setup.sh, powers off; its disk becomes
 // image devcloud-ci-<tc>-<UTC stamp>; the VM is deleted; images beyond --keep in the family are deleted.
@@ -28,6 +30,8 @@ export const TOOLCHAINS = {
   polyglot: { diskGb: 64, store: true },
   // Windows: stock image is 50 GB; VS Build Tools + SDK + Rust + Chrome ~ 25 GB more. CI disk is 150 GB.
   'win-desktop': { diskGb: 100, store: false, os: 'windows', maxMin: 120 },
+  // win-desktop + Flutter (~2.5 GB extracted) + a caelia build dir: 150 GB.
+  'win-flutter': { diskGb: 150, store: false, os: 'windows', flutter: true, maxMin: 150 },
 };
 /** Per-OS bake shape: source image, startup metadata key + script file. */
 export function bakeOs(tc) {
@@ -48,6 +52,7 @@ const CFG = {
   repo: opt('repo', 'codai-ro/codai-cc'),
   maxMin: opt('max-min') ? Number(opt('max-min')) : null,
   rustToolchain: opt('rust-toolchain', '1.98.1'),
+  flutterVersion: opt('flutter-version', '3.47.3'),
 };
 const log = (msg, extra = {}) => console.log(JSON.stringify({ t: new Date().toISOString(), msg, ...extra }));
 
@@ -144,6 +149,7 @@ async function main() {
     { key: 'serial-port-logging-enable', value: 'true' },
   ];
   if (tc.os === 'windows') items.push({ key: 'rust-toolchain', value: CFG.rustToolchain });
+  if (tc.flutter) items.push({ key: 'flutter-version', value: CFG.flutterVersion });
   let lockSha = null;
   if (tc.store) {
     let lock, ws;
@@ -222,7 +228,7 @@ async function main() {
       name, family, sourceDisk: `zones/${zone}/disks/${vm}`, storageLocations: ['eu'],
       labels: { owner: 'devcloud', toolchain: CFG.toolchain, ...(lockSha ? { lock: lockSha } : {}) },
       ...(tc.os === 'windows' ? { guestOsFeatures: [{ type: 'WINDOWS' }, { type: 'UEFI_COMPATIBLE' }, { type: 'VIRTIO_SCSI_MULTIQUEUE' }, { type: 'GVNIC' }, { type: 'MULTI_IP_SUBNET' }] } : {}),
-      description: `devcloud CI runner image (${CFG.toolchain}); runner ${CFG.runnerVersion}, pnpm ${CFG.pnpmVersion}${tc.os === 'windows' ? `, rust ${CFG.rustToolchain}, Windows Server 2025` : ''}${lockSha ? `, pnpm store warmed from lock ${lockSha}` : ''}`,
+      description: `devcloud CI runner image (${CFG.toolchain}); runner ${CFG.runnerVersion}, pnpm ${CFG.pnpmVersion}${tc.os === 'windows' ? `, rust ${CFG.rustToolchain}, Windows Server 2025` : ''}${tc.flutter ? `, flutter ${CFG.flutterVersion}` : ''}${lockSha ? `, pnpm store warmed from lock ${lockSha}` : ''}`,
     };
     const r = await gapi(C('global/images'), { method: 'POST', body: JSON.stringify(img) });
     if (!r.ok) throw new Error(`image create ${r.status}: ${r.body.error?.message || ''}`);

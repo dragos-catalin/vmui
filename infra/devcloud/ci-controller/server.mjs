@@ -59,10 +59,13 @@ export const PROFILES = {
   // DC-051: real Windows (Server 2025) for jobs that cannot cross-compile: debug Tauri exe + real-exe E2E over
   // CDP + Windows-only cargo/vitest (codai desktop). Startup = runner-startup.ps1 (windows-startup-script-ps1).
   'devcloud-win-16': { machine: 'c4d-standard-16', vcpu: 16, memGb: 62, diskGb: 150, diskType: 'hyperdisk-balanced', toolchain: 'win-desktop', os: 'windows' },
+  // Windows Server 2025 + a pinned Flutter SDK for the caelia Flutter app (flutter test / build windows; goldens
+  // compared on Windows). Same VM shape as devcloud-win-16; toolchain label devcloud-win-flutter selects the image.
+  'devcloud-win-flutter-16': { machine: 'c4d-standard-16', vcpu: 16, memGb: 62, diskGb: 150, diskType: 'hyperdisk-balanced', toolchain: 'win-flutter', os: 'windows' },
 };
-export const TOOLCHAINS = ['node24', 'android-jdk21', 'rust-tauri-linux', 'rust-tauri-win', 'python-uv', 'flutter', 'polyglot', 'win-desktop'];
+export const TOOLCHAINS = ['node24', 'android-jdk21', 'rust-tauri-linux', 'rust-tauri-win', 'python-uv', 'flutter', 'polyglot', 'win-desktop', 'win-flutter'];
 // A toolchain image only boots on its own OS: a Linux size label never gets a Windows image and vice versa.
-export const TOOLCHAIN_OS = { 'win-desktop': 'windows' };
+export const TOOLCHAIN_OS = { 'win-desktop': 'windows', 'win-flutter': 'windows' };
 export const osOf = (x) => x?.os || 'linux';
 const STOCK_IMAGE = 'projects/ubuntu-os-cloud/global/images/family/ubuntu-2404-lts-amd64';
 const STOCK_IMAGE_WIN = 'projects/windows-cloud/global/images/family/windows-2025';
