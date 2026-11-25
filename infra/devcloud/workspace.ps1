@@ -117,13 +117,21 @@ if (-not $exists) {
 } else {
   G compute instances add-metadata $name --zone $Zone --project $Project --metadata $meta --metadata-from-file $metaFiles | Out-Null
   "metadata updated on $name ($exists)"
-  if ($exists -ne 'RUNNING') {
-    G compute instances set-scheduling $name --zone $Zone --project $Project --max-run-duration "$($MaxRunHours)h" --instance-termination-action STOP | Out-Null
-    "max-run $($MaxRunHours) h STOP set on $name"
-  } else { "max-run unchanged on $name (RUNNING: GCE refuses; codai-jobs devcloud-cost-watch sets it once stopped)" }
-  if ($UpdateAgent -and $exists -eq 'RUNNING') {
-    if ($Os -eq 'windows') { 'windows: the idle agent adopts the new runner-agent from metadata within ~60 s' }
-    else { G compute ssh $name --zone $Zone --project $Project --command 'sudo google_metadata_script_runner startup' | Out-Null; 'agent restarted' }
+  # Re-read: the status above can be stale (a SUSPENDED VM resumed by the idle agent/health check while
+  # metadata was being written), and GCE refuses set-scheduling while RUNNING. That refusal used to
+  # throw and abort the rest of the branch, so -UpdateAgent never ran (2026-11-25, ws-frontiers).
+  $now = (& gcloud compute instances describe $name --zone $Zone --project $Project --format='value(status)' 2>$null) -join ''
+  if ($now -eq 'RUNNING') {
+    "max-run unchanged on $name (RUNNING: GCE refuses; codai-jobs devcloud-cost-watch sets it once stopped)"
+  } else {
+    & gcloud compute instances set-scheduling $name --zone $Zone --project $Project --max-run-duration "$($MaxRunHours)h" --instance-termination-action STOP 2>&1 | Out-Null
+    if ($LASTEXITCODE) { "max-run NOT set on $name (GCE refused while $now; devcloud-cost-watch sets it once stopped)" }
+    else { "max-run $($MaxRunHours) h STOP set on $name" }
+  }
+  if ($UpdateAgent) {
+    if ($now -ne 'RUNNING') { "agent update deferred: $name is $now - start it (gcloud compute instances start) and re-run -UpdateAgent" }
+    elseif ($Os -eq 'windows') { 'windows: the idle agent adopts the new runner-agent from metadata within ~60 s' }
+    else { G compute ssh $name --zone $Zone --project $Project --command 'sudo google_metadata_script_runner startup' | Out-Null; 'agent restarted (+ startup script re-run)' }
   }
 }
 G compute instances add-iam-policy-binding $name --zone $Zone --project $Project --member "serviceAccount:$sa" --role $role | Out-Null
