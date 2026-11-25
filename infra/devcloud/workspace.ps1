@@ -42,7 +42,10 @@ param(
   [string]$AgentDir = 'E:\gh\agentq\cloud', [switch]$Status, [switch]$Delete, [switch]$UpdateAgent,
   # service account id in -Project (default devcloud-ws, shared by codai + vitals-win)
   [string]$Sa = 'devcloud-ws',
-  # metadata devcloud-toolchains for workspace-startup.sh (linux): e.g. android-jdk21
+  # metadata devcloud-toolchains for workspace-startup.sh (linux), comma list. Known values:
+  # `jdk21` (Temurin 21 only - a gate that compiles Java, e.g. brivio's DUK declaration check),
+  # `android-jdk21` (JDK + Android SDK + pwsh, watch-faces), `python-uv`, `flutter`.
+  # A toolchain is installed on the next boot or `-UpdateAgent`; the VM is not recreated.
   [string]$Toolchains = '',
   # metadata devcloud-clean-keep for runner-agent: extra `git clean -e` patterns kept between jobs
   [string]$CleanKeep = '',
