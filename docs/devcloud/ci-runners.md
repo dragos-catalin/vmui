@@ -107,6 +107,24 @@ and a **Linux job that needs Flutter must install it itself** (`subosito/flutter
 `android-jdk21` image ships the JDK and the Android SDK, not Flutter — the `flutter` toolchain layer is a
 separate family. `base` (every family) already has pwsh + gh, so `shell: pwsh` works on Linux too.
 
+### An image step that "succeeds" is not an image step that did anything (2026-11-25)
+
+Every install step in `image-setup-win.ps1` / `image-setup.sh` must end in an assertion on the **artifact**,
+never on an exit code, because the failure mode here is silent: bake #2 ran the Android SDK installs through
+the `Run` helper (`Start-Process`), which reports success for a `.bat` **without installing anything**, so the
+image published with `C:\Android\sdk` holding only `cmdline-tools` and `licenses` while its own log still
+printed `::android ready api=35 36`. The first job on that image then answered `Unable to locate Android SDK` /
+`Android SDK file not found: adb` — a doctor line, not a build failure, so it reads as noise.
+
+- Invoke `sdkmanager`/`flutter`/installers with the **call operator**, then assert
+  `platform-tools\adb.exe`, `platforms\android-<api>\android.jar` and `build-tools\<api>.0.0\aapt2.exe` exist.
+- A bake is only proven by **booting it and running the tool** (`flutter doctor -v` on a workspace made from
+  the new image), not by the bake's own log. `-BootTest` proves the runner becomes ready and nothing else.
+- The runner service is **LocalSystem while jobs run as `dev`**, so a checkout owned by SYSTEM fails git's
+  dubious-ownership check and Flutter then dies with `Unable to determine engine version`. The image writes a
+  **system** `git safe.directory C:/flutter`; fixes applied by hand inside a live workspace
+  (`git config --global`) hide this and disappear with the VM.
+
 ```powershell
 pwsh -NoProfile -File infra/devcloud/images/images.ps1 -List              # newest image per family
 pwsh -NoProfile -File infra/devcloud/images/images.ps1 -Bake node24 -Lock E:\gh\codai\pnpm-lock.yaml
