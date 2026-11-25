@@ -238,8 +238,9 @@ async function main() {
       name, family, sourceDisk: `zones/${zone}/disks/${vm}`, storageLocations: ['eu'],
       labels: { owner: 'devcloud', toolchain: CFG.toolchain, ...(lockSha ? { lock: lockSha } : {}) },
       ...(tc.os === 'windows' ? { guestOsFeatures: [{ type: 'WINDOWS' }, { type: 'UEFI_COMPATIBLE' }, { type: 'VIRTIO_SCSI_MULTIQUEUE' }, { type: 'GVNIC' }, { type: 'MULTI_IP_SUBNET' }] } : {}),
-      description: `devcloud CI runner image (${CFG.toolchain}); runner ${CFG.runnerVersion}, pnpm ${CFG.pnpmVersion}${tc.os === 'windows' ? `, rust ${CFG.rustToolchain}, Windows Server 2025` : ''}${tc.flutter ? `, flutter ${CFG.flutterVersion}` : ''}${lockSha ? `, pnpm store warmed from lock ${lockSha}` : ''}`,
-      description: `devcloud CI runner image (${CFG.toolchain}); runner ${CFG.runnerVersion}, pnpm ${CFG.pnpmVersion}${tc.os === 'windows' ? `, rust ${CFG.rustToolchain}, Windows Server 2025` : ''}${tc.flutter ? `, flutter ${CFG.flutterVersion}` : ''}${tc.shorebird ? `, shorebird ${CFG.shorebirdVersion}` : ''}${lockSha ? `, pnpm store warmed from lock ${lockSha}` : ''}`,
+      // The ATL and shorebird fragments are FACTS a check can assert (images.json markers) - a
+      // duplicate description key silently dropped the shorebird one once, so keep exactly one.
+      description: `devcloud CI runner image (${CFG.toolchain}); runner ${CFG.runnerVersion}, pnpm ${CFG.pnpmVersion}${tc.os === 'windows' ? `, rust ${CFG.rustToolchain}, Windows Server 2025, VS ATL` : ''}${tc.flutter ? `, flutter ${CFG.flutterVersion}` : ''}${tc.shorebird ? `, shorebird ${CFG.shorebirdVersion}` : ''}${lockSha ? `, pnpm store warmed from lock ${lockSha}` : ''}`,
     };
     const r = await gapi(C('global/images'), { method: 'POST', body: JSON.stringify(img) });
     if (!r.ok) throw new Error(`image create ${r.status}: ${r.body.error?.message || ''}`);
