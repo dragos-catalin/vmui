@@ -138,6 +138,39 @@ Weekly rebake: Cloud Scheduler `devcloud-image-rebake` -> Cloud Build (SA `devcl
 lockfile comes from GitHub via the App (needs Contents: read) or the copy `-Schedule` uploads to
 `gs://dragos-devcloud-devcloud-jobs/images/`.
 
+### A second bake path is a second way to ship a broken image (2026-11-25)
+
+`build.json` (the scheduled rebake) is a **separate** definition from `-Bake <toolchain>` on the command line:
+it does not read this file's defaults and it is the path nobody watches. Its `win-flutter` step asked for the
+Flutter layer but **not** `--android-sdk`, so the weekly job would have replaced the pool's Windows image with
+one that cannot build an APK — every Android job red the next morning, with the bake log green. Both layers
+caelia needs now travel together, and `bake.test.mjs` reads `build.json` and fails if a Flutter step omits the
+Android layer (mutation-checked: removing the flag fails that test alone).
+
+Rule: when a capability is a **flag**, every path that bakes the family must pass it, and a test must read the
+scheduled definition rather than trust the one you type.
+
+### Which bake ran this job
+
+`GET .../images/family/<f>` answers with the **concrete** image, and the controller now records it: the job VM
+carries `image-family` / `image-version` / `image-stock` in **metadata**, an `image` **label** (so
+`gcloud compute instances list --filter labels.image=...` works) and the same three fields in
+`ci/vms/*.json` + `ci/jobs/*.json`. `imagePin()` in `server.mjs` derives them, including the stock fallback
+(`stock: true`) that boots with no toolchain at all — without it, a job that booted a months-old bake and a
+job that booted stock Ubuntu are indistinguishable after the fact.
+
+`tool/health_devcloud.ps1` (caelia) prints the `image-version` metadata when it runs on a controller-created
+VM, so a health probe names the bake it ran on.
+
+### Recreating a workspace VM: reset the delta base
+
+The bundle a cloud run uploads is a delta from the commits the **disk** already has, and that list lives in
+GCS (`ws/<ws>/repos/<repo>.json`), not on the VM. A recreated VM therefore starts empty while the record still
+claims the old disk had `HEAD`, and the first run dies with
+`error: Repository lacks these prerequisite commits`. `workspace.ps1` now overwrites those lists with `[]`
+when it **creates** an instance (the shas are a cache of the disk, not data), so the next run ships a full
+bundle. Seen live 2026-11-25 right after recreating `ws-caelia` from a new bake.
+
 ## Turbo cache
 
 On a devcloud VM the verify job uses the self-hosted turbo cache (`vars.DEVCLOUD_TURBO_API` +

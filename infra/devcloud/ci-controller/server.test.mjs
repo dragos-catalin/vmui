@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import { verifySignature, pickProfile, costUsd, vmName, appJwt, handle, PROFILES, imageFamily, bootSecFromSerial, shouldFallback, capacityOk, rerunPath, isAbort, ownerOf, fallbackVarRequests, usesFallbackVar, FALLBACK_VAR, stockImage, startupItem, runnerLabels } from './server.mjs';
+import { verifySignature, pickProfile, costUsd, vmName, appJwt, handle, PROFILES, imageFamily, imagePin, bootSecFromSerial, shouldFallback, capacityOk, rerunPath, isAbort, ownerOf, fallbackVarRequests, usesFallbackVar, FALLBACK_VAR, stockImage, startupItem, runnerLabels } from './server.mjs';
 
 test('DC-051 windows pool: label -> Windows profile, win-desktop image, ps1 startup, windows runner labels', () => {
   const labels = ['self-hosted', 'devcloud-win-16', 'devcloud-win-desktop'];
@@ -109,6 +109,32 @@ test('pickProfile picks the toolchain image family from an extra label', () => {
   assert.equal(pickProfile(['self-hosted', 'devcloud-linux-16', 'devcloud-rust-tauri-linux']).toolchain, 'rust-tauri-linux');
   assert.equal(pickProfile(['self-hosted', 'devcloud-linux-32', 'devcloud-unknown']).toolchain, 'node24');
   assert.equal(imageFamily({ toolchain: 'flutter' }, 'p'), 'projects/p/global/images/family/devcloud-ci-flutter');
+});
+
+test('DC-071 image pin: a baked VM records the concrete bake, a stock VM is distinguishable', () => {
+  // `GET .../images/family/x` answers with the concrete image: the body names the bake that will run.
+  const baked = imagePin({
+    name: 'devcloud-ci-win-flutter-202611250326',
+    family: 'devcloud-ci-win-flutter',
+    selfLink: 'https://www.googleapis.com/compute/v1/projects/codai-training/global/images/devcloud-ci-win-flutter-202611250326',
+  });
+  assert.deepEqual(baked, { project: 'codai-training', family: 'devcloud-ci-win-flutter', version: 'devcloud-ci-win-flutter-202611250326', stock: false, label: 'devcloud-ci-win-flutter-202611250326' });
+
+  // No family image READY yet -> the boot uses the stock image, and the record must say so.
+  const stock = imagePin('projects/windows-cloud/global/images/family/windows-2025');
+  assert.equal(stock.stock, true);
+  assert.equal(stock.family, 'windows-2025');
+  assert.notEqual(stock.label, baked.label);
+  assert.equal(imagePin(stockImage({ os: 'windows' })).stock, true);
+
+  // A family URL alone still yields the family (the version comes from the API body).
+  const fromUrl = imagePin('projects/codai-training/global/images/family/devcloud-ci-node24');
+  assert.equal(fromUrl.family, 'devcloud-ci-node24');
+  assert.equal(fromUrl.version, null);
+
+  // The label must survive GCE's rules even for an odd version string.
+  assert.equal(imagePin('projects/p/global/images/Core.OS_1.2.3').label, 'core-os_1-2-3');
+  assert.equal(imagePin('').label, 'unknown');
 });
 
 test('bootSecFromSerial reads the runner-online marker', () => {

@@ -219,6 +219,13 @@ try {
     # the log still said "::android ready", and the first job on it answered "Unable to locate Android SDK").
     $pkgs = @('platform-tools')
     foreach ($api in ($ANDROID_API -split '\s+')) { $pkgs += @("platforms;android-$api", "build-tools;$api.0.0") }
+    # Gradle pulls these itself on a fresh VM even though the project asks for 35/36: the Android Gradle
+    # plugin resolves its own compileSdk and the externalNativeBuild/cmake variant from the SDK, so the
+    # first `flutter build apk` on a cold runner spent minutes downloading them (observed 2026-11-25:
+    # "Android SDK Platform 34" + "CMake 3.22.1" installed by Gradle during a debug build). Baking them
+    # removes that from EVERY job instead of only the first one on a warm VM.
+    $gradleExtras = @('platforms;android-34', 'build-tools;34.0.0', 'cmake;3.22.1')
+    $pkgs += $gradleExtras
     $licOut = 1..40 | ForEach-Object { 'y' } | & $sm "--sdk_root=$sdkRoot" --licenses 2>&1
     if ($LASTEXITCODE) { throw "sdkmanager --licenses exit $LASTEXITCODE`n$($licOut | Select-Object -Last 5 | Out-String)" }
     # sdkmanager asks 'Accept? (y/N)' once per licence; feed a wall of y (harmless when nothing is left to accept).
@@ -228,6 +235,7 @@ try {
     # worker can actually build with, and only the files on disk decide that.
     $need = @('platform-tools\adb.exe', 'cmdline-tools\latest\bin\sdkmanager.bat')
     foreach ($api in ($ANDROID_API -split '\s+')) { $need += @("platforms\android-$api\android.jar", "build-tools\$api.0.0\aapt2.exe") }
+    $need += @('platforms\android-34\android.jar', 'build-tools\34.0.0\aapt2.exe', 'cmake\3.22.1\bin\cmake.exe')
     foreach ($rel in $need) { if (-not (Test-Path (Join-Path $sdkRoot $rel))) { throw "android: missing $rel under $sdkRoot" } }
     AddPath "$sdkRoot\cmdline-tools\latest\bin"
     AddPath "$sdkRoot\platform-tools"
