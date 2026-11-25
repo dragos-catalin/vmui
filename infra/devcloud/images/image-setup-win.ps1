@@ -172,6 +172,11 @@ try {
     if (-not (Test-Path 'C:\flutter\bin\flutter.bat')) { throw "flutter.bat missing after extract of $FLUTTER_VER" }
     AddPath 'C:\flutter\bin'
     [Environment]::SetEnvironmentVariable('FLUTTER_ROOT', 'C:\flutter', 'Machine')
+    # The runner service runs as LocalSystem and every CI job as user `dev`: without this, git refuses to read
+    # C:\flutter ("detected dubious ownership") and Flutter's own engine version probe dies with
+    # "Unable to determine engine version", so no job on the image can build anything.
+    $gitExe = (Get-Command git -ErrorAction SilentlyContinue).Source
+    if ($gitExe) { & $gitExe config --system --add safe.directory C:/flutter }
     & flutter config --no-analytics
     if ($LASTEXITCODE) { throw 'flutter config failed' }
     & flutter --version
@@ -209,14 +214,21 @@ try {
     $env:ANDROID_HOME = $sdkRoot; $env:ANDROID_SDK_ROOT = $sdkRoot
     # $ANDROID_API may name several levels ("35 36"): Flutter 3.47 defaults compileSdk/targetSdk to 36,
     # and a plugin pinned to an older platform fails the build unless that platform is present too.
-    Run $sm @("--sdk_root=$sdkRoot", 'platform-tools') @(0)
-    foreach ($api in ($ANDROID_API -split '\s+')) {
-      foreach ($pkg in @("platforms;android-$api", "build-tools;$api.0.0")) {
-        Run $sm @("--sdk_root=$sdkRoot", $pkg) @(0)
-      }
-    }
+    # sdkmanager is a .bat, so it MUST go through the call operator: Start-Process on a .bat reports success
+    # without installing anything (bake #2 shipped an image whose C:\Android\sdk held only cmdline-tools while
+    # the log still said "::android ready", and the first job on it answered "Unable to locate Android SDK").
+    $pkgs = @('platform-tools')
+    foreach ($api in ($ANDROID_API -split '\s+')) { $pkgs += @("platforms;android-$api", "build-tools;$api.0.0") }
+    $licOut = 1..40 | ForEach-Object { 'y' } | & $sm "--sdk_root=$sdkRoot" --licenses 2>&1
+    if ($LASTEXITCODE) { throw "sdkmanager --licenses exit $LASTEXITCODE`n$($licOut | Select-Object -Last 5 | Out-String)" }
     # sdkmanager asks 'Accept? (y/N)' once per licence; feed a wall of y (harmless when nothing is left to accept).
-    1..40 | ForEach-Object { 'y' } | & $sm "--sdk_root=$sdkRoot" --licenses | Out-Null
+    $smOut = 1..40 | ForEach-Object { 'y' } | & $sm "--sdk_root=$sdkRoot" @pkgs 2>&1
+    if ($LASTEXITCODE) { throw "sdkmanager exit $LASTEXITCODE for $($pkgs -join ', ')`n$($smOut | Select-Object -Last 6 | Out-String)" }
+    # Assert the artifacts instead of trusting the exit code: the whole point of this block is a toolchain the
+    # worker can actually build with, and only the files on disk decide that.
+    $need = @('platform-tools\adb.exe', 'cmdline-tools\latest\bin\sdkmanager.bat')
+    foreach ($api in ($ANDROID_API -split '\s+')) { $need += @("platforms\android-$api\android.jar", "build-tools\$api.0.0\aapt2.exe") }
+    foreach ($rel in $need) { if (-not (Test-Path (Join-Path $sdkRoot $rel))) { throw "android: missing $rel under $sdkRoot" } }
     AddPath "$sdkRoot\cmdline-tools\latest\bin"
     AddPath "$sdkRoot\platform-tools"
     if ($FLUTTER_VER) {
@@ -224,7 +236,7 @@ try {
       & flutter precache --android
     }
     Remove-Item "$TMP\cmdtools.zip" -Force
-    Say "::android ready api=$ANDROID_API javaHome=$jh"
+    Say "::android ready api=$ANDROID_API javaHome=$jh adb=$sdkRoot\platform-tools\adb.exe"
   }
 
   # VS 2022 Build Tools: MSVC x64 + Windows 11 SDK (what cargo's msvc target and Tauri need). 3010 = reboot wanted,
