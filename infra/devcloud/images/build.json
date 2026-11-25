@@ -135,6 +135,26 @@
         "120"
       ],
       "allowFailure": true
+    },
+    {
+      "id": "win-flutter",
+      "name": "node:24-slim",
+      "waitFor": [
+        "-"
+      ],
+      "args": [
+        "node",
+        "bake.mjs",
+        "--toolchain",
+        "win-flutter",
+        "--project",
+        "codai-training",
+        "--machine",
+        "c4d-standard-16",
+        "--max-min",
+        "150"
+      ],
+      "allowFailure": true
     }
   ],
   "timeout": "9000s",

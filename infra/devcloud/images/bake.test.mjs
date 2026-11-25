@@ -13,6 +13,19 @@ test('win-desktop bakes Windows Server 2025 with the ps1 startup key; Linux keep
   assert.match(l.sourceImage, /ubuntu-2404/);
 });
 
+test('win-flutter = win-desktop + Flutter: windows ps1 bake, 150 GB disk, flutter flag', () => {
+  const f = TOOLCHAINS['win-flutter'];
+  assert.equal(f.os, 'windows');
+  assert.equal(f.flutter, true);
+  assert.equal(f.store, false);
+  assert.ok(f.diskGb >= 150, String(f.diskGb));
+  assert.ok(f.maxMin >= 150, String(f.maxMin));
+  const o = bakeOs(f);
+  assert.equal(o.sourceImage, 'projects/windows-cloud/global/images/family/windows-2025');
+  assert.equal(o.startupKey, 'windows-startup-script-ps1');
+  assert.equal(o.script, 'image-setup-win.ps1');
+});
+
 test('chunk splits base64 under the 256 KB metadata value limit and rejoins losslessly', () => {
   const s = 'A'.repeat(600001);
   const c = chunk(s);

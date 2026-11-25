@@ -22,6 +22,23 @@ test('DC-051 windows pool: label -> Windows profile, win-desktop image, ps1 star
   assert.equal(pickProfile(['devcloud-win-16', 'devcloud-win-desktop']), null);
 });
 
+test('DC-051 win-flutter pool: label -> Windows profile with the flutter toolchain image', () => {
+  const labels = ['self-hosted', 'devcloud-win-flutter-16', 'devcloud-win-flutter'];
+  const p = pickProfile(labels);
+  assert.equal(p.label, 'devcloud-win-flutter-16');
+  assert.equal(p.os, 'windows');
+  assert.equal(p.toolchain, 'win-flutter');
+  assert.ok(p.vcpu >= 16 && p.memGb >= 60 && p.diskGb >= 150, JSON.stringify(p));
+  assert.equal(imageFamily(p, 'codai-training'), 'projects/codai-training/global/images/family/devcloud-ci-win-flutter');
+  assert.equal(stockImage(p), 'projects/windows-cloud/global/images/family/windows-2025');
+  assert.deepEqual(startupItem(p, { linux: 'L', windows: 'W' }), { key: 'windows-startup-script-ps1', value: 'W' });
+  assert.deepEqual(runnerLabels(labels, p), ['self-hosted', 'devcloud-win-flutter-16', 'devcloud-win-flutter', 'windows', 'x64']);
+  // size label alone keeps the profile's default win-flutter toolchain; a Linux label never lands on Windows
+  assert.equal(pickProfile(['self-hosted', 'devcloud-win-flutter-16']).toolchain, 'win-flutter');
+  assert.equal(pickProfile(['self-hosted', 'devcloud-linux-16', 'devcloud-win-flutter']).toolchain, 'node24');
+  assert.equal(pickProfile(['devcloud-win-flutter-16', 'devcloud-win-flutter']), null);
+});
+
 test('Linux profiles keep startup-script, ubuntu stock image and linux runner labels', () => {
   const p = pickProfile(['self-hosted', 'devcloud-linux-16']);
   assert.equal(p.os, undefined);

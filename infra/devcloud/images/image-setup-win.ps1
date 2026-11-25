@@ -43,6 +43,9 @@ function Latest([string]$repo, [string]$pattern) {
   if (-not $a) { throw "no asset /$pattern/ in $repo $($r.tag_name)" }
   $a.browser_download_url
 }
+function LatestOrNull([string]$repo, [string]$pattern) {
+  try { Latest $repo $pattern } catch { '' }
+}
 function Run([string]$exe, [string[]]$argv, [int[]]$ok = @(0)) {
   $p = Start-Process -FilePath $exe -ArgumentList @($argv | Where-Object { $_ }) -Wait -PassThru -NoNewWindow
   if ($ok -notcontains $p.ExitCode) { throw "$exe exit $($p.ExitCode)" }
@@ -54,9 +57,11 @@ function Msi([string]$path, [string]$extra = '') {
 $RUNNER_VER = MetaAttr 'runner-version' '2.338.0'
 $PNPM_VER = MetaAttr 'pnpm-version' '12.9.1'
 $RUST_VER = MetaAttr 'rust-toolchain' '1.98.1'
+$TC = MetaAttr 'toolchain' 'win-desktop'
+$FLUTTER_VER = MetaAttr 'flutter-version' ''
 $TMP = 'C:\devcloud\tmp'
 New-Item -ItemType Directory -Force $TMP, 'C:\tools\bin' | Out-Null
-Say "::image-setup start toolchain=win-desktop $(Get-Date -Format o)"
+Say "::image-setup start toolchain=$TC $(Get-Date -Format o)"
 try {
   Step 'system'
   New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' -Name LongPathsEnabled -Value 1 -PropertyType DWord -Force | Out-Null
@@ -103,8 +108,18 @@ try {
   if ($LASTEXITCODE) { throw 'pnpm --version failed' }
 
   Step 'pwsh'
-  Get-File (Latest 'PowerShell/PowerShell' '^PowerShell-7\.[0-9.]+-win-x64\.msi$') "$TMP\pwsh.msi"
-  Msi "$TMP\pwsh.msi" 'ADD_PATH=1 ENABLE_PSREMOTING=0 REGISTER_MANIFEST=1 USE_MU=0 ENABLE_MU=0'
+  # 7.7.0 dropped the -win-x64.msi asset (only the zip is published), which broke every Windows
+  # bake with "no asset /^PowerShell-7\.[0-9.]+-win-x64\.msi$/". Prefer the MSI when it exists,
+  # otherwise unzip into the same directory the MSI installs to and put it on PATH by hand.
+  $pwshMsi = LatestOrNull 'PowerShell/PowerShell' '^PowerShell-7\.[0-9.]+-win-x64\.msi$'
+  if ($pwshMsi) {
+    Get-File $pwshMsi "$TMP\pwsh.msi"
+    Msi "$TMP\pwsh.msi" 'ADD_PATH=1 ENABLE_PSREMOTING=0 REGISTER_MANIFEST=1 USE_MU=0 ENABLE_MU=0'
+  } else {
+    Get-File (Latest 'PowerShell/PowerShell' '^PowerShell-7\.[0-9.]+-win-x64\.zip$') "$TMP\pwsh.zip"
+    Expand-Archive "$TMP\pwsh.zip" -DestinationPath 'C:\Program Files\PowerShell\7' -Force
+    AddPath 'C:\Program Files\PowerShell\7'
+  }
   RefreshPath
   & pwsh -NoProfile -Command '$PSVersionTable.PSVersion.ToString()'
 
@@ -144,6 +159,25 @@ try {
   Step 'webview2'
   Get-File 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' "$TMP\wv2.exe"
   Run "$TMP\wv2.exe" @('/silent', '/install') @(0, -2147219416)
+
+  # Flutter is present only on toolchains that declare it (metadata flutter-version, e.g. win-flutter): the
+  # pinned stable ZIP extracts to C:\flutter (the archive's top-level folder), and precache pulls the Windows
+  # desktop engine so a job's `flutter build windows` works offline-ish. win-desktop has no key -> skipped.
+  if ($FLUTTER_VER) {
+    Step 'flutter'
+    Get-File "https://storage.googleapis.com/flutter_infra_release/releases/stable/windows/flutter_windows_$FLUTTER_VER-stable.zip" "$TMP\flutter.zip"
+    Expand-Archive "$TMP\flutter.zip" -DestinationPath 'C:\' -Force
+    if (-not (Test-Path 'C:\flutter\bin\flutter.bat')) { throw "flutter.bat missing after extract of $FLUTTER_VER" }
+    AddPath 'C:\flutter\bin'
+    [Environment]::SetEnvironmentVariable('FLUTTER_ROOT', 'C:\flutter', 'Machine')
+    & flutter config --no-analytics
+    if ($LASTEXITCODE) { throw 'flutter config failed' }
+    & flutter --version
+    if ($LASTEXITCODE) { throw 'flutter --version failed' }
+    & flutter precache --windows
+    if ($LASTEXITCODE) { throw 'flutter precache --windows failed' }
+    Remove-Item "$TMP\flutter.zip" -Force
+  }
 
   # VS 2022 Build Tools: MSVC x64 + Windows 11 SDK (what cargo's msvc target and Tauri need). 3010 = reboot wanted,
   # not required before sysprep.
@@ -190,16 +224,18 @@ try {
     gh = ((& gh --version) | Select-Object -First 1); rg = ((& rg --version) | Select-Object -First 1); sevenzip = ((& 7z i) | Select-Object -Skip 1 -First 1)
     cl = $cl.FullName; sdk = $sdk.Name; webview2 = $wv2; chrome = $chrome
   }
+  if ($FLUTTER_VER) { $v['flutter'] = ((& flutter --version) | Select-Object -First 1) }
   foreach ($k in $v.Keys) { Say "::ver $k=$($v[$k])"; if (-not $v[$k]) { throw "no version for $k" } }
 
   Step 'cleanup'
   Remove-Item $TMP -Recurse -Force -ErrorAction SilentlyContinue
   & cmd /c 'del /q /s %TEMP%\* >nul 2>&1'
-  $img = [ordered]@{ toolchain = 'win-desktop'; os = 'windows-server-2025'; node = $v.node; pnpm = $PNPM_VER; rust = $RUST_VER; runner = $RUNNER_VER; msvc = $cl.Directory.Parent.Parent.Parent.Name; sdk = $sdk.Name; bakedAt = (Get-Date -Format o) }
+  $img = [ordered]@{ toolchain = $TC; os = 'windows-server-2025'; node = $v.node; pnpm = $PNPM_VER; rust = $RUST_VER; runner = $RUNNER_VER; msvc = $cl.Directory.Parent.Parent.Parent.Name; sdk = $sdk.Name; bakedAt = (Get-Date -Format o) }
+  if ($FLUTTER_VER) { $img['flutter'] = $FLUTTER_VER }
   New-Item -ItemType Directory -Force 'C:\devcloud' | Out-Null
   Set-Content -Path 'C:\devcloud\image.json' -Value ($img | ConvertTo-Json -Compress) -Encoding ascii
   New-Item -ItemType File -Force 'C:\devcloud\baked' | Out-Null
-  Say "::image-setup done toolchain=win-desktop in $([int]((Get-Date) - $T0).TotalSeconds)s"
+  Say "::image-setup done toolchain=$TC in $([int]((Get-Date) - $T0).TotalSeconds)s"
 } catch {
   Say "::image-setup failed $script:STEP $($_.Exception.Message)"
   & shutdown.exe /s /t 5 /f
