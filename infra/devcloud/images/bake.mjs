@@ -31,7 +31,10 @@ export const TOOLCHAINS = {
   // Windows: stock image is 50 GB; VS Build Tools + SDK + Rust + Chrome ~ 25 GB more. CI disk is 150 GB.
   'win-desktop': { diskGb: 100, store: false, os: 'windows', maxMin: 120 },
   // win-desktop + Flutter (~2.5 GB extracted) + a caelia build dir: 150 GB.
-  'win-flutter': { diskGb: 150, store: false, os: 'windows', flutter: true, maxMin: 150 },
+  // DC-071: caelia also ships with Shorebird (code push), and the CLI is not on PATH anywhere else, so the
+  // image carries it pinned (metadata shorebird-version, cloned from the shorebirdtech/shorebird tag) - the
+  // step asserts `shorebird --version`, so a bake that cannot run it never becomes an image.
+  'win-flutter': { diskGb: 150, store: false, os: 'windows', flutter: true, shorebird: true, maxMin: 150 },
 };
 /** Per-OS bake shape: source image, startup metadata key + script file. */
 export function bakeOs(tc) {
@@ -53,6 +56,7 @@ const CFG = {
   maxMin: opt('max-min') ? Number(opt('max-min')) : null,
   rustToolchain: opt('rust-toolchain', '1.98.1'),
   flutterVersion: opt('flutter-version', '3.47.3'),
+  shorebirdVersion: opt('shorebird-version', '1.6.149'),
   // --android 35 (or any API level): adds JDK 21 + the Android SDK for that platform to the image so a
   // Flutter app can build its APK on Windows. Empty = no Android toolchain (win-desktop, and win-flutter
   // unless asked). DC-071: caelia builds its release APK on devcloud, not on the workstation.
@@ -154,6 +158,7 @@ async function main() {
   ];
   if (tc.os === 'windows') items.push({ key: 'rust-toolchain', value: CFG.rustToolchain });
   if (tc.flutter) items.push({ key: 'flutter-version', value: CFG.flutterVersion });
+  if (tc.shorebird) items.push({ key: 'shorebird-version', value: CFG.shorebirdVersion });
   if (CFG.androidSdk) items.push({ key: 'android-sdk', value: CFG.androidSdk });
   let lockSha = null;
   if (tc.store) {
@@ -234,6 +239,7 @@ async function main() {
       labels: { owner: 'devcloud', toolchain: CFG.toolchain, ...(lockSha ? { lock: lockSha } : {}) },
       ...(tc.os === 'windows' ? { guestOsFeatures: [{ type: 'WINDOWS' }, { type: 'UEFI_COMPATIBLE' }, { type: 'VIRTIO_SCSI_MULTIQUEUE' }, { type: 'GVNIC' }, { type: 'MULTI_IP_SUBNET' }] } : {}),
       description: `devcloud CI runner image (${CFG.toolchain}); runner ${CFG.runnerVersion}, pnpm ${CFG.pnpmVersion}${tc.os === 'windows' ? `, rust ${CFG.rustToolchain}, Windows Server 2025` : ''}${tc.flutter ? `, flutter ${CFG.flutterVersion}` : ''}${lockSha ? `, pnpm store warmed from lock ${lockSha}` : ''}`,
+      description: `devcloud CI runner image (${CFG.toolchain}); runner ${CFG.runnerVersion}, pnpm ${CFG.pnpmVersion}${tc.os === 'windows' ? `, rust ${CFG.rustToolchain}, Windows Server 2025` : ''}${tc.flutter ? `, flutter ${CFG.flutterVersion}` : ''}${tc.shorebird ? `, shorebird ${CFG.shorebirdVersion}` : ''}${lockSha ? `, pnpm store warmed from lock ${lockSha}` : ''}`,
     };
     const r = await gapi(C('global/images'), { method: 'POST', body: JSON.stringify(img) });
     if (!r.ok) throw new Error(`image create ${r.status}: ${r.body.error?.message || ''}`);
