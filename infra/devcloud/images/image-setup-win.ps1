@@ -59,6 +59,8 @@ $PNPM_VER = MetaAttr 'pnpm-version' '12.9.1'
 $RUST_VER = MetaAttr 'rust-toolchain' '1.98.1'
 $TC = MetaAttr 'toolchain' 'win-desktop'
 $FLUTTER_VER = MetaAttr 'flutter-version' ''
+# Shorebird CLI version (e.g. 1.6.149), or '' when the toolchain ships without it.
+$SHOREBIRD_VER = MetaAttr 'shorebird-version' ''
 # API level (e.g. 35) that bake --android requested, or '' when the image carries no Android toolchain.
 $ANDROID_API = MetaAttr 'android-sdk' ''
 $TMP = 'C:\devcloud\tmp'
@@ -186,6 +188,26 @@ try {
     Remove-Item "$TMP\flutter.zip" -Force
   }
 
+  # Shorebird (code push) is present only on toolchains that declare it (metadata shorebird-version). The CLI
+  # is a git checkout of a RELEASE TAG, not the `stable` branch the vendor installer clones: an image must be
+  # reproducible, and `stable` moves. The first `shorebird.ps1 --version` bootstraps its own Dart SDK and
+  # Flutter fork into bin\cache (~1.5 GB) - that is what makes a job able to run `shorebird release/patch`
+  # without downloading anything. A failure here fails the bake on purpose: an image without a working CLI
+  # must never be published (caelia's release would then fail 12 minutes into a Gradle build).
+  if ($SHOREBIRD_VER) {
+    Step 'shorebird'
+    $sbRoot = 'C:\shorebird'
+    & git clone --depth 1 --branch "v$SHOREBIRD_VER" https://github.com/shorebirdtech/shorebird.git $sbRoot
+    if ($LASTEXITCODE) { throw "git clone of shorebird v$SHOREBIRD_VER failed" }
+    AddPath (Join-Path $sbRoot 'bin')
+    [Environment]::SetEnvironmentVariable('SHOREBIRD_ROOT', $sbRoot, 'Machine')
+    # Same reason as C:\flutter: jobs run as another user, and git refuses an owned-by-someone-else checkout.
+    $gitExe2 = (Get-Command git -ErrorAction SilentlyContinue).Source
+    if ($gitExe2) { & $gitExe2 config --system --add safe.directory C:/shorebird }
+    & (Join-Path $sbRoot 'shorebird.ps1') --version
+    if ($LASTEXITCODE) { throw "shorebird --version failed for v$SHOREBIRD_VER" }
+  }
+
   # JDK 21 + the Android SDK, only when bake --android named an API level. A Flutter app's release APK is built
   # on this image (DC-071 caelia), so JAVA_HOME/ANDROID_HOME must be machine-wide and the SDK licences accepted
   # non-interactively: gradle fails on an unaccepted licence long before it fails on anything interesting.
@@ -293,6 +315,7 @@ try {
     cl = $cl.FullName; sdk = $sdk.Name; webview2 = $wv2; chrome = $chrome
   }
   if ($FLUTTER_VER) { $v['flutter'] = ((& flutter --version) | Select-Object -First 1) }
+  if ($SHOREBIRD_VER) { $v['shorebird'] = ((& shorebird --version) | Select-Object -Last 1) }
   if ($ANDROID_API) { $v['androidApi'] = $ANDROID_API; $v['javaHome'] = $jh }
   foreach ($k in $v.Keys) { Say "::ver $k=$($v[$k])"; if (-not $v[$k]) { throw "no version for $k" } }
 
@@ -301,6 +324,7 @@ try {
   & cmd /c 'del /q /s %TEMP%\* >nul 2>&1'
   $img = [ordered]@{ toolchain = $TC; os = 'windows-server-2025'; node = $v.node; pnpm = $PNPM_VER; rust = $RUST_VER; runner = $RUNNER_VER; msvc = $cl.Directory.Parent.Parent.Parent.Name; sdk = $sdk.Name; bakedAt = (Get-Date -Format o) }
   if ($FLUTTER_VER) { $img['flutter'] = $FLUTTER_VER }
+    if ($SHOREBIRD_VER) { $img['shorebird'] = $SHOREBIRD_VER }
   if ($ANDROID_API) { $img['android'] = $ANDROID_API }
   New-Item -ItemType Directory -Force 'C:\devcloud' | Out-Null
   Set-Content -Path 'C:\devcloud\image.json' -Value ($img | ConvertTo-Json -Compress) -Encoding ascii
