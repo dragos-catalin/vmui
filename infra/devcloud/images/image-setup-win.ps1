@@ -204,7 +204,11 @@ try {
     # Same reason as C:\flutter: jobs run as another user, and git refuses an owned-by-someone-else checkout.
     $gitExe2 = (Get-Command git -ErrorAction SilentlyContinue).Source
     if ($gitExe2) { & $gitExe2 config --system --add safe.directory C:/shorebird }
-    & (Join-Path $sbRoot 'shorebird.ps1') --version
+    # The launcher lives in bin\ (the repo root has no shorebird.ps1): the official installer
+    # clones the repo and runs .\bin\shorebird.ps1 --version, so this step does the same. Measured
+    # 2026-11-25: the bake failed here first with "The term 'C:\shorebird\shorebird.ps1' is not
+    # recognized", which is what happens when the launcher path is guessed instead of read.
+    & (Join-Path $sbRoot 'bin\shorebird.ps1') --version
     if ($LASTEXITCODE) { throw "shorebird --version failed for v$SHOREBIRD_VER" }
   }
 
