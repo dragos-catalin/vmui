@@ -53,12 +53,17 @@ $ErrorActionPreference = 'Stop'
 $here = $PSScriptRoot
 $source = Join-Path $here 'images.json'
 
-# The scheduled task must call THIS path, resolved through git so a worktree slot records the
-# real script and not the slot it happened to be installed from.
+# The scheduled task must call the script in the CANONICAL clone, never in the worktree slot it was
+# installed from: a slot is leased and returned, so a task pointing at one dies the moment it is
+# released. git rev-parse --show-toplevel is the slot in a worktree - the common dir is not.
 if ($RegisterTask) {
-    $real = (& git -C $here rev-parse --show-toplevel) -replace '/', '\'
-    $script0 = Join-Path $real 'infra\devcloud\images\check-images.ps1'
-    $vbs = 'E:\gh\vmui\scripts\hidden-run.vbs'
+    $common = (& git -C $here rev-parse --path-format=absolute --git-common-dir) -replace '/', '\'
+    $root = Split-Path $common -Parent
+    $script0 = Join-Path $root 'infra\devcloud\images\check-images.ps1'
+    if (-not (Test-Path $script0)) {
+        throw "the task would point at $script0, which does not exist - land this branch in $root first, then register."
+    }
+    $vbs = Join-Path $root 'scripts\hidden-run.vbs'
     if (-not (Test-Path $vbs)) { throw "hidden-run.vbs not found at $vbs" }
     $tr = 'wscript.exe "' + $vbs + '" "powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "' + $script0 + '" -Quiet -Mail'
     & schtasks /create /tn 'devcloud-check-images' /tr $tr /sc daily /st 08:30 /f | Out-Null
