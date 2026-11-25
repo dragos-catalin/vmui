@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { chunk, stamp, imagesToDelete, TOOLCHAINS, bakeOs } from './bake.mjs';
+import { chunk, stamp, imagesToDelete, orphanBakeVms, TOOLCHAINS, bakeOs } from './bake.mjs';
 
 test('win-desktop bakes Windows Server 2025 with the ps1 startup key; Linux keeps ubuntu + startup-script', () => {
   const w = bakeOs(TOOLCHAINS['win-desktop']);
@@ -54,6 +54,26 @@ test('imagesToDelete keeps the newest N READY/FAILED images and never touches PE
 test('every toolchain has a disk size; store only where node CI runs', () => {
   for (const [k, v] of Object.entries(TOOLCHAINS)) assert.ok(v.diskGb >= 30, k);
   assert.deepEqual(Object.keys(TOOLCHAINS).filter((k) => TOOLCHAINS[k].store), ['node24', 'polyglot']);
+});
+
+// A killed bake never reaches its `finally` delete, so the leftover keeps its 100-150 GB boot disk. The
+// sweep must be exact in both directions: reap the dead ones, keep a live bake and every foreign VM.
+test('orphanBakeVms reaps dead bake VMs and leaves running ones and other agents alone', () => {
+  const now = Date.parse('2026-11-25T12:00:00Z');
+  const items = [
+    { name: 'bake-win-flutter-202611250704', zone: 'https://x/zones/europe-west4-a', status: 'TERMINATED', creationTimestamp: '2026-11-25T07:04:00Z', labels: { purpose: 'ci-bake' } },
+    { name: 'bake-preempted', zone: 'https://x/zones/europe-west4-b', status: 'STOPPED', creationTimestamp: '2026-11-25T06:00:00Z', labels: { purpose: 'ci-bake' } },
+    { name: 'bake-live', zone: 'https://x/zones/europe-west4-a', status: 'RUNNING', creationTimestamp: '2026-11-25T11:10:00Z', labels: { purpose: 'ci-bake' } },
+    { name: 'bake-still-booting', zone: 'https://x/zones/europe-west4-a', status: 'PROVISIONING', creationTimestamp: '2026-11-25T11:58:00Z', labels: { purpose: 'ci-bake' } },
+    { name: 'bake-just-stopped', zone: 'https://x/zones/europe-west4-a', status: 'TERMINATED', creationTimestamp: '2026-11-25T11:55:00Z', labels: { purpose: 'ci-bake' } },
+    { name: 'ws-caelia', zone: 'https://x/zones/europe-west4-a', status: 'TERMINATED', creationTimestamp: '2026-11-25T01:00:00Z', labels: { purpose: 'workspace' } },
+  ];
+  assert.deepEqual(orphanBakeVms(items, now), [
+    { name: 'bake-win-flutter-202611250704', zone: 'europe-west4-a', status: 'TERMINATED' },
+    { name: 'bake-preempted', zone: 'europe-west4-b', status: 'STOPPED' },
+  ]);
+  assert.deepEqual(orphanBakeVms([], now), []);
+  assert.deepEqual(orphanBakeVms([{ name: 'x', status: 'TERMINATED', labels: { purpose: 'ci-bake' } }], now), [{ name: 'x', zone: '', status: 'TERMINATED' }]);
 });
 
 // The scheduled rebake (build.json, run weekly by Cloud Scheduler) is a SECOND way an image gets made,

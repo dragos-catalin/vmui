@@ -17,6 +17,10 @@
     * the age of the newest image is under `warnAfterDays` (a warning) and under the entry's
       `maxAgeDays` (a failure).
 
+    It also reaps orphan bake VMs: `bake.mjs` deletes its throwaway VM in a `finally`, which a killed
+    shell never reaches, so a leftover keeps its 100-150 GB boot disk in TERMINATED state forever. Only
+    instances labelled `purpose=ci-bake` are candidates; a running bake and every other VM are untouched.
+
   The check refuses to pass vacuously: an entry with no markers contributes the two markers every
   image has, and a run that finds zero declared families exits 2.
 
@@ -40,13 +44,17 @@
 .PARAMETER Mail
   Also send a report to $env:DEVCLOUD_ALERT_TO through Brivio (this machine's only mail route).
   Env-gated and no-op clean: needs BRIVIO_API_KEY, skips itself with a line when unset.
+
+.PARAMETER NoSweep
+    Do not delete orphan bake VMs (inspect them instead).
 #>
 [CmdletBinding()]
 param(
     [switch]$RegisterTask,
     [int]$WarnAfterDays = 0,
     [switch]$Quiet,
-    [switch]$Mail
+        [switch]$Mail,
+        [switch]$NoSweep
 )
 
 $ErrorActionPreference = 'Stop'
@@ -128,6 +136,28 @@ foreach ($p in ($cfg.images.PSObject.Properties | Sort-Object Name)) {
         $lines += '  {0,-32} {1,-8} {2} ({3:N1} days old)' -f $family, $state, $img.name, $age
     }
 }
+
+    # Orphan bake VMs. bake.mjs deletes its throwaway VM in a `finally`, which a killed shell never reaches,
+    # so a leftover sits in TERMINATED state holding its 100-150 GB boot disk (found 2026-11-25: one left by
+    # an aborted bake). Same label as the sweep inside bake.mjs, so a workspace or another agent's VM is never
+    # a candidate; a bake still in flight (RUNNING/PROVISIONING) is skipped even if it is old.
+    if (-not $NoSweep) {
+      $inst = @()
+      $inst = @(& gcloud compute instances list --project $project --filter 'labels.purpose=ci-bake' --format=json 2>$null | ConvertFrom-Json)
+      if ($LASTEXITCODE -ne 0) { $warn += "could not list bake VMs (gcloud exit $LASTEXITCODE)"; $inst = @() }
+      $reaped = @()
+      foreach ($i in $inst) {
+        if (-not $i) { continue }
+        if ("$($i.status)" -in @('RUNNING', 'PROVISIONING', 'STAGING', 'REPAIRING', 'SUSPENDING')) { continue }
+        $z = ("$($i.zone)" -split '/')[-1]
+        & gcloud compute instances delete "$($i.name)" --zone $z --project $project --quiet 2>$null | Out-Null
+        $reaped += "$($i.name)@$z ($($i.status))"
+      }
+      if ($reaped.Count) {
+        $warn += "reaped $($reaped.Count) orphan bake VM(s): $($reaped -join ', ')"
+        $lines += '  {0,-32} REAP     {1}' -f 'orphan bake vm', ($reaped -join ', ')
+      }
+    }
 
 if (-not $Quiet) {
     ''
