@@ -8,8 +8,8 @@
 #   VS 2022 Build Tools (VCTools workload + Windows 11 SDK), CMake + NASM (build scripts: opusic-sys bundled libopus,
 #   aws-lc-sys), WebView2 runtime, Google Chrome, gh, ripgrep, 7-Zip,
 #   actions runner win-x64 pre-extracted in C:\actions-runner, git core.autocrlf=false + core.longpaths=true,
-#   Win32 long paths, Defender exclusions for the runner + work dir + cargo/rustup/pnpm caches.
-# NSIS/WiX/mise are not baked: the codai desktop job builds `tauri build --debug --no-bundle`, and the Tauri
+#   Win32 long paths, Defender exclusions for the runner + work dir + cargo/rustup/pnpm caches.  # Metadata `android-sdk` (bake --android <api>): JDK 21 + Android cmdline-tools/platform/build-tools + accepted
+  # licences, so a Flutter app builds its APK here (DC-071 caelia) instead of on the workstation.# NSIS/WiX/mise are not baked: the codai desktop job builds `tauri build --debug --no-bundle`, and the Tauri
 # bundler downloads its own NSIS/WiX into its cache when a job does bundle.
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
@@ -59,6 +59,8 @@ $PNPM_VER = MetaAttr 'pnpm-version' '12.9.1'
 $RUST_VER = MetaAttr 'rust-toolchain' '1.98.1'
 $TC = MetaAttr 'toolchain' 'win-desktop'
 $FLUTTER_VER = MetaAttr 'flutter-version' ''
+# API level (e.g. 35) that bake --android requested, or '' when the image carries no Android toolchain.
+$ANDROID_API = MetaAttr 'android-sdk' ''
 $TMP = 'C:\devcloud\tmp'
 New-Item -ItemType Directory -Force $TMP, 'C:\tools\bin' | Out-Null
 Say "::image-setup start toolchain=$TC $(Get-Date -Format o)"
@@ -179,6 +181,50 @@ try {
     Remove-Item "$TMP\flutter.zip" -Force
   }
 
+  # JDK 21 + the Android SDK, only when bake --android named an API level. A Flutter app's release APK is built
+  # on this image (DC-071 caelia), so JAVA_HOME/ANDROID_HOME must be machine-wide and the SDK licences accepted
+  # non-interactively: gradle fails on an unaccepted licence long before it fails on anything interesting.
+  if ($ANDROID_API) {
+    Step 'android'
+    $sdkRoot = 'C:\Android\sdk'
+    New-Item -ItemType Directory -Force $sdkRoot | Out-Null
+    Msi (Get-File 'https://aka.ms/download-jdk/microsoft-jdk-21-windows-x64.msi' "$TMP\jdk21.msi")
+    $jh = [Environment]::GetEnvironmentVariable('JAVA_HOME', 'Machine')
+    if (-not $jh -or -not (Test-Path (Join-Path $jh 'bin\java.exe'))) {
+      $cand = Get-ChildItem 'C:\Program Files\Microsoft\jdk-*' -Directory -ErrorAction SilentlyContinue | Select-Object -First 1
+      if ($cand) { $jh = $cand.FullName; [Environment]::SetEnvironmentVariable('JAVA_HOME', $jh, 'Machine') }
+    }
+    if (-not $jh -or -not (Test-Path (Join-Path $jh 'bin\java.exe'))) { throw "JDK 21 not found after install (JAVA_HOME='$jh')" }
+    AddPath (Join-Path $jh 'bin')
+    Get-File 'https://dl.google.com/android/repository/commandlinetools-win-11076708_latest.zip' "$TMP\cmdtools.zip"
+    Expand-Archive "$TMP\cmdtools.zip" -DestinationPath "$sdkRoot\cmdline-tools" -Force
+    if (Test-Path "$sdkRoot\cmdline-tools\latest") { Remove-Item "$sdkRoot\cmdline-tools\latest" -Recurse -Force }
+    Move-Item "$sdkRoot\cmdline-tools\cmdline-tools" "$sdkRoot\cmdline-tools\latest"
+    $sm = "$sdkRoot\cmdline-tools\latest\bin\sdkmanager.bat"
+    if (-not (Test-Path $sm)) { throw "sdkmanager missing at $sm" }
+    [Environment]::SetEnvironmentVariable('ANDROID_HOME', $sdkRoot, 'Machine')
+    [Environment]::SetEnvironmentVariable('ANDROID_SDK_ROOT', $sdkRoot, 'Machine')
+    $env:ANDROID_HOME = $sdkRoot; $env:ANDROID_SDK_ROOT = $sdkRoot
+    # $ANDROID_API may name several levels ("35 36"): Flutter 3.47 defaults compileSdk/targetSdk to 36,
+    # and a plugin pinned to an older platform fails the build unless that platform is present too.
+    Run $sm @("--sdk_root=$sdkRoot", 'platform-tools') @(0)
+    foreach ($api in ($ANDROID_API -split '\s+')) {
+      foreach ($pkg in @("platforms;android-$api", "build-tools;$api.0.0")) {
+        Run $sm @("--sdk_root=$sdkRoot", $pkg) @(0)
+      }
+    }
+    # sdkmanager asks 'Accept? (y/N)' once per licence; feed a wall of y (harmless when nothing is left to accept).
+    1..40 | ForEach-Object { 'y' } | & $sm "--sdk_root=$sdkRoot" --licenses | Out-Null
+    AddPath "$sdkRoot\cmdline-tools\latest\bin"
+    AddPath "$sdkRoot\platform-tools"
+    if ($FLUTTER_VER) {
+      & flutter config --android-sdk $sdkRoot
+      & flutter precache --android
+    }
+    Remove-Item "$TMP\cmdtools.zip" -Force
+    Say "::android ready api=$ANDROID_API javaHome=$jh"
+  }
+
   # VS 2022 Build Tools: MSVC x64 + Windows 11 SDK (what cargo's msvc target and Tauri need). 3010 = reboot wanted,
   # not required before sysprep.
   Step 'vsbuildtools'
@@ -225,6 +271,7 @@ try {
     cl = $cl.FullName; sdk = $sdk.Name; webview2 = $wv2; chrome = $chrome
   }
   if ($FLUTTER_VER) { $v['flutter'] = ((& flutter --version) | Select-Object -First 1) }
+  if ($ANDROID_API) { $v['androidApi'] = $ANDROID_API; $v['javaHome'] = $jh }
   foreach ($k in $v.Keys) { Say "::ver $k=$($v[$k])"; if (-not $v[$k]) { throw "no version for $k" } }
 
   Step 'cleanup'
@@ -232,6 +279,7 @@ try {
   & cmd /c 'del /q /s %TEMP%\* >nul 2>&1'
   $img = [ordered]@{ toolchain = $TC; os = 'windows-server-2025'; node = $v.node; pnpm = $PNPM_VER; rust = $RUST_VER; runner = $RUNNER_VER; msvc = $cl.Directory.Parent.Parent.Parent.Name; sdk = $sdk.Name; bakedAt = (Get-Date -Format o) }
   if ($FLUTTER_VER) { $img['flutter'] = $FLUTTER_VER }
+  if ($ANDROID_API) { $img['android'] = $ANDROID_API }
   New-Item -ItemType Directory -Force 'C:\devcloud' | Out-Null
   Set-Content -Path 'C:\devcloud\image.json' -Value ($img | ConvertTo-Json -Compress) -Encoding ascii
   New-Item -ItemType File -Force 'C:\devcloud\baked' | Out-Null

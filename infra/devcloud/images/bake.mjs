@@ -53,6 +53,10 @@ const CFG = {
   maxMin: opt('max-min') ? Number(opt('max-min')) : null,
   rustToolchain: opt('rust-toolchain', '1.98.1'),
   flutterVersion: opt('flutter-version', '3.47.3'),
+  // --android 35 (or any API level): adds JDK 21 + the Android SDK for that platform to the image so a
+  // Flutter app can build its APK on Windows. Empty = no Android toolchain (win-desktop, and win-flutter
+  // unless asked). DC-071: caelia builds its release APK on devcloud, not on the workstation.
+  androidSdk: opt('android-sdk', ''),
 };
 const log = (msg, extra = {}) => console.log(JSON.stringify({ t: new Date().toISOString(), msg, ...extra }));
 
@@ -150,6 +154,7 @@ async function main() {
   ];
   if (tc.os === 'windows') items.push({ key: 'rust-toolchain', value: CFG.rustToolchain });
   if (tc.flutter) items.push({ key: 'flutter-version', value: CFG.flutterVersion });
+  if (CFG.androidSdk) items.push({ key: 'android-sdk', value: CFG.androidSdk });
   let lockSha = null;
   if (tc.store) {
     let lock, ws;
