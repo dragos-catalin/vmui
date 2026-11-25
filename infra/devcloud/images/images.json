@@ -24,6 +24,7 @@
       "os": "linux",
       "bake": "node infra/devcloud/images/bake.mjs --toolchain polyglot --lock pnpm-lock.yaml --workspace pnpm-workspace.yaml",
       "carries": ["node 24 + pnpm 12", "python + uv", "rust", "github runner"],
+      "$note": "No 'uv (astral)' marker yet: the layer installs uv into /usr/local/bin with a shared interpreter dir since 2026-11-25, but the newest polyglot image predates that wording, so asserting it would fail a correctly-baked image. Add the marker together with the next polyglot rebake.",
       "maxAgeDays": 45
     },
     "devcloud-ci-android-jdk21": {
@@ -45,7 +46,8 @@
       "toolchain": "python-uv",
       "os": "linux",
       "bake": "node infra/devcloud/images/bake.mjs --toolchain python-uv",
-      "carries": ["python 3.12 + uv", "github runner"],
+      "carries": ["python 3.12 + uv", "uv on the shared PATH (/usr/local/bin, not ~runner/.local/bin: a warm workspace runs jobs as `dev`)", "one shared uv-managed interpreter dir (/opt/uv-python 3.12 + 3.13)", "github runner"],
+      "markers": ["uv (astral)"],
       "maxAgeDays": 45
     },
     "devcloud-ci-rust-tauri-linux": {

@@ -283,7 +283,7 @@ The union of toolchain needs across the repositories, mapped onto the families d
 | `android-jdk21` | `node24` + Temurin 21 + Android SDK (platform/build-tools/NDK) |
 | `rust-tauri-linux` | `node24` + rustup stable (clippy/rustfmt) + Tauri 2 Linux deps (webkit2gtk-4.1, appindicator, rsvg) |
 | `rust-tauri-win` | `rust-tauri-linux` + `x86_64-pc-windows-msvc` + cargo-xwin + clang/lld/llvm + NSIS + JRE 21 + jsign + osslsigncode |
-| `python-uv` | `node24` + uv + CPython 3.12 |
+| `python-uv` | `node24` + uv (astral, `/usr/local/bin`) + `/opt/uv-python` shared CPython 3.12 + 3.13 |
 | `flutter` | `android-jdk21` + Flutter stable |
 | `polyglot` | `node24` + jdk + android + rust + python + flutter + warm store — i.e. **every declared layer, and no more** |
 | `win-desktop` | Windows Server 2025: node 24, pnpm 12, pwsh 7, Rust msvc (rustfmt/clippy), VS 2022 Build Tools + Windows 11 SDK, CMake + NASM, WebView2, Chrome, gh, ripgrep, 7-Zip, actions runner |

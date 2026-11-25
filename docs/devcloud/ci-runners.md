@@ -82,10 +82,10 @@ GitHub has no `runs-on` fallback, so the workflow decides in its gate job:
 | `devcloud-ci-android-jdk21`    | node24 + Temurin 21 + Android SDK (latest platform / build-tools / NDK)                       | codai `release-phone` |
 | `devcloud-ci-rust-tauri-linux` | node24 + rustup stable + Tauri 2 Linux deps                                                   | Linux desktop builds  |
 | `devcloud-ci-rust-tauri-win`   | rust-tauri-linux + target x86_64-pc-windows-msvc, cargo-xwin (warm MSVC CRT/SDK cache), clang/lld/llvm-rc, NSIS, JRE 21 + jsign, osslsigncode | brivio Windows desktop release + cross clippy (DC-047) |
-| `devcloud-ci-python-uv`        | node24 + uv + CPython 3.12                                                                    | Python services       |
+| `devcloud-ci-python-uv`        | node24 + uv (astral, `/usr/local/bin` so every user — the runner and a workspace `dev` — sees it) + one shared interpreter dir `/opt/uv-python` (CPython 3.12 + 3.13) | Python services       |
 | `devcloud-ci-flutter`          | android-jdk21 + Flutter stable                                                                | caelia                |
 | `devcloud-ci-polyglot`         | all of the above + warm store                                                                 | ad-hoc                |
-| `devcloud-ci-win-flutter`      | Windows 2025 + Git, Node 24, pnpm, pwsh 7, gh, rg, 7zip, CMake, NASM, Chrome, WebView2, Flutter stable, JDK 21 (Adoptium zip) + Android SDK (platform/build-tools 35 36), VS Build Tools, Rust (DC-071) | caelia `ci.yml` (verify, dart tests, build Windows, perf) |
+| `devcloud-ci-win-flutter`      | Windows 2025 + Git, Node 24, pnpm, pwsh 7, gh, rg, 7zip, CMake, NASM, Chrome, WebView2, Flutter stable, JDK 21 (Adoptium zip) + Android SDK (platform/build-tools 35 36 + Android 34/CMake for Gradle) + the NDK Flutter pins (`ndkVersion` read out of the Flutter SDK, 28.2.13676358 on 3.47.3, so `flutter build apk` never downloads it mid-job), VS Build Tools, Rust (DC-071, DC-074) | caelia `ci.yml` (verify, dart tests, build Windows, build APK, perf) |
 
 ### Which label picks which image (verified 2026-11-25)
 

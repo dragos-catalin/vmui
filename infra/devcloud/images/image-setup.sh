@@ -8,7 +8,7 @@
 #   rust-tauri-win   rust-tauri-linux + Windows cross build (DC-047): rustup target x86_64-pc-windows-msvc,
 #                    cargo-xwin (MSVC CRT + SDK pre-downloaded), clang/lld/llvm (clang-cl, lld-link, llvm-rc),
 #                    NSIS (makensis), JRE 21 + jsign (Azure Artifact Signing), osslsigncode (verify)
-#   python-uv        node24 + uv + CPython 3.12 (uv-managed)
+#   python-uv        node24 + uv (astral, /usr/local/bin) + CPython 3.12/3.13 (/opt/uv-python, shared)
 #   flutter          android-jdk21 + Flutter stable
 #   polyglot         everything above
 # node24 and polyglot also warm the pnpm store from the codai lockfile (metadata lock-0..lock-N =
@@ -194,7 +194,25 @@ fi
 
 if has python; then
   step python
-  sudo -u runner -H bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh && ~/.local/bin/uv python install 3.12' >/dev/null || fail
+  # uv goes to /usr/local/bin, NOT ~runner/.local/bin. The CI runner prepends /home/runner/.local/bin
+  # through .path, but a WARM WORKSPACE runs cloud jobs as `dev`, whose PATH is /usr/local/bin plus the
+  # system dirs - there a runner-scoped uv is invisible. That is exactly how every frontier gate ended up
+  # bootstrapping its own copy into $HOME on every job (measured 2026-11-25: `uv 0.13.10` + "Installed 17
+  # packages" inside a job whose whole purpose was to measure a rank, and `scripts/cloud-gate.sh` carries a
+  # comment saying the image has no uv). One shared install serves root, the runner and every workspace user.
+  curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin UV_NO_MODIFY_PATH=1 sh >/dev/null || fail
+  /usr/local/bin/uv --version || fail
+  # The interpreter is shared for the same reason: UV_PYTHON_INSTALL_DIR defaults to
+  # ~/.local/share/uv/python, i.e. per user, so `uv run` on a 3.12/3.13 repo would download its own copy
+  # for the runner and again for every workspace user. 1777 so a job can still install a version this
+  # bake did not pin. /etc/environment covers PAM logins, the profile.d drop-in login shells (what a
+  # workspace job gets), and $R/.env the CI runner's job steps.
+  install -d -m 1777 /opt/uv-python
+  UV_PYTHON_INSTALL_DIR=/opt/uv-python /usr/local/bin/uv python install 3.12 3.13 >/dev/null || fail
+  printf 'UV_PYTHON_INSTALL_DIR=%s\n' /opt/uv-python >> /etc/environment
+  printf 'UV_PYTHON_INSTALL_DIR=%s\n' /opt/uv-python >> "$R/.env"
+  printf 'export UV_PYTHON_INSTALL_DIR=%s\n' /opt/uv-python > /etc/profile.d/devcloud-uv.sh
+  echo "::python uv=$(/usr/local/bin/uv --version) interpreters=[$(UV_PYTHON_INSTALL_DIR=/opt/uv-python /usr/local/bin/uv python list --only-installed 2>/dev/null | awk '{print $1}' | tr '\n' ' ')]"
 fi
 
 if has flutter; then
