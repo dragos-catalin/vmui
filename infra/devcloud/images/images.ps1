@@ -5,12 +5,14 @@
   pwsh -NoProfile -File infra/devcloud/images/images.ps1 -BootTest node24                            # boot the family, time "runner ready"
   pwsh -NoProfile -File infra/devcloud/images/images.ps1 -Schedule                                   # weekly Cloud Scheduler -> Cloud Build rebake of all families
   pwsh -NoProfile -File infra/devcloud/images/images.ps1 -RunNow                                     # trigger the scheduled rebake once
+  pwsh -NoProfile -File infra/devcloud/images/images.ps1 -VerifySchedule                             # compare the DEPLOYED rebake with build.json (read-only, exit 1 on drift)
   Toolchains: node24 android-jdk21 rust-tauri-linux rust-tauri-win python-uv flutter polyglot (layers: image-setup.sh),
   win-desktop (DC-051: Windows Server 2025, image-setup-win.ps1; -BootTest win-desktop boots c4d-standard-16 + ps1 probe).
   Bake VMs have no service account; node24/polyglot warm the pnpm store from the codai lockfile
   (local -Lock, or fetched with the devcloud-runners App = needs Contents: read).
 #>
 param([string]$Bake, [string]$Lock, [string]$Workspace, [switch]$List, [string]$BootTest, [switch]$Schedule, [switch]$RunNow,
+  [switch]$VerifySchedule,
   [string]$Project = 'codai-training', [string]$Control = 'dragos-devcloud', [string]$Region = 'europe-west4',
   [string]$Cron = '30 1 * * 0')
 $ErrorActionPreference = 'Stop'
@@ -109,6 +111,15 @@ sleep 2; shutdown -h now
     }
     'BOOT-TEST TIMEOUT'; exit 1
   } finally { & gcloud compute instances delete $vm --project $Project --zone "$Region-a" --quiet 2>&1 | Out-Null; "deleted $vm" }
+}
+
+# Read-only: the deployed body is a copy of build.json, so it can drift from it
+# silently (two families went 1000 h unrebaked that way, 2026-11-25). One
+# implementation, in check-schedule-drift.ps1, so the report cannot disagree with
+# itself.
+if ($VerifySchedule) {
+  & pwsh -NoProfile -File (Join-Path $here 'check-schedule-drift.ps1') -Project $Project -Control $Control -Region $Region
+  exit $LASTEXITCODE
 }
 
 if ($Schedule -or $RunNow) {
