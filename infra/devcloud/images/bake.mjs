@@ -6,6 +6,8 @@
 //   node bake.mjs --toolchain node24 [--lock pnpm-lock.yaml --workspace pnpm-workspace.yaml] [--keep 3] [--dry-run]
 // Throwaway bake VM (Spot, no service account) runs image-setup.sh, powers off; its disk becomes
 // image devcloud-ci-<tc>-<UTC stamp>; the VM is deleted; images beyond --keep in the family are deleted.
+// A killed bake never reaches that delete, so every bake first reaps `purpose=ci-bake` VMs that are no
+// longer active (--no-sweep skips it).
 // Credentials: metadata server (Cloud Build / Cloud Run) or `gcloud auth print-access-token` locally.
 // Without --lock (Cloud Build), the codai lockfile comes from GitHub with the devcloud-runners App
 // (needs Contents: read) — secrets read from Secret Manager, never printed.
@@ -141,6 +143,37 @@ export function imagesToDelete(images, keep) {
     .sort((a, b) => Date.parse(b.creationTimestamp) - Date.parse(a.creationTimestamp)).slice(keep).map((i) => i.name);
 }
 
+/**
+ * Bake VMs a dead bake process left behind. `main` deletes its VM in a `finally`, which never runs when
+ * the process is killed (a shell cancelled mid-bake, Spot preemption, an OOM), so the leftover keeps its
+ * 100-150 GB boot disk in TERMINATED state and quietly accumulates (found 2026-11-25: one bake VM left
+ * TERMINATED by an aborted run). Only instances labelled `purpose=ci-bake` are candidates, and only ones
+ * no longer doing anything - a RUNNING bake, or any other agent's VM, is never touched.
+ */
+export function orphanBakeVms(items, nowMs = Date.now(), minAgeMin = 10) {
+  const active = /^(RUNNING|PROVISIONING|STAGING|REPAIRING|SUSPENDING)$/;
+  const ageMin = (i) => { const t = Date.parse(i.creationTimestamp || ''); return Number.isFinite(t) ? (nowMs - t) / 60000 : Infinity; };
+  return (items || [])
+    .filter((i) => (i.labels || {}).purpose === 'ci-bake' && !active.test(String(i.status)))
+    .filter((i) => ageMin(i) > minAgeMin)
+    .map((i) => ({ name: String(i.name), zone: String(i.zone || '').split('/').pop(), status: String(i.status) }));
+}
+
+/** Delete the orphans `orphanBakeVms` finds. Never throws: a sweep that cannot list must not stop a bake. */
+async function sweepOrphanBakeVms() {
+  const r = await gapi(C(`aggregated/instances?filter=${encodeURIComponent('labels.purpose = ci-bake')}`));
+  if (!r.ok) { log('bake.sweep.failed', { status: r.status }); return []; }
+  const items = [];
+  for (const [zone, v] of Object.entries(r.body.items || {})) for (const i of (v.instances || [])) items.push({ ...i, zone: i.zone || `zones/${zone}` });
+  const gone = [];
+  for (const o of orphanBakeVms(items)) {
+    const d = await gapi(C(`zones/${o.zone}/instances/${o.name}`), { method: 'DELETE' });
+    log('bake.orphan.reaped', { vm: o.name, zone: o.zone, status: o.status, ok: d.ok || d.status === 404 });
+    gone.push(o.name);
+  }
+  return gone;
+}
+
 // ---------- bake ----------
 async function main() {
   const tc = TOOLCHAINS[CFG.toolchain];
@@ -180,6 +213,10 @@ async function main() {
   if (flag('dry-run')) { log('bake.dry-run'); return; }
 
   const t0 = Date.now();
+  if (!flag('no-sweep')) {
+    const reaped = await sweepOrphanBakeVms();
+    if (reaped.length) log('bake.sweep', { reaped });
+  }
   let zone = null; const attempts = [];
   for (const model of ['SPOT', 'STANDARD']) {
     for (const z of CFG.zones) {
