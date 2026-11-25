@@ -31,6 +31,21 @@ and gets no ubuntu-latest fallback (brivio did that 2026-10-12..14 while its org
 information to an org shares only the address, the card must be added on the org's own payment page). Job `services:`
 containers work: Docker is in every image (DC-045).
 
+caelia (org `dragos-catalin`, 2026-11-25) is the second such repo and the first Windows one. Its org's GitHub
+Actions minutes are exhausted, so every GitHub-hosted job fails before its first step ("The job was not
+started because recent account payments have failed or your spending limit needs to be increased"; run
+45530189086, 0 steps in 4 s) - while a probe job with a devcloud label still reached `queued`, which proved
+that only HOSTED jobs are blocked. All five CI jobs therefore name their label set directly (no fallback
+expression, and caelia is deliberately absent from `-FallbackVarRepos`): `[self-hosted,
+devcloud-win-flutter-16, devcloud-win-flutter]` for verify/dart-tests/build-windows/perf-gate and
+`[self-hosted, devcloud-linux-16, devcloud-android-jdk21]` for build-android. Every job carries a
+`timeout-minutes`, so a VM that never appears is a fast explicit red instead of an hours-long `queued`.
+
+Windows toolchains: `devcloud-win-desktop` (MSVC/Rust/WebView2/Chrome, family `devcloud-ci-win-desktop`)
+and `devcloud-win-flutter` = win-desktop + Flutter (family `devcloud-ci-win-flutter`, baked 2026-11-25:
+Flutter 3.47.3 stable from the official zip into `C:\flutter`, machine-wide `FLUTTER_ROOT`, `precache
+--windows`; the image is a superset of win-desktop, so a Flutter repo also gets the Tauri/desktop stack).
+
 ## No gate job: repo variable DEVCLOUD_FALLBACK (DC-046)
 
 A repo listed in the controller's `FALLBACK_VAR_REPOS` (brivio since 2026-10-14) has no hosted gate job at all:
