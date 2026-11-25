@@ -112,6 +112,21 @@ $img = if ($Image) { @('--image-family', $Image, '--image-project', $Project) } 
 
 $exists = & gcloud compute instances describe $name --zone $Zone --project $Project --format='value(status)' 2>$null
 if (-not $exists) {
+  # A recreated VM starts with an EMPTY workspace, but the delta state in GCS still names the commits
+  # the OLD disk already had, so the first cloud run dies with "Repository lacks these prerequisite
+  # commits" (hit 2026-11-25 right after recreating ws-caelia from a new bake). The shas are a cache of
+  # the disk, not data: empty them so the next run ships a full bundle. This runs BEFORE the create on
+  # purpose - doing it after left a window in which a run that was already queued read the stale list
+  # (measured: the create returns RUNNING, the reset needs another ~1 min of gcloud calls, and the run
+  # launched in that minute still bundled "base known" against commits the fresh disk never had).
+  foreach ($uri in @(& gcloud storage ls "gs://$bucket/ws/$Ws/repos/*.json" 2>$null | Where-Object { $_ -match '\.json$' })) {
+    $repoName = [IO.Path]::GetFileNameWithoutExtension($uri.TrimEnd('/'))
+    $tmpSel = [IO.Path]::GetTempFileName()
+    [IO.File]::WriteAllText($tmpSel, ('{"repo":"' + $repoName + '","shas":[],"host":"reset-on-create"}'), [Text.UTF8Encoding]::new($false))
+    & gcloud storage cp $tmpSel $uri.TrimEnd('/') --quiet 2>&1 | Out-Null
+    Remove-Item $tmpSel -Force
+    "reset bundle base for $repoName (the fresh disk has no commits)"
+  }
   G compute instances create $name --project $Project --zone $Zone --machine-type $Machine `
     @img `
     --boot-disk-type hyperdisk-balanced --boot-disk-size "${BootGb}GB" --boot-disk-auto-delete `
@@ -121,18 +136,6 @@ if (-not $exists) {
     --labels "app=devcloud,ws=$Ws,os=$Os,reaper=keep,kind=$(if ($Interactive) { 'devbox' } else { 'runner' })" --shielded-secure-boot --shielded-vtpm `
     --reservation-affinity none --max-run-duration "$($MaxRunHours)h" --instance-termination-action STOP | Out-Null
   "created $name ($Os, $Machine, $Zone, max-run $($MaxRunHours) h STOP)"
-  # A recreated VM starts with an EMPTY workspace, but the delta state in GCS still names the commits
-  # the OLD disk already had, so the first cloud run dies with "Repository lacks these prerequisite
-  # commits" (hit 2026-11-25 right after recreating ws-caelia from a new bake). The shas are a cache of
-  # the disk, not data: overwrite them with an empty list so the next run ships a full bundle.
-  foreach ($uri in @(& gcloud storage ls "gs://$bucket/ws/$Ws/repos/*.json" 2>$null | Where-Object { $_ -match '\.json$' })) {
-    $repoName = [IO.Path]::GetFileNameWithoutExtension($uri.TrimEnd('/'))
-    $tmpSel = [IO.Path]::GetTempFileName()
-    [IO.File]::WriteAllText($tmpSel, ('{"repo":"' + $repoName + '","shas":[],"host":"reset-on-create"}'), [Text.UTF8Encoding]::new($false))
-    & gcloud storage cp $tmpSel $uri.TrimEnd('/') --quiet 2>&1 | Out-Null
-    Remove-Item $tmpSel -Force
-    "reset bundle base for $repoName (the fresh disk has no commits)"
-  }
 } else {
   G compute instances add-metadata $name --zone $Zone --project $Project --metadata $meta --metadata-from-file $metaFiles | Out-Null
   "metadata updated on $name ($exists)"
