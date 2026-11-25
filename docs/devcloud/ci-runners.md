@@ -85,6 +85,27 @@ GitHub has no `runs-on` fallback, so the workflow decides in its gate job:
 | `devcloud-ci-python-uv`        | node24 + uv + CPython 3.12                                                                    | Python services       |
 | `devcloud-ci-flutter`          | android-jdk21 + Flutter stable                                                                | caelia                |
 | `devcloud-ci-polyglot`         | all of the above + warm store                                                                 | ad-hoc                |
+| `devcloud-ci-win-flutter`      | Windows 2025 + Git, Node 24, pnpm, pwsh 7, gh, rg, 7zip, CMake, NASM, Chrome, WebView2, Flutter stable, JDK 21 (Adoptium zip) + Android SDK (platform/build-tools 35 36), VS Build Tools, Rust (DC-071) | caelia `ci.yml` (verify, dart tests, build Windows, perf) |
+
+### Which label picks which image (verified 2026-11-25)
+
+`pickProfile()` resolves the machine from the first `runs-on` label that is a `PROFILES` key
+(`devcloud-linux-4/16/32`, `devcloud-win-16`, `devcloud-win-flutter-16`), then the toolchain from the
+label whose `devcloud-` prefix stripped is in `TOOLCHAINS` **and whose OS matches the profile's**
+(`TOOLCHAIN_OS` maps only `win-desktop` / `win-flutter` to Windows). The image family is then
+`devcloud-ci-<toolchain>`, so:
+
+| labels in `runs-on`                                  | image family                    |
+| ---------------------------------------------------- | ------------------------------- |
+| `self-hosted, devcloud-linux-16, devcloud-android-jdk21` | `devcloud-ci-android-jdk21` |
+| `self-hosted, devcloud-win-flutter-16, devcloud-win-flutter` | `devcloud-ci-win-flutter` |
+| `self-hosted, devcloud-win-16`                        | `devcloud-ci-win-desktop` (profile default) |
+
+Two consequences worth knowing before writing a workflow: a **misspelled label is a silent hang** (no
+profile matches, no runner is ever created, and GitHub applies `timeout-minutes` only once a job starts),
+and a **Linux job that needs Flutter must install it itself** (`subosito/flutter-action`) because the
+`android-jdk21` image ships the JDK and the Android SDK, not Flutter — the `flutter` toolchain layer is a
+separate family. `base` (every family) already has pwsh + gh, so `shell: pwsh` works on Linux too.
 
 ```powershell
 pwsh -NoProfile -File infra/devcloud/images/images.ps1 -List              # newest image per family
