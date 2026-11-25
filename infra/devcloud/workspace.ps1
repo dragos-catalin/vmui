@@ -18,6 +18,11 @@
   300 GB hyperdisk-balanced, metadata windows-startup-script-ps1 (agentq cloud/workspace-startup.ps1)
   + runner-agent. -UpdateAgent on Windows only rewrites metadata: the idle agent adopts it within ~60 s.
 
+  DC-071 Flutter-capable Windows workspace (caelia: dart tests, Windows desktop build, integration tests):
+  pwsh -NoProfile -File infra/devcloud/workspace.ps1 -Ws caelia -Os windows -Image devcloud-ci-win-flutter -BootGb 200
+  -> the win-flutter family ships Flutter 3.47.3 (FLUTTER_ROOT, precache --windows) and, since the
+  --android bake, JDK 21 + the Android SDK, so `flutter build apk` also works there.
+
   devbox (interactive dev machine, 2026-10-19; DEVBOX-DESIGN.md D1/D2): VS Code Remote-SSH / codai desktop attach
   to it; the agent never suspends while a login session (`who`) or load > 1.0 is present, else after -IdleMin.
   pwsh -NoProfile -File infra/devcloud/workspace.ps1 -Ws devbox -Interactive -Machine c4d-standard-32 -BootGb 500 -IdleMin 30
@@ -32,6 +37,8 @@ param(
   [string]$Ws = 'codai', [string]$Project = 'codai-training', [string]$Zone = 'europe-west4-a',
   [string]$CtlProject = 'dragos-devcloud', [ValidateSet('linux', 'windows')][string]$Os = 'linux',
   [string]$Machine = '', [int]$BootGb = 300, [int]$Iops = 24000, [int]$ThroughputMb = 1000, [int]$IdleMin = 15,
+  # image family override in -Project (DC-071: caelia needs Flutter -> devcloud-ci-win-flutter, not win-desktop)
+  [string]$Image = '',
   [string]$AgentDir = 'E:\gh\agentq\cloud', [switch]$Status, [switch]$Delete, [switch]$UpdateAgent,
   # service account id in -Project (default devcloud-ws, shared by codai + vitals-win)
   [string]$Sa = 'devcloud-ws',
@@ -101,7 +108,7 @@ $meta = '^@^' + ($meta -replace ',', '@') + "@devcloud-toolchains=$Toolchains@de
 if ($Interactive) { $meta += '@devcloud-interactive=1@devcloud-busy-load=1.0' }
 $startupKey = if ($Os -eq 'windows') { 'windows-startup-script-ps1' } else { 'startup-script' }
 $metaFiles = "$startupKey=$mdFile\$startup,runner-agent=$mdFile\runner-agent.mjs"
-$img = if ($Os -eq 'windows') { @('--image-family', 'devcloud-ci-win-desktop', '--image-project', $Project) } else { @('--image-family', 'ubuntu-2404-lts-amd64', '--image-project', 'ubuntu-os-cloud') }
+$img = if ($Image) { @('--image-family', $Image, '--image-project', $Project) } elseif ($Os -eq 'windows') { @('--image-family', 'devcloud-ci-win-desktop', '--image-project', $Project) } else { @('--image-family', 'ubuntu-2404-lts-amd64', '--image-project', 'ubuntu-os-cloud') }
 
 $exists = & gcloud compute instances describe $name --zone $Zone --project $Project --format='value(status)' 2>$null
 if (-not $exists) {
