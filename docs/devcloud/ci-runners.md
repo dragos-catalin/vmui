@@ -171,6 +171,16 @@ claims the old disk had `HEAD`, and the first run dies with
 when it **creates** an instance (the shas are a cache of the disk, not data), so the next run ships a full
 bundle. Seen live 2026-11-25 right after recreating `ws-caelia` from a new bake.
 
+### Secrets a workspace needs
+
+`workspace.ps1 -SecretAccess 'project:secret;project:secret'` binds
+`roles/secretmanager.secretAccessor` for the workspace service account on those **individual** secrets, so a
+runner reads them with its metadata token and the Secret Manager REST API — no `gcloud` in the image, and no
+project-wide read. Caelia's signed release uses it for its upload keystore
+(`-SecretAccess 'dragos-devcloud:caelia-upload-keystore-b64;dragos-devcloud:caelia-upload-key-properties'`,
+read by `tool/devcloud_secrets.ps1`, documented in `E:\gh\caelia\docs\devcloud.md`). Recreating a workspace
+without that flag silently drops the runner's ability to sign.
+
 ## Turbo cache
 
 On a devcloud VM the verify job uses the self-hosted turbo cache (`vars.DEVCLOUD_TURBO_API` +
