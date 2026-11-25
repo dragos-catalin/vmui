@@ -1,0 +1,84 @@
+{
+  "$comment": [
+    "Single source for the devcloud CI runner images: what each family is, how it is baked, and",
+    "what a fresh image must prove. Read by infra/devcloud/images/check-images.ps1, which fails when",
+    "a family is missing (if required), carries the wrong toolchain label, lost a marker from its",
+    "description, or is older than maxAgeDays. Nothing here duplicates a version number on purpose -",
+    "the marker is the FACT ('flutter ', 'shorebird '), the version lives in bake.mjs defaults, so the",
+    "two cannot drift apart. Keep this file and bake.mjs TOOLCHAINS in step: a toolchain added there",
+    "and not declared here is invisible to the check."
+  ],
+  "project": "codai-training",
+  "warnAfterDays": 21,
+  "markersEveryImageHas": ["runner ", "pnpm "],
+  "images": {
+    "devcloud-ci-node24": {
+      "toolchain": "node24",
+      "os": "linux",
+      "bake": "node infra/devcloud/images/bake.mjs --toolchain node24 --lock pnpm-lock.yaml --workspace pnpm-workspace.yaml",
+      "carries": ["node 24 + pnpm 12", "github runner", "pnpm store warmed from the lockfile"],
+      "maxAgeDays": 45
+    },
+    "devcloud-ci-polyglot": {
+      "toolchain": "polyglot",
+      "os": "linux",
+      "bake": "node infra/devcloud/images/bake.mjs --toolchain polyglot --lock pnpm-lock.yaml --workspace pnpm-workspace.yaml",
+      "carries": ["node 24 + pnpm 12", "python + uv", "rust", "github runner"],
+      "maxAgeDays": 45
+    },
+    "devcloud-ci-android-jdk21": {
+      "toolchain": "android-jdk21",
+      "os": "linux",
+      "bake": "node infra/devcloud/images/bake.mjs --toolchain android-jdk21",
+      "carries": ["jdk 21", "android sdk + build-tools", "github runner"],
+      "maxAgeDays": 45
+    },
+    "devcloud-ci-flutter": {
+      "toolchain": "flutter",
+      "os": "linux",
+      "bake": "node infra/devcloud/images/bake.mjs --toolchain flutter",
+      "carries": ["flutter sdk", "jdk 21 + android sdk", "github runner"],
+      "$note": "No 'flutter ' marker: image-setup.sh installs the layer (LAYERS=\"base jdk android flutter\") but bake.mjs only names Flutter in the description for the Windows toolchain, so asserting it would fail on a correct image. Measured 2026-11-25 against devcloud-ci-flutter-202611220134. Make the description name its layers, then add the marker.",
+      "maxAgeDays": 45
+    },
+    "devcloud-ci-python-uv": {
+      "toolchain": "python-uv",
+      "os": "linux",
+      "bake": "node infra/devcloud/images/bake.mjs --toolchain python-uv",
+      "carries": ["python 3.12 + uv", "github runner"],
+      "maxAgeDays": 45
+    },
+    "devcloud-ci-rust-tauri-linux": {
+      "toolchain": "rust-tauri-linux",
+      "os": "linux",
+      "bake": "node infra/devcloud/images/bake.mjs --toolchain rust-tauri-linux",
+      "carries": ["rust toolchain", "tauri linux build deps (webkit2gtk, gtk)", "github runner"],
+      "maxAgeDays": 45
+    },
+    "devcloud-ci-rust-tauri-win": {
+      "toolchain": "rust-tauri-win",
+      "os": "windows",
+      "bake": "node infra/devcloud/images/bake.mjs --toolchain rust-tauri-win",
+      "carries": ["windows server 2025", "vs build tools", "rust toolchain", "github runner"],
+      "$note": "No 'Windows Server 2025' marker: the newest image predates that wording in the description (fail on the marker would be a false positive on a correct image). Age is what guards this family today.",
+      "maxAgeDays": 60
+    },
+    "devcloud-ci-win-desktop": {
+      "toolchain": "win-desktop",
+      "os": "windows",
+      "bake": "node infra/devcloud/images/bake.mjs --toolchain win-desktop",
+      "carries": ["windows server 2025", "vs build tools (VCTools + Windows 11 SDK 26100)", "rust toolchain", "chrome", "github runner"],
+      "markers": ["Windows Server 2025"],
+      "maxAgeDays": 60
+    },
+    "devcloud-ci-win-flutter": {
+      "toolchain": "win-flutter",
+      "os": "windows",
+      "bake": "node infra/devcloud/images/bake.mjs --toolchain win-flutter --android-sdk \"35 36\"",
+      "carries": ["windows server 2025", "vs build tools", "rust toolchain", "flutter 3.47.3 (windows desktop precached)", "android sdk 35 + 36 + jdk 21", "shorebird cli pinned", "github runner"],
+      "markers": ["Windows Server 2025", "flutter ", "shorebird "],
+      "required": true,
+      "maxAgeDays": 45
+    }
+  }
+}
