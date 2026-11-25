@@ -188,12 +188,14 @@ try {
     Step 'android'
     $sdkRoot = 'C:\Android\sdk'
     New-Item -ItemType Directory -Force $sdkRoot | Out-Null
-    Msi (Get-File 'https://aka.ms/download-jdk/microsoft-jdk-21-windows-x64.msi' "$TMP\jdk21.msi")
-    $jh = [Environment]::GetEnvironmentVariable('JAVA_HOME', 'Machine')
-    if (-not $jh -or -not (Test-Path (Join-Path $jh 'bin\java.exe'))) {
-      $cand = Get-ChildItem 'C:\Program Files\Microsoft\jdk-*' -Directory -ErrorAction SilentlyContinue | Select-Object -First 1
-      if ($cand) { $jh = $cand.FullName; [Environment]::SetEnvironmentVariable('JAVA_HOME', $jh, 'Machine') }
-    }
+    # JDK 21 from the Adoptium API as a ZIP: the `aka.ms` Microsoft MSI redirect resolved to a file msiexec
+    # refused (exit 1619, "installation package could not be opened") on the first attempt, and a ZIP needs no
+    # installer at all. The URL was verified to return a real archive (200, magic 'PK', 196 MB) before this.
+    Get-File 'https://api.adoptium.net/v3/binary/latest/21/ga/windows/x64/jdk/hotspot/normal/eclipse' "$TMP\jdk21.zip"
+    if (-not (Test-Path 'C:\Java')) { New-Item -ItemType Directory -Force 'C:\Java' | Out-Null }
+    Expand-Archive "$TMP\jdk21.zip" -DestinationPath 'C:\Java' -Force
+    $jh = (Get-ChildItem 'C:\Java' -Directory | Where-Object { Test-Path (Join-Path $_.FullName 'bin\java.exe') } | Select-Object -First 1).FullName
+    if ($jh) { [Environment]::SetEnvironmentVariable('JAVA_HOME', $jh, 'Machine') }
     if (-not $jh -or -not (Test-Path (Join-Path $jh 'bin\java.exe'))) { throw "JDK 21 not found after install (JAVA_HOME='$jh')" }
     AddPath (Join-Path $jh 'bin')
     Get-File 'https://dl.google.com/android/repository/commandlinetools-win-11076708_latest.zip' "$TMP\cmdtools.zip"
