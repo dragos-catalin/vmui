@@ -75,8 +75,8 @@
       "toolchain": "win-flutter",
       "os": "windows",
       "bake": "node infra/devcloud/images/bake.mjs --toolchain win-flutter --android-sdk \"35 36\"",
-      "carries": ["windows server 2025", "vs build tools", "rust toolchain", "flutter 3.47.3 (windows desktop precached)", "android sdk 35 + 36 + jdk 21", "shorebird cli pinned", "github runner"],
-      "markers": ["Windows Server 2025", "flutter ", "shorebird "],
+      "carries": ["windows server 2025", "vs build tools", "vs atl (atlbase.h - flutter_local_notifications_windows needs it)", "rust toolchain", "flutter 3.47.3 (windows desktop precached)", "android sdk 35 + 36 + jdk 21", "shorebird cli pinned", "github runner"],
+      "markers": ["Windows Server 2025", "VS ATL", "flutter ", "shorebird "],
       "required": true,
       "maxAgeDays": 45
     }

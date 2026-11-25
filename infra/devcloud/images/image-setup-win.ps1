@@ -274,12 +274,18 @@ try {
   }
 
   # VS 2022 Build Tools: MSVC x64 + Windows 11 SDK (what cargo's msvc target and Tauri need). 3010 = reboot wanted,
-  # not required before sysprep.
+  # not required before sysprep. ATL is not part of either workload and is easy to miss: Flutter's
+  # flutter_local_notifications_windows plugin includes <atlbase.h>, and without VC.ATL the Windows build of any
+  # Flutter app failed on the pool with
+  #   plugin.cpp(5,10): error C1083: Cannot open include file: 'atlbase.h': No such file or directory
+  # (measured 2026-11-25). It is one component (~200 MB) and the whole point of the image is that a build that
+  # works on the workstation works here too.
   Step 'vsbuildtools'
   Get-File 'https://aka.ms/vs/17/release/vs_buildtools.exe' "$TMP\vs_buildtools.exe"
   Run "$TMP\vs_buildtools.exe" @('--quiet', '--wait', '--norestart', '--nocache',
     '--add', 'Microsoft.VisualStudio.Workload.VCTools', '--add', 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64',
-    '--add', 'Microsoft.VisualStudio.Component.Windows11SDK.26100', '--includeRecommended') @(0, 3010)
+    '--add', 'Microsoft.VisualStudio.Component.Windows11SDK.26100', '--add', 'Microsoft.VisualStudio.Component.VC.ATL',
+    '--includeRecommended') @(0, 3010)
 
   Step 'rust'
   [Environment]::SetEnvironmentVariable('CARGO_HOME', 'C:\cargo', 'Machine')
