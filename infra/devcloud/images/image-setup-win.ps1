@@ -63,6 +63,9 @@ $FLUTTER_VER = MetaAttr 'flutter-version' ''
 $SHOREBIRD_VER = MetaAttr 'shorebird-version' ''
 # API level (e.g. 35) that bake --android requested, or '' when the image carries no Android toolchain.
 $ANDROID_API = MetaAttr 'android-sdk' ''
+# NDK version installed with the Android toolchain (read from the Flutter SDK, not hardcoded): '' until
+# the android block runs, and stays '' when there is no Flutter SDK to take it from.
+$ndkV = ''
 $TMP = 'C:\devcloud\tmp'
 New-Item -ItemType Directory -Force $TMP, 'C:\tools\bin' | Out-Null
 Say "::image-setup start toolchain=$TC $(Get-Date -Format o)"
@@ -263,6 +266,32 @@ try {
     foreach ($api in ($ANDROID_API -split '\s+')) { $need += @("platforms\android-$api\android.jar", "build-tools\$api.0.0\aapt2.exe") }
     $need += @('platforms\android-34\android.jar', 'build-tools\34.0.0\aapt2.exe', 'cmake\3.22.1\bin\cmake.exe')
     foreach ($rel in $need) { if (-not (Test-Path (Join-Path $sdkRoot $rel))) { throw "android: missing $rel under $sdkRoot" } }
+    # The NDK. caelia's build.gradle.kts sets `ndkVersion = flutter.ndkVersion`, which AGP resolves at BUILD
+    # time: without the NDK on the image, the first `flutter build apk` on a cold VM downloads and unpacks
+    # ~700 MB before it can link anything. Measured on the pool 2026-11-25: "Unzipping android-ndk-r28c/..."
+    # ran INSIDE a job whose only purpose was to build an APK, so every fresh VM paid it again.
+    # The version is not hardcoded here for the same reason bake.mjs never writes version numbers: Flutter
+    # pins it in its own Gradle plugin, so reading it there means a Flutter bump cannot desync the image
+    # from what the build asks for. No Flutter SDK -> no NDK (the only consumer of it is a Flutter build).
+    if ($FLUTTER_VER) {
+      $ext = 'C:\flutter\packages\flutter_tools\gradle\src\main\kotlin\FlutterExtension.kt'
+      if (Test-Path $ext) {
+        $m = [regex]::Match((Get-Content $ext -Raw), 'val\s+ndkVersion\s*:\s*String\s*=\s*"([^"]+)"')
+        if ($m.Success) { $ndkV = $m.Groups[1].Value }
+      }
+      if (-not $ndkV) { throw "android: could not read Flutter's pinned ndkVersion from $ext" }
+      $ndkPkg = "ndk;$ndkV"
+      $ndkOut = 1..40 | ForEach-Object { 'y' } | & $sm "--sdk_root=$sdkRoot" $ndkPkg 2>&1
+      if ($LASTEXITCODE) { throw "sdkmanager exit $LASTEXITCODE for $ndkPkg`n$($ndkOut | Select-Object -Last 6 | Out-String)" }
+      $ndkHome = Join-Path $sdkRoot "ndk\$ndkV"
+      foreach ($rel in @('source.properties', 'toolchains\llvm\prebuilt\windows-x86_64\bin\clang.exe')) {
+        if (-not (Test-Path (Join-Path $ndkHome $rel))) { throw "android: missing ndk $rel under $ndkHome" }
+      }
+      [Environment]::SetEnvironmentVariable('ANDROID_NDK_HOME', $ndkHome, 'Machine')
+      [Environment]::SetEnvironmentVariable('ANDROID_NDK_ROOT', $ndkHome, 'Machine')
+      $env:ANDROID_NDK_HOME = $ndkHome; $env:ANDROID_NDK_ROOT = $ndkHome
+      Say "::android ndk=$ndkV at $ndkHome"
+    }
     AddPath "$sdkRoot\cmdline-tools\latest\bin"
     AddPath "$sdkRoot\platform-tools"
     if ($FLUTTER_VER) {
@@ -270,7 +299,7 @@ try {
       & flutter precache --android
     }
     Remove-Item "$TMP\cmdtools.zip" -Force
-    Say "::android ready api=$ANDROID_API javaHome=$jh adb=$sdkRoot\platform-tools\adb.exe"
+    Say "::android ready api=$ANDROID_API javaHome=$jh ndk=$ndkV adb=$sdkRoot\platform-tools\adb.exe"
   }
 
   # VS 2022 Build Tools: MSVC x64 + Windows 11 SDK (what cargo's msvc target and Tauri need). 3010 = reboot wanted,
@@ -327,6 +356,7 @@ try {
   if ($FLUTTER_VER) { $v['flutter'] = ((& flutter --version) | Select-Object -First 1) }
   if ($SHOREBIRD_VER) { $v['shorebird'] = ((& shorebird --version) | Select-Object -Last 1) }
   if ($ANDROID_API) { $v['androidApi'] = $ANDROID_API; $v['javaHome'] = $jh }
+  if ($ndkV) { $v['ndk'] = $ndkV }
   foreach ($k in $v.Keys) { Say "::ver $k=$($v[$k])"; if (-not $v[$k]) { throw "no version for $k" } }
 
   Step 'cleanup'
@@ -336,6 +366,7 @@ try {
   if ($FLUTTER_VER) { $img['flutter'] = $FLUTTER_VER }
     if ($SHOREBIRD_VER) { $img['shorebird'] = $SHOREBIRD_VER }
   if ($ANDROID_API) { $img['android'] = $ANDROID_API }
+  if ($ndkV) { $img['ndk'] = $ndkV }
   New-Item -ItemType Directory -Force 'C:\devcloud' | Out-Null
   Set-Content -Path 'C:\devcloud\image.json' -Value ($img | ConvertTo-Json -Compress) -Encoding ascii
   New-Item -ItemType File -Force 'C:\devcloud\baked' | Out-Null

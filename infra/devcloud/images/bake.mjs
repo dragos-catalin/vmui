@@ -27,9 +27,9 @@ export const TOOLCHAINS = {
   'android-jdk21': { diskGb: 40, store: false },
   'rust-tauri-linux': { diskGb: 40, store: false },
   'rust-tauri-win': { diskGb: 50, store: false },
-  'python-uv': { diskGb: 30, store: false },
+  'python-uv': { diskGb: 30, store: false, python: true },
   flutter: { diskGb: 50, store: false },
-  polyglot: { diskGb: 64, store: true },
+  polyglot: { diskGb: 64, store: true, python: true },
   // Windows: stock image is 50 GB; VS Build Tools + SDK + Rust + Chrome ~ 25 GB more. CI disk is 150 GB.
   'win-desktop': { diskGb: 100, store: false, os: 'windows', maxMin: 120 },
   // win-desktop + Flutter (~2.5 GB extracted) + a caelia build dir: 150 GB.
@@ -277,7 +277,7 @@ async function main() {
       ...(tc.os === 'windows' ? { guestOsFeatures: [{ type: 'WINDOWS' }, { type: 'UEFI_COMPATIBLE' }, { type: 'VIRTIO_SCSI_MULTIQUEUE' }, { type: 'GVNIC' }, { type: 'MULTI_IP_SUBNET' }] } : {}),
       // The ATL and shorebird fragments are FACTS a check can assert (images.json markers) - a
       // duplicate description key silently dropped the shorebird one once, so keep exactly one.
-      description: `devcloud CI runner image (${CFG.toolchain}); runner ${CFG.runnerVersion}, pnpm ${CFG.pnpmVersion}${tc.os === 'windows' ? `, rust ${CFG.rustToolchain}, Windows Server 2025, VS ATL` : ''}${tc.flutter ? `, flutter ${CFG.flutterVersion}` : ''}${tc.shorebird ? `, shorebird ${CFG.shorebirdVersion}` : ''}${lockSha ? `, pnpm store warmed from lock ${lockSha}` : ''}`,
+      description: `devcloud CI runner image (${CFG.toolchain}); runner ${CFG.runnerVersion}, pnpm ${CFG.pnpmVersion}${tc.python ? ', uv (astral)' : ''}${tc.os === 'windows' ? `, rust ${CFG.rustToolchain}, Windows Server 2025, VS ATL` : ''}${tc.flutter ? `, flutter ${CFG.flutterVersion}` : ''}${tc.shorebird ? `, shorebird ${CFG.shorebirdVersion}` : ''}${CFG.androidSdk ? `, android sdk ${CFG.androidSdk}${tc.flutter ? ', ndk (flutter-pinned)' : ''}` : ''}${lockSha ? `, pnpm store warmed from lock ${lockSha}` : ''}`,
     };
     const r = await gapi(C('global/images'), { method: 'POST', body: JSON.stringify(img) });
     if (!r.ok) throw new Error(`image create ${r.status}: ${r.body.error?.message || ''}`);
