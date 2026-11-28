@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "repo": "vmui",
+  "trackers": [
+    {
+      "id": "devcloud",
+      "file": "docs/devcloud/TRACKER.csv",
+      "format": "csv",
+      "columns": {
+        "id": "id",
+        "title": "title",
+        "status": "status",
+        "group": "phase",
+        "evidence": "evidence",
+        "notes": "notes"
+      },
+      "idPattern": "^DC-\\d{3}$",
+      "status": {
+        "map": {
+          "done": "done",
+          "in-progress": "in-progress",
+          "todo": "todo"
+        }
+      },
+      "index": {
+        "kind": "plan",
+        "order": 1
+      }
+    },
+    {
+      "id": "ui",
+      "file": "docs/ui/TRACKER.csv",
+      "format": "csv",
+      "columns": {
+        "id": "id",
+        "title": "issue",
+        "status": "status",
+        "evidence": "evidence"
+      },
+      "idPattern": "^(SH|HM|VM|DK|BR|MO|PF|QA)-\\d{2}$",
+      "status": {
+        "map": {
+          "fixed": "done",
+          "wontfix": "dropped"
+        }
+      },
+      "index": {
+        "kind": "audit",
+        "order": 2
+      }
+    },
+    {
+      "id": "desktop",
+      "file": "docs/desktop/TRACKER.csv",
+      "format": "csv",
+      "columns": {
+        "id": "id",
+        "title": "item",
+        "status": "status",
+        "group": "area",
+        "evidence": "evidence",
+        "notes": "notes"
+      },
+      "idPattern": "^D-\\d{3}$",
+      "status": {
+        "map": {
+          "works": "done"
+        }
+      },
+      "index": {
+        "kind": "plan",
+        "order": 3
+      }
+    },
+    {
+      "id": "product",
+      "file": "docs/product/TRACKER.csv",
+      "format": "csv",
+      "columns": {
+        "id": "id",
+        "title": "item",
+        "status": "status",
+        "group": "phase",
+        "evidence": "evidence",
+        "notes": "notes"
+      },
+      "idPattern": "^(P\\d{1,2}-\\d{2}|X-\\d{2})$",
+      "status": {
+        "map": {
+          "done": "done",
+          "partial": "in-progress",
+          "todo": "todo",
+          "deferred": "deferred"
+        }
+      },
+      "index": {
+        "kind": "plan",
+        "order": 4
+      }
+    }
+  ]
+}
